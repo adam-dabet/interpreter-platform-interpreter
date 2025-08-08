@@ -1,0 +1,469 @@
+const db = require('../config/database');
+const loggerService = require('../services/loggerService');
+
+class Interpreter {
+    static async create(interpreterData) {
+        const {
+            // Personal Information
+            first_name,
+            last_name,
+            middle_name = null,
+            email,
+            phone,
+            date_of_birth = null,
+            gender = null,
+            
+            // Address Information
+            street_address,
+            street_address_2 = null,
+            city,
+            state_id,
+            zip_code,
+            county = null,
+            formatted_address = null,
+            latitude = null,
+            longitude = null,
+            place_id = null,
+            
+            // Professional Information
+            years_of_experience = 0,
+            hourly_rate = null,
+            availability_notes = null,
+            bio = null,
+            
+            // Arrays
+            languages = [],
+            service_types = [],
+            certificates = [],
+            
+            // Metadata
+            created_by = null
+        } = interpreterData;
+
+        const client = await db.pool.connect();
+        
+        try {
+            await client.query('BEGIN');
+            
+            // Insert main interpreter profile
+            const interpreterResult = await client.query(`
+                INSERT INTO interpreters (
+                    first_name, last_name, middle_name, email, phone, date_of_birth, gender,
+                    street_address, street_address_2, city, state_id, zip_code, county,
+                    formatted_address, latitude, longitude, place_id,
+                    years_of_experience, hourly_rate, availability_notes, bio,
+                    profile_status, created_by
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+                RETURNING id, created_at
+            `, [
+                first_name, last_name, middle_name, email, phone, date_of_birth, gender,
+                street_address, street_address_2, city, parseInt(state_id), zip_code, county,
+                formatted_address, latitude, longitude, place_id,
+                years_of_experience, hourly_rate, availability_notes, bio,
+                'pending', created_by
+            ]);
+
+            const interpreterId = interpreterResult.rows[0].id;
+            const createdAt = interpreterResult.rows[0].created_at;
+
+            // Insert languages
+            for (const language of languages) {
+                await client.query(`
+                    INSERT INTO interpreter_languages (
+                        interpreter_id, language_id, proficiency_level, is_primary
+                    ) VALUES ($1, $2, $3, $4)
+                `, [
+                    interpreterId, // Use UUID directly
+                    language.language_id, // This should be a UUID from the languages table
+                    language.proficiency_level,
+                    language.is_primary || false
+                ]);
+            }
+
+            // Insert service types
+            for (const serviceTypeId of service_types) {
+                // Service types table uses INTEGER ids, so always convert to integer
+                const formattedServiceTypeId = parseInt(serviceTypeId);
+                
+                await client.query(`
+                    INSERT INTO interpreter_service_types (interpreter_id, service_type_id)
+                    VALUES ($1, $2)
+                `, [interpreterId, formattedServiceTypeId]);
+            }
+
+            // Insert certificates (if any)
+            for (const certificate of certificates) {
+                // Certificate types table uses INTEGER ids, so always convert to integer
+                const formattedCertificateTypeId = parseInt(certificate.certificate_type_id);
+                
+                await client.query(`
+                    INSERT INTO interpreter_certificates (
+                        interpreter_id, certificate_type_id, certificate_number,
+                        issuing_organization, issue_date, expiry_date,
+                        file_path, file_name, file_size
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                `, [
+                    interpreterId,
+                    formattedCertificateTypeId,
+                    certificate.certificate_number || null,
+                    certificate.issuing_organization || null,
+                    certificate.issue_date || null,
+                    certificate.expiry_date || null,
+                    certificate.file_path || null,
+                    certificate.file_name || null,
+                    certificate.file_size || null
+                ]);
+            }
+
+            await client.query('COMMIT');
+
+            // Log the creation
+            await loggerService.info('Interpreter profile created', {
+                category: 'INTERPRETER',
+                interpreterId,
+                email,
+                languageCount: languages.length,
+                serviceTypeCount: service_types.length,
+                certificateCount: certificates.length
+            });
+
+            return {
+                id: interpreterId,
+                created_at: createdAt,
+                profile_status: 'draft'
+            };
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            await loggerService.error('Failed to create interpreter profile', error, {
+                category: 'INTERPRETER',
+                email
+            });
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
+    static async findById(id) {
+        try {
+            const query = `
+                SELECT 
+                    i.*,
+                    s.name as state_name,
+                    s.code as state_code,
+                    array_agg(DISTINCT jsonb_build_object(
+                        'language_id', il.language_id,
+                        'language_name', l.name,
+                        'language_code', l.code,
+                        'native_name', l.native_name,
+                        'proficiency_level', il.proficiency_level,
+                        'is_primary', il.is_primary
+                    )) FILTER (WHERE il.id IS NOT NULL) as languages,
+                    array_agg(DISTINCT jsonb_build_object(
+                        'service_type_id', ist.service_type_id,
+                        'service_type_name', st.name,
+                        'service_type_code', st.code,
+                        'service_type_description', st.description
+                    )) FILTER (WHERE ist.id IS NOT NULL) as service_types,
+                    array_agg(DISTINCT jsonb_build_object(
+                        'certificate_id', ic.id,
+                        'certificate_type_id', ic.certificate_type_id,
+                        'certificate_type_name', ct.name,
+                        'certificate_number', ic.certificate_number,
+                        'issuing_organization', ic.issuing_organization,
+                        'issue_date', ic.issue_date,
+                        'expiry_date', ic.expiry_date,
+                        'verification_status', ic.verification_status,
+                        'file_name', ic.file_name,
+                        'file_size', ic.file_size
+                    )) FILTER (WHERE ic.id IS NOT NULL) as certificates
+                FROM interpreters i
+                LEFT JOIN us_states s ON i.state_id = s.id
+                LEFT JOIN interpreter_languages il ON i.id = il.interpreter_id
+                LEFT JOIN languages l ON il.language_id = l.id
+                LEFT JOIN interpreter_service_types ist ON i.id = ist.interpreter_id
+                LEFT JOIN service_types st ON ist.service_type_id = st.id
+                LEFT JOIN interpreter_certificates ic ON i.id = ic.interpreter_id
+                LEFT JOIN certificate_types ct ON ic.certificate_type_id = ct.id
+                WHERE i.id = $1
+                GROUP BY i.id, s.name, s.code
+            `;
+
+            const result = await db.query(query, [id]);
+
+            if (result.rows.length === 0) {
+                return null;
+            }
+
+            return result.rows[0];
+
+        } catch (error) {
+            await loggerService.error('Failed to find interpreter by ID', error, {
+                category: 'INTERPRETER',
+                interpreterId: id
+            });
+            throw error;
+        }
+    }
+
+    static async findByEmail(email) {
+        try {
+            const result = await db.query(
+                'SELECT * FROM interpreters WHERE email = $1',
+                [email]
+            );
+
+            return result.rows[0] || null;
+
+        } catch (error) {
+            await loggerService.error('Failed to find interpreter by email', error, {
+                category: 'INTERPRETER',
+                email
+            });
+            throw error;
+        }
+    }
+
+    static async updateStatus(id, status, updatedBy, notes = null) {
+        try {
+            // For now, skip the updated_by field due to schema mismatch (UUID vs INTEGER)
+            // TODO: Fix schema to use consistent ID types
+            const result = await db.query(`
+                UPDATE interpreters 
+                SET profile_status = $1, updated_at = CURRENT_TIMESTAMP
+                WHERE id = $2
+                RETURNING *
+            `, [status, id]);
+
+            if (result.rows.length === 0) {
+                return null;
+            }
+
+            await loggerService.info('Interpreter status updated', {
+                category: 'INTERPRETER',
+                interpreterId: id,
+                newStatus: status,
+                updatedBy,
+                notes: notes || null
+            });
+
+            return result.rows[0];
+
+        } catch (error) {
+            await loggerService.error('Failed to update interpreter status', error, {
+                category: 'INTERPRETER',
+                interpreterId: id,
+                status
+            });
+            throw error;
+        }
+    }
+
+    static async update(id, updates) {
+        try {
+            const setClause = Object.keys(updates)
+                .map((key, index) => `${key} = $${index + 2}`)
+                .join(', ');
+
+            const result = await db.query(
+                `UPDATE interpreters SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
+                [id, ...Object.values(updates)]
+            );
+
+            if (result.rows.length === 0) {
+                return null;
+            }
+
+            await loggerService.info('Interpreter profile updated', {
+                category: 'INTERPRETER',
+                interpreterId: id,
+                updatedFields: Object.keys(updates)
+            });
+
+            return result.rows[0];
+
+        } catch (error) {
+            await loggerService.error('Failed to update interpreter', error, {
+                category: 'INTERPRETER',
+                interpreterId: id
+            });
+            throw error;
+        }
+    }
+
+    static async getAll(filters = {}, limit = 50, offset = 0) {
+        try {
+            const { status, language, service_type, state, search } = filters;
+            
+            let whereClause = 'WHERE 1=1';
+            const queryParams = [];
+            let paramCounter = 1;
+
+            if (status) {
+                whereClause += ` AND i.profile_status = $${paramCounter}`;
+                queryParams.push(status);
+                paramCounter++;
+            }
+
+            if (state) {
+                whereClause += ` AND i.state_id = $${paramCounter}`;
+                queryParams.push(parseInt(state)); // state_id is still an integer (references us_states)
+                paramCounter++;
+            }
+
+            if (language) {
+                whereClause += ` AND EXISTS (
+                    SELECT 1 FROM interpreter_languages il 
+                    WHERE il.interpreter_id = i.id AND il.language_id = $${paramCounter}::uuid
+                )`;
+                queryParams.push(language); // language should be a UUID string
+                paramCounter++;
+            }
+
+            if (service_type) {
+                whereClause += ` AND EXISTS (
+                    SELECT 1 FROM interpreter_service_types ist 
+                    WHERE ist.interpreter_id = i.id AND ist.service_type_id = $${paramCounter}
+                )`;
+                queryParams.push(parseInt(service_type)); // service_type should be an integer
+                paramCounter++;
+            }
+
+            if (search) {
+                whereClause += ` AND (
+                    LOWER(i.first_name || ' ' || i.last_name) LIKE LOWER($${paramCounter}) OR
+                    LOWER(i.email) LIKE LOWER($${paramCounter})
+                )`;
+                queryParams.push(`%${search}%`);
+                paramCounter++;
+            }
+
+            const query = `
+                SELECT 
+                    i.id, i.first_name, i.last_name, i.email, i.phone, i.city,
+                    s.name as state_name, i.years_of_experience, i.hourly_rate,
+                    i.profile_status, i.verification_status, i.created_at,
+                    COUNT(*) OVER() as total_count,
+                    COALESCE(
+                        STRING_AGG(DISTINCT l.name, ', ' ORDER BY l.name), 
+                        'N/A'
+                    ) as languages,
+                    COALESCE(
+                        STRING_AGG(DISTINCT st.name, ', ' ORDER BY st.name), 
+                        'N/A'
+                    ) as service_types
+                FROM interpreters i
+                LEFT JOIN us_states s ON i.state_id = s.id
+                LEFT JOIN interpreter_languages il ON i.id = il.interpreter_id
+                LEFT JOIN languages l ON il.language_id = l.id
+                LEFT JOIN interpreter_service_types ist ON i.id = ist.interpreter_id
+                LEFT JOIN service_types st ON ist.service_type_id = st.id
+                ${whereClause}
+                GROUP BY i.id, i.first_name, i.last_name, i.email, i.phone, i.city,
+                         s.name, i.years_of_experience, i.hourly_rate, i.profile_status, 
+                         i.verification_status, i.created_at
+                ORDER BY i.created_at DESC
+                LIMIT $${paramCounter} OFFSET $${paramCounter + 1}
+            `;
+
+            queryParams.push(limit, offset);
+            const result = await db.query(query, queryParams);
+
+            const totalCount = result.rows[0]?.total_count || 0;
+            const interpreters = result.rows.map(row => {
+                const { total_count, ...interpreter } = row;
+                return interpreter;
+            });
+
+            return {
+                interpreters,
+                totalCount: parseInt(totalCount),
+                hasMore: offset + limit < totalCount
+            };
+
+        } catch (error) {
+            await loggerService.error('Failed to get interpreters list', error, {
+                category: 'INTERPRETER',
+                filters
+            });
+            throw error;
+        }
+    }
+
+    static async getPendingProfiles(limit = 50, offset = 0) {
+        try {
+            const result = await db.query(`
+                SELECT 
+                    i.id,
+                    i.first_name || ' ' || i.last_name as interpreter_name,
+                    i.email,
+                    i.phone,
+                    i.created_at,
+                    i.years_of_experience,
+                    s.name as state_name,
+                    (
+                        SELECT string_agg(l.name, ', ')
+                        FROM interpreter_languages il
+                        JOIN languages l ON il.language_id = l.id
+                        WHERE il.interpreter_id = i.id
+                    ) as languages,
+                    (
+                        SELECT string_agg(st.name, ', ')
+                        FROM interpreter_service_types ist
+                        JOIN service_types st ON ist.service_type_id = st.id
+                        WHERE ist.interpreter_id = i.id
+                    ) as service_types,
+                    i.profile_status,
+                    EXTRACT(DAY FROM CURRENT_TIMESTAMP - i.created_at) as days_pending,
+                    (
+                        SELECT COUNT(*) FROM interpreter_certificates ic 
+                        WHERE ic.interpreter_id = i.id
+                    ) as certificate_count
+                FROM interpreters i
+                LEFT JOIN us_states s ON i.state_id = s.id
+                WHERE i.profile_status IN ('draft', 'pending', 'under_review')
+                ORDER BY i.created_at ASC
+                LIMIT $1 OFFSET $2
+            `, [limit, offset]);
+
+            return result.rows;
+
+        } catch (error) {
+            await loggerService.error('Failed to get pending interpreter profiles', error, {
+                category: 'INTERPRETER'
+            });
+            throw error;
+        }
+    }
+
+    static async getDashboardStats() {
+        try {
+            const statsQuery = `
+                SELECT 
+                    COUNT(*) FILTER (WHERE profile_status = 'pending') as pending_profiles,
+                    COUNT(*) FILTER (WHERE profile_status = 'under_review') as under_review,
+                    COUNT(*) FILTER (WHERE profile_status = 'draft') as draft_profiles,
+                    COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE - INTERVAL '7 days') as this_week_submissions,
+                    ROUND(
+                        (COUNT(*) FILTER (WHERE profile_status = 'approved')::numeric / 
+                         NULLIF(COUNT(*) FILTER (WHERE profile_status IN ('approved', 'rejected')), 0)) * 100, 2
+                    ) as approval_rate,
+                    ROUND(AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/3600), 1) as avg_review_time_hours
+                FROM interpreters 
+                WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+            `;
+            
+            const result = await db.query(statsQuery);
+            return result.rows[0];
+
+        } catch (error) {
+            await loggerService.error('Failed to get dashboard stats', error, {
+                category: 'INTERPRETER'
+            });
+            throw error;
+        }
+    }
+}
+
+module.exports = Interpreter;

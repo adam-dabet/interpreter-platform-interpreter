@@ -344,3 +344,4 @@ COMMENT ON VIEW available_jobs IS 'View of all open jobs available for assignmen
 COMMENT ON VIEW interpreter_jobs IS 'View of jobs assigned to specific interpreters';
 
 
+

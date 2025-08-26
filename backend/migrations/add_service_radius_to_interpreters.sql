@@ -18,3 +18,4 @@ WHERE service_radius_miles IS NULL;
 COMMENT ON COLUMN interpreters.service_radius_miles IS 'Service radius in miles for job matching based on location';
 
 
+

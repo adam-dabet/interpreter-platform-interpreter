@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const { body, validationResult } = require('express-validator');
 const { fileUploadLogger } = require('../middleware/logging');
+const { authenticateToken } = require('../middleware/auth');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -47,11 +48,11 @@ const interpreterValidation = [
     body('phone').isMobilePhone(),
     body('date_of_birth').optional().isDate(),
     body('street_address').trim().notEmpty().isLength({ min: 1, max: 255 }),
-    body('city').trim().notEmpty().isLength({ min: 1, max: 100 }),
-    body('state_id').isInt({ min: 1 }),
-    body('zip_code').matches(/^\d{5}(-\d{4})?$/),
+    body('city').optional().trim().isLength({ min: 1, max: 100 }),
+    body('state_id').optional().isInt({ min: 1 }),
+    body('zip_code').optional().matches(/^\d{5}(-\d{4})?$/),
     body('years_of_experience').optional().isInt({ min: 0, max: 50 }),
-    body('hourly_rate').optional().isDecimal({ decimal_digits: '0,2' }),
+    body('service_rates').optional().isJSON(),
     body('languages').custom((value) => {
         // Handle both string and array formats
         let languages;
@@ -114,15 +115,33 @@ const interpreterValidation = [
 ];
 
 // Create interpreter profile
-router.post('/', upload.array('certificates', 10), interpreterValidation, fileUploadLogger, interpreterController.createProfile);
+router.post('/', upload.fields([
+    { name: 'certificates', maxCount: 10 },
+    { name: 'w9_file', maxCount: 1 }
+]), interpreterValidation, fileUploadLogger, interpreterController.createProfile);
 
-// Get interpreter profile by ID
-router.get('/:id', interpreterController.getProfile);
+// Update interpreter profile (simplified validation for updates)
+const updateValidation = [
+    body('first_name').optional().trim().isLength({ min: 1, max: 100 }),
+    body('last_name').optional().trim().isLength({ min: 1, max: 100 }),
+    body('phone').optional().isMobilePhone(),
+    body('years_of_experience').optional().isInt({ min: 0, max: 50 }),
+    body('street_address').optional().trim().isLength({ min: 1, max: 255 }),
+    body('city').optional().trim().isLength({ min: 1, max: 100 }),
+    body('state_id').optional().isInt({ min: 1 }),
+    body('zip_code').optional().matches(/^\d{5}(-\d{4})?$/),
+    body('latitude').optional().isFloat({ min: -90, max: 90 }),
+    body('longitude').optional().isFloat({ min: -180, max: 180 }),
+    body('service_radius_miles').optional().isInt({ min: 1, max: 500 }),
+    body('hourly_rate').optional().isFloat({ min: 0 }),
+    body('bio').optional().trim().isLength({ max: 1000 }),
+    body('availability_notes').optional().trim().isLength({ max: 500 })
+];
+
+// Get interpreter profile
+router.get('/profile', authenticateToken, interpreterController.getProfile);
 
 // Update interpreter profile
-router.put('/:id', upload.array('certificates', 10), interpreterValidation, fileUploadLogger, interpreterController.updateProfile);
-
-// Get all interpreter profiles (with pagination and filtering)
-router.get('/', interpreterController.getAllProfiles);
+router.put('/profile', authenticateToken, updateValidation, interpreterController.updateProfile);
 
 module.exports = router;

@@ -51,4 +51,7 @@ router.post('/profiles/:profileId/reject',
   adminController.rejectProfile
 );
 
+// Delete profile route (protected)
+router.delete('/profiles/:profileId', authenticateToken, adminController.deleteProfile);
+
 module.exports = router;

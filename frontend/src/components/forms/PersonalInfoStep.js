@@ -6,7 +6,7 @@ import Input from '../ui/Input';
 import { personalInfoSchema } from '../../services/validationSchemas';
 import { formatPhoneNumber } from '../../utils/helpers';
 
-const PersonalInfoStep = ({ data, onNext, onUpdate, parametricData }) => {
+const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, parametricData }) => {
   // Ensure all form fields have proper default values to prevent uncontrolled to controlled warnings
   const defaultValues = {
     first_name: '',
@@ -148,13 +148,13 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, parametricData }) => {
 
 
 
-        {/* Continue Button */}
+        {/* Navigation Buttons */}
         <div className="flex justify-end pt-6">
           <button
             type="submit"
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200"
           >
-            Continue
+            {isEditing ? 'Save & Return to Review' : 'Continue'}
           </button>
         </div>
       </form>

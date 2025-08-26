@@ -1,3 +1,4 @@
+const path = require('path');
 const Interpreter = require('../models/Interpreter');
 const loggerService = require('../services/loggerService');
 const emailService = require('../services/emailService');
@@ -25,6 +26,7 @@ class InterpreterController {
             // Parse JSON fields if they exist
             let languages = [];
             let service_types = [];
+            let service_rates = [];
             
             try {
                 if (req.body.languages) {
@@ -38,6 +40,12 @@ class InterpreterController {
                         ? JSON.parse(req.body.service_types) 
                         : req.body.service_types;
                 }
+                
+                if (req.body.service_rates) {
+                    service_rates = typeof req.body.service_rates === 'string' 
+                        ? JSON.parse(req.body.service_rates) 
+                        : req.body.service_rates;
+                }
             } catch (parseError) {
                 await loggerService.error('Failed to parse JSON fields', parseError, {
                     category: 'INTERPRETER',
@@ -46,7 +54,7 @@ class InterpreterController {
                 
                 return res.status(400).json({
                     success: false,
-                    message: 'Invalid JSON format in languages or service_types'
+                    message: 'Invalid JSON format in languages, service_types, or service_rates'
                 });
             }
 
@@ -61,34 +69,116 @@ class InterpreterController {
 
             // Prepare certificate data from uploaded files and metadata
             const certificates = [];
-            if (req.files && req.files.length > 0) {
-                let certificateMetadata = [];
+            let w9File = null;
+            
+            // Parse certificate metadata if provided
+            let certificateMetadata = [];
+            if (req.body.certificates_metadata) {
+                try {
+                    certificateMetadata = JSON.parse(req.body.certificates_metadata);
+                    await loggerService.info('Certificate metadata parsed successfully', {
+                        category: 'INTERPRETER',
+                        certificateCount: certificateMetadata.length,
+                        metadata: certificateMetadata,
+                        req
+                    });
+                } catch (e) {
+                    await loggerService.error('Failed to parse certificate metadata', e, {
+                        category: 'INTERPRETER',
+                        req
+                    });
+                }
+            } else {
+                await loggerService.info('No certificate metadata provided', {
+                    category: 'INTERPRETER',
+                    req
+                });
+            }
+            
+            if (req.files) {
+                // Handle certificate files
+                if (req.files.certificates && req.files.certificates.length > 0) {
+                    req.files.certificates.forEach((file, index) => {
+                        const metadata = certificateMetadata[index] || {};
+                        // Convert absolute path to relative path for web access
+                        const relativePath = file.path.replace(path.join(__dirname, '../../'), '');
+                        certificates.push({
+                            certificate_type_id: metadata.certificate_type_id || req.body.certificate_type_id || 1,
+                            certificate_number: metadata.certificate_number || null,
+                            issuing_organization: metadata.issuing_organization || null,
+                            issue_date: metadata.issue_date || null,
+                            expiry_date: metadata.expiry_date || null,
+                            file_path: relativePath,
+                            file_name: file.originalname,
+                            file_size: file.size
+                        });
+                    });
+                }
+            }
+            
+            // Handle certificates without files (metadata only)
+            if (certificateMetadata.length > 0) {
+                await loggerService.info('Processing certificates without files', {
+                    category: 'INTERPRETER',
+                    certificateCount: certificateMetadata.length,
+                    hasFiles: !!(req.files && req.files.certificates),
+                    fileCount: req.files && req.files.certificates ? req.files.certificates.length : 0,
+                    req
+                });
                 
-                // Parse certificate metadata if provided
-                if (req.body.certificates_metadata) {
-                    try {
-                        certificateMetadata = JSON.parse(req.body.certificates_metadata);
-                    } catch (e) {
-                        await loggerService.error('Failed to parse certificate metadata', e, {
+                for (let index = 0; index < certificateMetadata.length; index++) {
+                    const metadata = certificateMetadata[index];
+                    // Check if this certificate already has a file (was processed above)
+                    // If there are no files at all, or if there's no file at this index, process as metadata-only
+                    const hasFile = req.files && req.files.certificates && req.files.certificates.length > index;
+                    
+                    if (!hasFile) {
+                        // This certificate has metadata but no file
+                        const certificateData = {
+                            certificate_type_id: metadata.certificate_type_id || req.body.certificate_type_id || 1,
+                            certificate_number: metadata.certificate_number || null,
+                            issuing_organization: metadata.issuing_organization || null,
+                            issue_date: metadata.issue_date || null,
+                            expiry_date: metadata.expiry_date || null,
+                            file_path: null,
+                            file_name: null,
+                            file_size: null
+                        };
+                        
+                        certificates.push(certificateData);
+                        
+                        await loggerService.info('Added certificate without file', {
                             category: 'INTERPRETER',
+                            certificateData,
+                            index,
+                            req
+                        });
+                    } else {
+                        await loggerService.info('Skipping certificate - already has file', {
+                            category: 'INTERPRETER',
+                            index,
                             req
                         });
                     }
                 }
-                
-                req.files.forEach((file, index) => {
-                    const metadata = certificateMetadata[index] || {};
-                    certificates.push({
-                        certificate_type_id: metadata.certificate_type_id || req.body.certificate_type_id || 1,
-                        certificate_number: metadata.certificate_number || null,
-                        issuing_organization: metadata.issuing_organization || null,
-                        issue_date: metadata.issue_date || null,
-                        expiry_date: metadata.expiry_date || null,
-                        file_path: file.path,
-                        file_name: file.originalname,
-                        file_size: file.size
-                    });
-                });
+            }
+            
+            await loggerService.info('Final certificates array prepared', {
+                category: 'INTERPRETER',
+                certificateCount: certificates.length,
+                certificates,
+                req
+            });
+            
+            // Handle W9 file
+            if (req.files && req.files.w9_file && req.files.w9_file.length > 0) {
+                // Convert absolute path to relative path for web access
+                const relativePath = req.files.w9_file[0].path.replace(path.join(__dirname, '../../'), '');
+                w9File = {
+                    file_path: relativePath,
+                    file_name: req.files.w9_file[0].originalname,
+                    file_size: req.files.w9_file[0].size
+                };
             }
 
             // Create interpreter profile
@@ -96,7 +186,9 @@ class InterpreterController {
                 ...req.body,
                 languages,
                 service_types,
+                service_rates,
                 certificates,
+                w9_file: w9File,
                 created_by: req.user?.id || null  // Use null instead of undefined for database insertion
             };
 
@@ -162,13 +254,21 @@ class InterpreterController {
         }
     }
 
-    // Get interpreter profile by ID
+    // Get interpreter profile
     async getProfile(req, res) {
         try {
-            const { id } = req.params;
+            const interpreterId = req.user.interpreterId;
             
-            const profile = await Interpreter.findById(id);
-            
+            if (!interpreterId) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Interpreter ID not found'
+                });
+            }
+
+            // Get the interpreter profile with all related data
+            const profile = await Interpreter.findById(interpreterId);
+
             if (!profile) {
                 return res.status(404).json({
                     success: false,
@@ -176,27 +276,27 @@ class InterpreterController {
                 });
             }
 
-            await loggerService.info('Interpreter profile retrieved', {
+            await loggerService.info('Interpreter profile retrieved successfully', {
                 category: 'INTERPRETER',
-                req,
-                interpreterId: id
+                interpreterId
             });
 
             res.json({
                 success: true,
+                message: 'Profile retrieved successfully',
                 data: profile
             });
 
         } catch (error) {
-            await loggerService.error('Failed to retrieve interpreter profile', error, {
+            await loggerService.error('Failed to get interpreter profile', error, {
                 category: 'INTERPRETER',
-                req,
-                interpreterId: req.params.id
+                interpreterId: req.user?.interpreterId
             });
 
             res.status(500).json({
                 success: false,
-                message: 'Failed to retrieve interpreter profile'
+                message: 'Failed to get profile',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
             });
         }
     }
@@ -204,16 +304,25 @@ class InterpreterController {
     // Update interpreter profile
     async updateProfile(req, res) {
         try {
-            const { id } = req.params;
+            const interpreterId = req.user.interpreterId;
             
+            console.log('Update profile request:', {
+                interpreterId,
+                body: req.body,
+                user: req.user
+            });
+            
+            if (!interpreterId) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Interpreter ID not found'
+                });
+            }
+
             // Check validation errors
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
-                await loggerService.logValidation('Interpreter profile update validation failed', errors.array(), {
-                    req,
-                    interpreterId: id
-                });
-                
+                console.log('Validation errors:', errors.array());
                 return res.status(400).json({
                     success: false,
                     message: 'Validation failed',
@@ -221,159 +330,70 @@ class InterpreterController {
                 });
             }
 
-            // Check if profile exists
-            const existingProfile = await Interpreter.findById(id);
-            if (!existingProfile) {
+            // Prepare update data - only include fields that are provided
+            const updateData = {
+                updated_at: new Date()
+            };
+
+            // Only add fields that are provided in the request
+            if (req.body.first_name !== undefined) updateData.first_name = req.body.first_name;
+            if (req.body.last_name !== undefined) updateData.last_name = req.body.last_name;
+            if (req.body.phone !== undefined) updateData.phone = req.body.phone;
+            if (req.body.years_of_experience !== undefined) updateData.years_of_experience = req.body.years_of_experience;
+            if (req.body.street_address !== undefined) updateData.street_address = req.body.street_address;
+            if (req.body.street_address_2 !== undefined) updateData.street_address_2 = req.body.street_address_2;
+            if (req.body.city !== undefined) updateData.city = req.body.city;
+            if (req.body.state_id !== undefined) updateData.state_id = req.body.state_id;
+            if (req.body.zip_code !== undefined) updateData.zip_code = req.body.zip_code;
+            if (req.body.latitude !== undefined) updateData.latitude = req.body.latitude;
+            if (req.body.longitude !== undefined) updateData.longitude = req.body.longitude;
+            if (req.body.service_radius_miles !== undefined) updateData.service_radius_miles = req.body.service_radius_miles;
+            if (req.body.hourly_rate !== undefined) updateData.hourly_rate = req.body.hourly_rate;
+            if (req.body.bio !== undefined) updateData.bio = req.body.bio;
+            if (req.body.availability_notes !== undefined) updateData.availability_notes = req.body.availability_notes;
+
+            console.log('Update data being sent to database:', updateData);
+            
+            // Update the interpreter profile
+            const result = await Interpreter.update(interpreterId, updateData);
+
+            if (!result) {
+                console.log('Interpreter update returned null/undefined');
                 return res.status(404).json({
                     success: false,
                     message: 'Interpreter profile not found'
                 });
             }
 
-            // Prepare update data
-            const updateData = {
-                ...req.body,
-                updated_by: req.user?.id
-            };
-
-            const updatedProfile = await Interpreter.update(id, updateData);
+            // Get the updated profile with all related data
+            const updatedProfile = await Interpreter.findById(interpreterId);
 
             await loggerService.info('Interpreter profile updated successfully', {
                 category: 'INTERPRETER',
-                req,
-                interpreterId: id,
-                email: updatedProfile.email
+                interpreterId,
+                updatedFields: Object.keys(updateData)
             });
 
             res.json({
                 success: true,
-                message: 'Interpreter profile updated successfully',
+                message: 'Profile updated successfully',
                 data: updatedProfile
             });
 
         } catch (error) {
             await loggerService.error('Failed to update interpreter profile', error, {
                 category: 'INTERPRETER',
-                req,
-                interpreterId: req.params.id
+                interpreterId: req.user?.interpreterId
             });
 
             res.status(500).json({
                 success: false,
-                message: 'Failed to update interpreter profile'
+                message: 'Failed to update profile',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
             });
         }
     }
 
-    // Get all interpreter profiles with filters
-    async getAllProfiles(req, res) {
-        try {
-            const { 
-                page = 1, 
-                limit = 20, 
-                status, 
-                language, 
-                service_type, 
-                state, 
-                search 
-            } = req.query;
-            
-            const offset = (page - 1) * limit;
-            const filters = {
-                status,
-                language,
-                service_type,
-                state,
-                search
-            };
-
-            // Remove undefined filters
-            Object.keys(filters).forEach(key => {
-                if (!filters[key]) delete filters[key];
-            });
-
-            const result = await Interpreter.getAll(filters, parseInt(limit), offset);
-
-            await loggerService.info('Interpreter profiles list retrieved', {
-                category: 'INTERPRETER',
-                req,
-                count: result.interpreters.length,
-                totalCount: result.totalCount,
-                filters
-            });
-
-            res.json({
-                success: true,
-                data: result.interpreters,
-                pagination: {
-                    currentPage: parseInt(page),
-                    totalCount: result.totalCount,
-                    hasMore: result.hasMore,
-                    perPage: parseInt(limit),
-                    totalPages: Math.ceil(result.totalCount / limit)
-                }
-            });
-
-        } catch (error) {
-            await loggerService.error('Failed to retrieve interpreter profiles', error, {
-                category: 'INTERPRETER',
-                req
-            });
-
-            res.status(500).json({
-                success: false,
-                message: 'Failed to retrieve interpreter profiles'
-            });
-        }
-    }
-
-    // Update profile status (admin only)
-    async updateStatus(req, res) {
-        try {
-            const { id } = req.params;
-            const { status, notes } = req.body;
-
-            const updatedProfile = await Interpreter.updateStatus(
-                id, 
-                status, 
-                req.user?.userId, 
-                notes
-            );
-
-            if (!updatedProfile) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Interpreter profile not found'
-                });
-            }
-
-            await loggerService.info('Interpreter profile status updated', {
-                category: 'INTERPRETER',
-                req,
-                interpreterId: id,
-                newStatus: status,
-                updatedBy: req.user?.userId
-            });
-
-            res.json({
-                success: true,
-                message: 'Profile status updated successfully',
-                data: updatedProfile
-            });
-
-        } catch (error) {
-            await loggerService.error('Failed to update profile status', error, {
-                category: 'INTERPRETER',
-                req,
-                interpreterId: req.params.id
-            });
-
-            res.status(500).json({
-                success: false,
-                message: 'Failed to update profile status'
-            });
-        }
-    }
 }
 
 module.exports = new InterpreterController();

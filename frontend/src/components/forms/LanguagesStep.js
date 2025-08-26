@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { motion } from 'framer-motion';
 import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import Input from '../ui/Input';
@@ -10,7 +11,37 @@ import Button from '../ui/Button';
 import { languagesSchema } from '../../services/validationSchemas';
 import { PROFICIENCY_LEVELS, COMMON_LANGUAGES } from '../../utils/constants';
 
-const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, parametricData }) => {
+// Custom validation function that only requires the first language
+const customLanguagesSchema = yup.object({
+  languages: yup
+    .array()
+    .of(
+      yup.object({
+        language_id: yup.string().required('Language is required'),
+        proficiency_level: yup.string().required('Proficiency level is required'),
+        is_native: yup.boolean().default(false),
+        years_experience: yup
+          .number()
+          .min(0, 'Years of experience cannot be negative')
+          .max(50, 'Please enter a realistic number of years')
+          .default(0),
+      })
+    )
+    .min(1, 'At least one language is required')
+    .test('at-least-one-complete-language', 'At least one complete language entry is required', function(value) {
+      if (!value || value.length === 0) return false;
+      
+      // Check if the first language has both language_id and proficiency_level
+      const firstLanguage = value[0];
+      return firstLanguage && 
+             firstLanguage.language_id && 
+             firstLanguage.language_id.trim() !== '' && 
+             firstLanguage.proficiency_level && 
+             firstLanguage.proficiency_level.trim() !== '';
+    }),
+});
+
+const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametricData }) => {
   const [customLanguage, setCustomLanguage] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
 
@@ -24,13 +55,13 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, parametricData }) =
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
     watch,
     setValue
   } = useForm({
-    resolver: yupResolver(languagesSchema),
+    resolver: yupResolver(customLanguagesSchema),
     defaultValues,
-    mode: 'onChange'
+    mode: 'onBlur'
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -39,6 +70,9 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, parametricData }) =
   });
 
   const watchedValues = watch();
+
+  // Debug logging
+  
 
   // Use useCallback to memoize the onUpdate function
   const handleUpdate = useCallback((values) => {
@@ -54,7 +88,20 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, parametricData }) =
   }, [watch, handleUpdate]);
 
   const onSubmit = (formData) => {
-    onNext(formData);
+    // Filter out empty language entries and only submit valid ones
+    const validLanguages = formData.languages.filter(lang => 
+      lang.language_id && lang.language_id.trim() && 
+      lang.proficiency_level && lang.proficiency_level.trim()
+    );
+    
+    if (validLanguages.length === 0) {
+      console.error('No valid languages found');
+      return; // Don't submit if no valid languages
+    }
+    
+    
+    // Submit only the valid languages
+    onNext({ ...formData, languages: validLanguages });
   };
 
   const addLanguage = () => {
@@ -85,11 +132,13 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, parametricData }) =
     }
   };
 
-  const languageOptions = [
-    { value: '', label: 'Select a language...' },
-    ...(parametricData?.languages?.map(lang => ({ value: lang.id, label: lang.name })) || []),
-    { value: 'other', label: 'Other (specify below)' }
-  ];
+      const languageOptions = [
+        { value: '', label: 'Select a language...' },
+        ...(parametricData?.languages?.map(lang => ({ value: lang.id, label: lang.name })) || []),
+        { value: 'other', label: 'Other (specify below)' }
+    ];
+
+
 
   return (
     <motion.div
@@ -99,12 +148,34 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, parametricData }) =
       transition={{ duration: 0.3 }}
       className="space-y-6"
     >
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Languages & Skills</h2>
-        <p className="text-gray-600">
-          Tell us about your language proficiencies and interpreting experience.
-        </p>
-      </div>
+              <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Languages & Skills</h2>
+          <p className="text-gray-600 mb-4">
+            Tell us about your language proficiencies and interpreting experience. 
+            <span className="text-blue-600 font-medium"> At least one language is required.</span>
+          </p>
+          
+          {/* Requirements Info Box */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">Requirements</h3>
+                <div className="mt-2 text-sm text-blue-700">
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Complete the first language entry (both language and proficiency level)</li>
+                    <li>Additional languages are optional</li>
+                    <li>You can add or remove extra languages as needed</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-6">
@@ -218,6 +289,15 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, parametricData }) =
                   </p>
                 </div>
               )}
+              
+              {/* Show requirement message only for the first language */}
+              {index === 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Required:</strong> This is the minimum required language. Additional languages are optional.
+                  </p>
+                </div>
+              )}
             </motion.div>
           ))}
         </div>
@@ -268,7 +348,7 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, parametricData }) =
             className="inline-flex items-center"
           >
             <PlusIcon className="h-4 w-4 mr-2" />
-            Add Another Language
+            Add Another Language (Optional)
           </Button>
         </div>
 
@@ -283,20 +363,24 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, parametricData }) =
 
         {/* Navigation Buttons */}
         <div className="flex justify-between pt-6">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onPrevious}
-          >
-            Previous
-          </Button>
+          {!isEditing && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onPrevious}
+            >
+              Previous
+            </Button>
+          )}
           
-          <Button
-            type="submit"
-            disabled={fields.some(field => !field.language_id || !field.proficiency_level)}
-          >
-            Continue
-          </Button>
+          <div className={isEditing ? 'ml-auto' : ''}>
+            <Button
+              type="submit"
+              disabled={!isValid}
+            >
+              {isEditing ? 'Save & Return to Review' : 'Continue (requires at least 1 language)'}
+            </Button>
+          </div>
         </div>
       </form>
     </motion.div>

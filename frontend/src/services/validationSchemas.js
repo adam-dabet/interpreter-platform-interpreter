@@ -54,7 +54,7 @@ export const personalInfoSchema = yup.object({
     
     state_id: yup
       .string()
-      .required('State is required'),
+      .nullable(),
     
     zip_code: yup
       .string()
@@ -89,34 +89,34 @@ export const professionalInfoSchema = yup.object({
     .min(1, 'Please select at least one service type')
     .required('Service types are required'),
   
+  service_rates: yup
+    .array()
+    .of(
+      yup.object({
+        service_type_id: yup.string().required('Service type is required'),
+        rate_type: yup.string().oneOf(['platform', 'custom']).required('Rate type is required'),
+        rate_amount: yup.mixed().when('rate_type', {
+          is: 'custom',
+          then: yup.number().required('Custom rate amount is required').min(0, 'Rate cannot be negative').max(1000, 'Rate cannot exceed $1000'),
+          otherwise: yup.mixed().nullable()
+        }),
+        rate_unit: yup.string().when('rate_type', {
+          is: 'custom',
+          then: yup.string().oneOf(['minutes', 'hours']).required('Rate unit is required'),
+          otherwise: yup.mixed().nullable()
+        })
+      })
+    )
+    .min(1, 'At least one service rate is required')
+    .required('Service rates are required'),
+  
   max_travel_distance: yup
     .number()
     .min(1, 'Travel distance must be at least 1 mile')
     .max(100, 'Travel distance cannot exceed 100 miles')
     .default(25),
   
-  hourly_rate: yup
-    .mixed()
-    .transform((value, originalValue) => {
-      if (originalValue === '' || originalValue === null || originalValue === undefined) {
-        return null;
-      }
-      const num = parseFloat(originalValue);
-      return isNaN(num) ? null : num;
-    })
-    .nullable()
-    .test('is-valid-rate', 'Hourly rate must be a valid number', function(value) {
-      if (value === null || value === undefined) return true; // Allow null/undefined
-      return typeof value === 'number' && value >= 0 && value <= 1000;
-    })
-    .test('is-not-negative', 'Hourly rate cannot be negative', function(value) {
-      if (value === null || value === undefined) return true;
-      return value >= 0;
-    })
-    .test('is-not-too-high', 'Hourly rate cannot exceed $1000', function(value) {
-      if (value === null || value === undefined) return true;
-      return value <= 1000;
-    }),
+
   
   willing_to_work_weekends: yup.boolean().default(false),
   willing_to_work_evenings: yup.boolean().default(false),

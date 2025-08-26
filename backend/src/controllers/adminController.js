@@ -2,6 +2,7 @@ const db = require('../config/database');
 const emailService = require('../services/emailService');
 const Interpreter = require('../models/Interpreter');
 const loggerService = require('../services/loggerService');
+const userService = require('../services/userService');
 
 class AdminController {
   // Get dashboard statistics
@@ -99,6 +100,7 @@ class AdminController {
         email: profile.email,
         phone: profile.phone,
         state: profile.state_name,
+        state_code: profile.state_code,
         languages: profile.languages, // Now comes from the updated Interpreter.getAll method
         service_types: profile.service_types, // Now comes from the updated Interpreter.getAll method
         years_experience: profile.years_of_experience,
@@ -149,6 +151,24 @@ class AdminController {
         });
       }
 
+      // Format languages, service_types, service_rates, certificates, and w9_forms for frontend display
+      const formattedProfile = {
+        ...profile,
+        // Map field names to match frontend expectations
+        years_experience: profile.years_of_experience,
+        application_status: profile.profile_status,
+        submission_date: profile.created_at,
+        languages: Array.isArray(profile.languages) 
+          ? profile.languages.map(lang => lang.language_name || lang.native_name || 'Unknown').join(', ')
+          : (profile.languages || 'N/A'),
+        service_types: Array.isArray(profile.service_types)
+          ? profile.service_types.map(service => service.service_type_name || service.service_type_code || 'Unknown').join(', ')
+          : (profile.service_types || 'N/A'),
+        service_rates: Array.isArray(profile.service_rates) ? profile.service_rates : [],
+        certificates: Array.isArray(profile.certificates) ? profile.certificates : [],
+        w9_forms: Array.isArray(profile.w9_forms) ? profile.w9_forms : []
+      };
+
       await loggerService.info('Profile details retrieved', {
         category: 'ADMIN',
         userId: req.user?.userId,
@@ -159,7 +179,7 @@ class AdminController {
 
       res.json({
         success: true,
-        data: profile
+        data: formattedProfile
       });
 
     } catch (error) {
@@ -253,14 +273,27 @@ class AdminController {
       // Format profiles for frontend
       const applications = result.interpreters.map(profile => ({
         id: profile.id,
+        first_name: profile.first_name,
+        last_name: profile.last_name,
         applicant_name: `${profile.first_name} ${profile.last_name}`,
         email: profile.email,
         phone: profile.phone,
+        street_address: profile.street_address,
+        street_address_2: profile.street_address_2,
+        city: profile.city,
         state: profile.state_name,
-        languages: profile.languages,
-        service_types: profile.service_types,
+        state_code: profile.state_code,
+        zip_code: profile.zip_code,
+        formatted_address: profile.formatted_address,
+        languages: profile.languages || 'N/A',
+        service_types: profile.service_types || 'N/A',
+        service_rates: profile.service_rates || [],
+        certificates: profile.certificates || [],
+        w9_forms: profile.w9_forms || [],
         years_experience: profile.years_of_experience,
         hourly_rate: profile.hourly_rate,
+        bio: profile.bio,
+        availability_notes: profile.availability_notes,
         submission_date: profile.created_at,
         application_status: profile.profile_status,
         verification_status: profile.verification_status,
@@ -319,16 +352,31 @@ class AdminController {
       // Get full profile details for email notification
       const fullProfile = await Interpreter.findById(profileId);
 
-      // Send approval email notification
+      // Create user account and send approval email notification
       try {
+        // Create user account for the approved interpreter
+        const userCredentials = await userService.createInterpreterUser(fullProfile);
+        
+        // Send approval email with login credentials
         await emailService.sendInterpreterApproval({
           email: fullProfile.email,
           name: `${fullProfile.first_name} ${fullProfile.last_name}`,
-          notes: notes || ''
+          notes: notes || '',
+          loginUrl: userCredentials.loginUrl,
+          username: userCredentials.username,
+          tempPassword: userCredentials.tempPassword
         });
+        
+        await loggerService.info('User account created and approval email sent', {
+          category: 'ADMIN',
+          profileId,
+          userId: userCredentials.userId,
+          email: fullProfile.email
+        });
+        
       } catch (emailError) {
         // Log email error but don't fail the approval
-        await loggerService.warn('Failed to send approval email', {
+        await loggerService.warn('Failed to create user account or send approval email', {
           category: 'EMAIL',
           profileId,
           email: fullProfile.email,
@@ -435,6 +483,57 @@ class AdminController {
       res.status(500).json({
         success: false,
         message: 'Failed to reject profile'
+      });
+    }
+  }
+
+  // Delete interpreter profile
+  async deleteProfile(req, res) {
+    try {
+      const { profileId } = req.params;
+
+      // Check if profile exists
+      const existingProfile = await Interpreter.findById(profileId);
+      if (!existingProfile) {
+        return res.status(404).json({
+          success: false,
+          message: 'Profile not found'
+        });
+      }
+
+      // Delete the profile and all related data
+      const deletedProfile = await Interpreter.deleteById(profileId);
+
+      await loggerService.info('Profile deleted', {
+        category: 'ADMIN',
+        userId: req.user?.userId,
+        endpoint: req.originalUrl,
+        profileId,
+        deletedBy: req.user?.userId,
+        email: existingProfile.email
+      });
+
+      res.json({
+        success: true,
+        message: 'Profile deleted successfully',
+        data: {
+          id: deletedProfile.id,
+          email: deletedProfile.email,
+          name: `${deletedProfile.first_name} ${deletedProfile.last_name}`
+        }
+      });
+
+    } catch (error) {
+      await loggerService.error('Failed to delete profile', error, {
+        category: 'ADMIN',
+        userId: req.user?.userId,
+        endpoint: req.originalUrl,
+        profileId: req.params.profileId
+      });
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete profile'
       });
     }
   }

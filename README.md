@@ -48,7 +48,13 @@ interpreter-platform/
 │   │   ├── services/        # API services
 │   │   └── utils/           # Utility functions
 │   └── public/              # Static assets
-└── admin-dashboard/         # Admin interface (if separate)
+└── admin-dashboard/         # Separate admin interface
+    ├── src/
+    │   ├── App.js           # Main admin dashboard
+    │   ├── index.js         # Entry point
+    │   └── index.css        # Styles
+    ├── public/              # Static assets
+    └── package.json         # Admin dependencies
 ```
 
 ## Setup Instructions
@@ -108,6 +114,27 @@ interpreter-platform/
    ```bash
    npm start
    ```
+
+### Admin Dashboard Setup
+
+1. **Install dependencies**:
+   ```bash
+   cd admin-dashboard
+   npm install
+   ```
+
+2. **Environment configuration**:
+   ```bash
+   # Create .env file
+   echo "REACT_APP_API_URL=http://localhost:3001/api" > .env
+   ```
+
+3. **Start the admin dashboard**:
+   ```bash
+   npm start
+   ```
+
+The admin dashboard will be available at `http://localhost:3000`
 
 ### Google Maps API Setup
 

@@ -184,7 +184,10 @@ class EmailService {
         name: approvalData.name,
         approval_date: new Date().toLocaleDateString(),
         notes: approvalData.notes || '',
-        next_steps: 'You will receive further instructions on how to access your interpreter dashboard and start accepting assignments.'
+        next_steps: 'You will receive further instructions on how to access your interpreter dashboard and start accepting assignments.',
+        login_url: approvalData.loginUrl || process.env.INTERPRETER_LOGIN_URL || 'http://localhost:3000/login',
+        username: approvalData.username || '',
+        temp_password: approvalData.tempPassword || ''
       },
       'high'
     );

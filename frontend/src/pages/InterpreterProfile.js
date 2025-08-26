@@ -38,17 +38,17 @@ const INTERPRETER_STEPS = [
     },
     {
         id: 4,
-        title: 'Service Types',
-        description: 'Areas of expertise',
-        icon: BriefcaseIcon,
-        component: ServiceTypesStep
-    },
-    {
-        id: 5,
         title: 'Certificates',
         description: 'Qualifications and documents',
         icon: DocumentTextIcon,
         component: CertificatesStep
+    },
+    {
+        id: 5,
+        title: 'Service Types',
+        description: 'Areas of expertise',
+        icon: BriefcaseIcon,
+        component: ServiceTypesStep
     },
     {
         id: 6,
@@ -70,6 +70,7 @@ const InterpreterProfile = () => {
     const [currentStep, setCurrentStep] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isEditingFromReview, setIsEditingFromReview] = useState(false);
     const [parametricData, setParametricData] = useState({
         languages: [],
         serviceTypes: [],
@@ -101,7 +102,6 @@ const InterpreterProfile = () => {
         
         // Professional Information
         years_of_experience: 0,
-        hourly_rate: '',
         availability_notes: '',
         bio: '',
         
@@ -110,6 +110,9 @@ const InterpreterProfile = () => {
         
         // Service Types (array of IDs)
         service_types: [],
+        
+        // Service Rates (array of objects with rate info for each service type)
+        service_rates: [],
         
         // Certificates (files and data)
         is_certified: null,
@@ -132,11 +135,16 @@ const InterpreterProfile = () => {
     const loadParametricData = async () => {
         try {
             setIsLoading(true);
+            console.log('Loading parametric data...');
             const response = await parametricAPI.getAllParametricData();
+            console.log('Parametric data response:', response);
             
             if (response.data.success) {
+                console.log('Setting parametric data:', response.data.data);
+                console.log('InterpreterProfile - US States:', response.data.data.usStates);
                 setParametricData(response.data.data);
             } else {
+                console.error('Failed to load form data:', response.data);
                 toast.error('Failed to load form data');
             }
         } catch (error) {
@@ -153,7 +161,15 @@ const InterpreterProfile = () => {
 
     const handleNext = (stepData) => {
         updateFormData(stepData);
-        setCurrentStep(prev => Math.min(prev + 1, INTERPRETER_STEPS.length));
+        
+        // If we're editing from review, go back to review
+        if (isEditingFromReview) {
+            setIsEditingFromReview(false);
+            setCurrentStep(INTERPRETER_STEPS.length);
+        } else {
+            // Normal flow - go to next step
+            setCurrentStep(prev => Math.min(prev + 1, INTERPRETER_STEPS.length));
+        }
     };
 
     const handleUpdate = (stepData) => {
@@ -161,13 +177,24 @@ const InterpreterProfile = () => {
     };
 
     const handlePrevious = () => {
-        setCurrentStep(prev => Math.max(prev - 1, 1));
+        // If we're editing from review and going back, go to review
+        if (isEditingFromReview) {
+            setIsEditingFromReview(false);
+            setCurrentStep(INTERPRETER_STEPS.length);
+        } else {
+            setCurrentStep(prev => Math.max(prev - 1, 1));
+        }
     };
 
     const handleStepClick = (stepId) => {
         if (stepId < currentStep) {
             setCurrentStep(stepId);
         }
+    };
+
+    const handleEdit = (stepNumber) => {
+        setIsEditingFromReview(true);
+        setCurrentStep(stepNumber);
     };
 
     const handleSubmit = async (finalData) => {
@@ -226,7 +253,7 @@ const InterpreterProfile = () => {
                     submissionData[key].forEach((file, index) => {
                         formDataToSubmit.append('certificates', file);
                     });
-                } else if (key === 'languages' || key === 'service_types' || key === 'certificates' || key === 'w9_file' || key === 'w9_data') {
+                } else if (key === 'languages' || key === 'service_types' || key === 'certificates' || key === 'w9_file' || key === 'w9_data' || key === 'w9_entry_method') {
                     // Already handled above
                     return;
                 } else if (submissionData[key] !== null && submissionData[key] !== undefined) {
@@ -239,20 +266,22 @@ const InterpreterProfile = () => {
                             formDataToSubmit.append(key, submissionData[key]);
                         }
                     }
-                    // Handle hourly_rate formatting
-                    else if (key === 'hourly_rate' && submissionData[key]) {
-                        const rate = parseFloat(submissionData[key]);
-                        if (!isNaN(rate)) {
-                            formDataToSubmit.append(key, rate.toFixed(2));
-                        } else {
-                            formDataToSubmit.append(key, submissionData[key]);
-                        }
+                    // Handle service rates formatting
+                    else if (key === 'service_rates' && submissionData[key]) {
+                        formDataToSubmit.append(key, JSON.stringify(submissionData[key]));
                     }
                     else {
                         formDataToSubmit.append(key, submissionData[key]);
                     }
                 }
             });
+
+            // Debug: Log the form data being submitted
+            console.log('InterpreterProfile - Submission data:', submissionData);
+            console.log('InterpreterProfile - FormData entries:');
+            for (let [key, value] of formDataToSubmit.entries()) {
+                console.log(`${key}:`, value);
+            }
 
             const response = await interpreterAPI.createProfile(formDataToSubmit);
             
@@ -303,8 +332,16 @@ const InterpreterProfile = () => {
             onPrevious: handlePrevious,
             isLastStep: currentStep === INTERPRETER_STEPS.length,
             isFirstStep: currentStep === 1,
-            parametricData
+            parametricData,
+            isEditing: isEditingFromReview // User is editing only if they came from review step
         };
+
+        console.log('Rendering step with props:', {
+            currentStep,
+            parametricData,
+            formData,
+            isEditing: isEditingFromReview
+        });
 
         if (currentStep === INTERPRETER_STEPS.length) {
             // Review step
@@ -313,6 +350,7 @@ const InterpreterProfile = () => {
                     {...commonProps}
                     onSubmit={handleSubmit}
                     isSubmitting={isSubmitting}
+                    onEdit={handleEdit}
                 />
             );
         }

@@ -151,16 +151,36 @@ const dbLogger = {
 // File upload logging middleware
 const fileUploadLogger = (req, res, next) => {
     if (req.file || req.files) {
-        const files = req.files || [req.file];
+        let files = [];
         
-        files.forEach(file => {
-            if (file) {
-                loggerService.logFileUpload('File uploaded', file, {
-                    req,
-                    userId: req.user?.id
+        if (req.files) {
+            // Handle both array and object formats
+            if (Array.isArray(req.files)) {
+                files = req.files;
+            } else {
+                // Object format from upload.fields()
+                Object.values(req.files).forEach(fileArray => {
+                    if (Array.isArray(fileArray)) {
+                        files.push(...fileArray);
+                    } else {
+                        files.push(fileArray);
+                    }
                 });
             }
-        });
+        } else if (req.file) {
+            files = [req.file];
+        }
+        
+        if (Array.isArray(files)) {
+            files.forEach(file => {
+                if (file) {
+                    loggerService.logFileUpload('File uploaded', file, {
+                        req,
+                        userId: req.user?.id
+                    });
+                }
+            });
+        }
     }
 
     next();

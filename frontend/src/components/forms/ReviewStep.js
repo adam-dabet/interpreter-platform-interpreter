@@ -6,7 +6,7 @@ import Checkbox from '../ui/Checkbox';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import { SERVICE_TYPES, EDUCATION_LEVELS, US_STATES, PROFICIENCY_LEVELS } from '../../utils/constants';
 
-const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting }) => {
+const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit }) => {
   const [agreements, setAgreements] = useState({
     terms_accepted: data.terms_accepted || false,
     privacy_policy_accepted: data.privacy_policy_accepted || false,
@@ -103,7 +103,10 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting }) => {
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">Personal Information</h3>
-            <button className="text-blue-600 hover:text-blue-800 flex items-center text-sm">
+            <button 
+              onClick={() => onEdit && onEdit(1)}
+              className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
+            >
               <PencilIcon className="h-4 w-4 mr-1" />
               Edit
             </button>
@@ -122,10 +125,27 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting }) => {
               <span className="font-medium text-gray-700">Phone:</span>
               <span className="ml-2">{data.phone}</span>
             </div>
+          </div>
+        </div>
+
+        {/* Address Information */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Address Information</h3>
+            <button 
+              onClick={() => onEdit && onEdit(2)}
+              className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
+            >
+              <PencilIcon className="h-4 w-4 mr-1" />
+              Edit
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
               <span className="font-medium text-gray-700">Address:</span>
               <span className="ml-2">
-                {data.address_line1 || data.street_address}, {data.city}, {getStateLabel(data.state || data.state_id)} {data.zip_code}
+                {data.formatted_address || data.street_address || 'Address not provided'}
               </span>
             </div>
           </div>
@@ -135,7 +155,10 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting }) => {
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">Professional Background</h3>
-            <button className="text-blue-600 hover:text-blue-800 flex items-center text-sm">
+            <button 
+              onClick={() => onEdit && onEdit(1)}
+              className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
+            >
               <PencilIcon className="h-4 w-4 mr-1" />
               Edit
             </button>
@@ -152,28 +175,12 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting }) => {
                 <span className="ml-2">{getEducationLabel(data.education_level)}</span>
               </div>
             )}
-            {(data.hourly_rate !== null && data.hourly_rate !== undefined && data.hourly_rate !== '' && !isNaN(parseFloat(data.hourly_rate))) && (
-              <div>
-                <span className="font-medium text-gray-700">Hourly Rate:</span>
-                <span className="ml-2">${parseFloat(data.hourly_rate).toFixed(2)}/hour</span>
-              </div>
-            )}
             {data.max_travel_distance && (
               <div>
                 <span className="font-medium text-gray-700">Max Travel Distance:</span>
                 <span className="ml-2">{data.max_travel_distance} miles</span>
               </div>
             )}
-            <div className="md:col-span-2">
-              <span className="font-medium text-gray-700">Service Types:</span>
-              <span className="ml-2">
-                {(data.preferred_service_types || data.service_types)?.map(type => {
-                  // Handle both string and object formats
-                  const serviceType = typeof type === 'object' ? type.name || type.label : type;
-                  return getServiceTypeLabel(serviceType);
-                }).join(', ') || 'No service types selected'}
-              </span>
-            </div>
             {data.bio && (
               <div className="md:col-span-2">
                 <span className="font-medium text-gray-700">Bio:</span>
@@ -207,7 +214,10 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting }) => {
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">Languages</h3>
-            <button className="text-blue-600 hover:text-blue-800 flex items-center text-sm">
+            <button 
+              onClick={() => onEdit && onEdit(3)}
+              className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
+            >
               <PencilIcon className="h-4 w-4 mr-1" />
               Edit
             </button>
@@ -233,11 +243,63 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting }) => {
           </div>
         </div>
 
+        {/* Service Types */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Service Types & Rates</h3>
+            <button 
+              onClick={() => onEdit && onEdit(5)}
+              className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
+            >
+              <PencilIcon className="h-4 w-4 mr-1" />
+              Edit
+            </button>
+          </div>
+          
+          <div className="space-y-3">
+            <div>
+              <span className="font-medium text-gray-700">Selected Service Types:</span>
+              <span className="ml-2">
+                {(data.preferred_service_types || data.service_types)?.map(type => {
+                  // Handle both string and object formats
+                  const serviceType = typeof type === 'object' ? type.name || type.label : type;
+                  return getServiceTypeLabel(serviceType);
+                }).join(', ') || 'No service types selected'}
+              </span>
+            </div>
+            
+            {data.service_rates && data.service_rates.length > 0 && (
+              <div>
+                <span className="font-medium text-gray-700">Service Rates:</span>
+                <div className="ml-2 space-y-1">
+                  {data.service_rates.map((rate, index) => {
+                    const serviceType = data.service_types?.find(st => st.id === rate.service_type_id) || 
+                                      { name: `Service ${index + 1}` };
+                    return (
+                      <div key={index} className="text-sm">
+                        <span className="font-medium">{serviceType.name}:</span>
+                        <span className="ml-2">
+                          {rate.rate_type === 'platform' ? 
+                            'Platform Rate' : 
+                            `$${rate.rate_amount}/${rate.rate_unit === 'minutes' ? 'min' : 'hr'}`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Documents */}
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">Certification Status</h3>
-            <button className="text-blue-600 hover:text-blue-800 flex items-center text-sm">
+            <button 
+              onClick={() => onEdit && onEdit(4)}
+              className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
+            >
               <PencilIcon className="h-4 w-4 mr-1" />
               Edit
             </button>
@@ -296,7 +358,10 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting }) => {
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">W-9 Tax Form</h3>
-              <button className="text-blue-600 hover:text-blue-800 flex items-center text-sm">
+              <button 
+                onClick={() => onEdit && onEdit(6)}
+                className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
+              >
                 <PencilIcon className="h-4 w-4 mr-1" />
                 Edit
               </button>
@@ -358,7 +423,10 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting }) => {
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">Emergency Contact</h3>
-              <button className="text-blue-600 hover:text-blue-800 flex items-center text-sm">
+              <button 
+                onClick={() => onEdit && onEdit(1)}
+                className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
+              >
                 <PencilIcon className="h-4 w-4 mr-1" />
                 Edit
               </button>

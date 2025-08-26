@@ -47,8 +47,7 @@ const applicationValidation = [
     .withMessage('City name too long'),
   
   body('state')
-    .notEmpty()
-    .withMessage('State is required')
+    .optional()
     .isLength({ min: 2, max: 50 })
     .withMessage('Valid state is required'),
   
@@ -62,10 +61,10 @@ const applicationValidation = [
     .isInt({ min: 0, max: 50 })
     .withMessage('Years of experience must be between 0 and 50'),
   
-  body('hourly_rate')
+  body('service_rates')
     .optional()
-    .isDecimal({ decimal_digits: '0,2' })
-    .withMessage('Hourly rate must be a valid decimal number'),
+    .isJSON()
+    .withMessage('Service rates must be valid JSON'),
   
   body('preferred_service_types')
     .isArray({ min: 1 })

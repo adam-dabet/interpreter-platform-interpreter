@@ -89,6 +89,12 @@ export const SERVICE_TYPES = [
     { value: 'llc', label: 'LLC' },
     { value: 'corporation', label: 'Corporation' },
   ];
+
+export const RATE_UNITS = [
+    { value: 'hours', label: 'per hour' },
+    { value: 'minutes', label: 'per minute' },
+    { value: 'word', label: 'per word' }
+  ];
   
   export const DOCUMENT_TYPES = [
     {

@@ -6,7 +6,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Checkbox from '../ui/Checkbox';
 import { professionalInfoSchema } from '../../services/validationSchemas';
-import { SERVICE_TYPES, EDUCATION_LEVELS, TAX_CLASSIFICATIONS } from '../../utils/constants';
+import { SERVICE_TYPES, EDUCATION_LEVELS, TAX_CLASSIFICATIONS, RATE_UNITS } from '../../utils/constants';
 import { formatPhoneNumber, formatSSN } from '../../utils/helpers';
 
 const ProfessionalInfoStep = ({ data, onNext, onPrevious, onUpdate }) => {
@@ -17,7 +17,6 @@ const ProfessionalInfoStep = ({ data, onNext, onPrevious, onUpdate }) => {
     education_level: '',
     bio: '',
     preferred_service_types: [],
-    hourly_rate: '',
     availability_notes: '',
     ...data // Spread any existing data on top of defaults
   };
@@ -184,23 +183,6 @@ const ProfessionalInfoStep = ({ data, onNext, onPrevious, onUpdate }) => {
                   placeholder="25"
                   error={errors.max_travel_distance?.message}
                   helper="Miles you're willing to travel"
-                />
-              )}
-            />
-            
-            <Controller
-              name="hourly_rate"
-              control={control}
-              render={({ field }) => (
-                <Input
-                  {...field}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  label="Hourly Rate ($)"
-                  placeholder="25.00"
-                  error={errors.hourly_rate?.message}
-                  helper="Your preferred hourly rate for interpretation services"
                 />
               )}
             />

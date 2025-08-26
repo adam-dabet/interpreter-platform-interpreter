@@ -7,18 +7,21 @@ import Button from '../ui/Button';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import toast from 'react-hot-toast';
 
-const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData, onUpdate }) => {
+const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, onUpdate }) => {
+    // Debug: Log parametric data
+    console.log('AddressStep - Received parametric data:', parametricData);
+    console.log('AddressStep - US States:', parametricData?.usStates);
+    
     const [addressData, setAddressData] = useState({
         street_address: formData.street_address || '',
         street_address_2: formData.street_address_2 || '',
-        city: formData.city || '',
-        state_id: formData.state_id || '',
-        zip_code: formData.zip_code || '',
-        county: formData.county || '',
         formatted_address: formData.formatted_address || '',
         latitude: formData.latitude || null,
         longitude: formData.longitude || null,
-        place_id: formData.place_id || ''
+        place_id: formData.place_id || '',
+        city: formData.city || '',
+        state_id: formData.state_id || null,
+        zip_code: formData.zip_code || ''
     });
 
     const [isValidating, setIsValidating] = useState(false);
@@ -45,7 +48,7 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData
 
                 await loader.load();
                 setGoogleMapsLoaded(true);
-                console.log('Google Maps loaded successfully');
+        
             } catch (error) {
                 console.error('Error loading Google Maps:', error);
                 toast.error('Failed to load Google Maps');
@@ -66,6 +69,10 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData
             initializeMap();
         }
     }, [googleMapsLoaded, addressData.latitude, addressData.longitude]);
+
+
+
+
 
     const initializeMap = () => {
         if (!window.google || !mapRef.current) return;
@@ -130,6 +137,26 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData
             setSuggestions([]);
             setShowSuggestions(false);
         }
+
+        // Check if the typed address exactly matches a suggestion
+        if (field === 'street_address' && suggestions.length > 0) {
+            const exactMatch = suggestions.find(suggestion => 
+                suggestion.description.toLowerCase() === value.toLowerCase() ||
+                suggestion.structured_formatting.main_text.toLowerCase() === value.toLowerCase()
+            );
+            
+            if (exactMatch) {
+                // Automatically use the place_id from the exact match
+                const updatedDataWithPlaceId = {
+                    ...updatedData,
+                    place_id: exactMatch.place_id
+                };
+                setAddressData(updatedDataWithPlaceId);
+                if (onUpdate) {
+                    onUpdate(updatedDataWithPlaceId);
+                }
+            }
+        }
     };
 
     const getSuggestions = async (input) => {
@@ -158,7 +185,7 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData
                     setSuggestions(formattedSuggestions);
                     setShowSuggestions(true);
                 } else {
-                    console.log('No predictions found or error:', status);
+        
                     setSuggestions([]);
                     setShowSuggestions(false);
                 }
@@ -191,14 +218,13 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData
                     const updatedData = {
                         ...addressData,
                         street_address: `${components.street_number || ''} ${components.route || ''}`.trim(),
-                        city: components.locality || components.administrative_area_level_3 || '',
-                        state_id: getStateIdByCode(components.administrative_area_level_1_short),
-                        zip_code: components.postal_code || '',
-                        county: components.administrative_area_level_2 || '',
                         formatted_address: place.formatted_address,
                         latitude: place.geometry.location.lat(),
                         longitude: place.geometry.location.lng(),
-                        place_id: place.place_id
+                        place_id: place.place_id,
+                        city: components.locality || '',
+                        state_id: findStateId(components.administrative_area_level_1_short),
+                        zip_code: components.postal_code || ''
                     };
 
                     setAddressData(updatedData);
@@ -212,7 +238,22 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData
                         updateMap(place.geometry.location.lat(), place.geometry.location.lng());
                     }
 
-                    toast.success('Address auto-filled from selection');
+                    // Set validation result so user doesn't need to click "Validate Address"
+                    setValidationResult({
+                        success: true,
+                        message: 'Address validated successfully from selection',
+                        data: {
+                            formatted_address: place.formatted_address,
+                            latitude: place.geometry.location.lat(),
+                            longitude: place.geometry.location.lng(),
+                            place_id: place.place_id,
+                            city: components.locality || '',
+                            state_id: findStateId(components.administrative_area_level_1_short),
+                            zip_code: components.postal_code || ''
+                        }
+                    });
+
+                    toast.success('Address auto-filled and validated from selection');
                 } else {
                     console.error('Error getting place details:', status);
                     toast.error('Failed to get address details');
@@ -224,10 +265,7 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData
         }
     };
 
-    const getStateIdByCode = (stateCode) => {
-        const state = parametricData.usStates.find(s => s.code === stateCode);
-        return state ? state.id : '';
-    };
+
 
     const parseAddressComponents = (components) => {
         const result = {};
@@ -256,20 +294,129 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData
         return result;
     };
 
+    // Helper function to find state_id from state code
+    const findStateId = (stateCode) => {
+        console.log('findStateId - Looking for state code:', stateCode);
+        console.log('findStateId - Available states:', parametricData?.usStates);
+        
+        if (!parametricData?.usStates || !stateCode) {
+            console.log('findStateId - No parametric data or state code, returning null');
+            return null;
+        }
+        
+        const state = parametricData.usStates.find(s => s.code === stateCode);
+        console.log('findStateId - Found state:', state);
+        return state ? state.id : null;
+    };
+
     const validateAddress = async () => {
         setIsValidating(true);
         setValidationResult(null);
         setErrors({});
 
         try {
+            if (!googleMapsLoaded) {
+                throw new Error('Google Maps API is still loading. Please wait a moment and try again.');
+            }
+
             if (!window.google || !window.google.maps || !window.google.maps.places) {
                 throw new Error('Google Maps API not loaded');
             }
 
-            const geocoder = new window.google.maps.Geocoder();
-            const addressString = `${addressData.street_address}, ${addressData.city}, ${addressData.state_id}, ${addressData.zip_code}`;
+            // If we have a place_id, use it directly instead of geocoding
+            if (addressData.place_id) {
+                const service = new window.google.maps.places.PlacesService(document.createElement('div'));
+                const request = {
+                    placeId: addressData.place_id,
+                    fields: ['address_components', 'formatted_address', 'geometry', 'place_id', 'types']
+                };
 
-            geocoder.geocode({ address: addressString }, (results, status) => {
+                const timeoutId = setTimeout(() => {
+                    setValidationResult({
+                        success: false,
+                        message: 'Address validation timed out. Please try again.'
+                    });
+                    toast.error('Address validation timed out');
+                    setIsValidating(false);
+                }, 10000);
+
+                service.getDetails(request, (place, status) => {
+                    clearTimeout(timeoutId);
+                    if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
+                        const components = parseAddressComponents(place.address_components);
+
+                        setAddressData(prev => ({
+                            ...prev,
+                            street_address: `${components.street_number || ''} ${components.route || ''}`.trim() || prev.street_address,
+                            formatted_address: place.formatted_address,
+                            latitude: place.geometry.location.lat(),
+                            longitude: place.geometry.location.lng(),
+                            place_id: place.place_id,
+                            city: components.locality || '',
+                            state_id: findStateId(components.administrative_area_level_1_short),
+                            zip_code: components.postal_code || ''
+                        }));
+
+                        if (place.geometry.location) {
+                            updateMap(place.geometry.location.lat(), place.geometry.location.lng());
+                        }
+
+                        setValidationResult({
+                            success: true,
+                            message: 'Address validated successfully using place ID',
+                            data: {
+                                formatted_address: place.formatted_address,
+                                latitude: place.geometry.location.lat(),
+                                longitude: place.geometry.location.lng(),
+                                place_id: place.place_id,
+                                city: components.locality || '',
+                                state_id: findStateId(components.administrative_area_level_1_short),
+                                zip_code: components.postal_code || ''
+                            }
+                        });
+
+                        toast.success('Address validated successfully');
+                    } else {
+                        // Fall back to geocoding if place_id fails
+                        performGeocoding();
+                    }
+                    setIsValidating(false);
+                });
+            } else {
+                // No place_id, use geocoding
+                performGeocoding();
+            }
+        } catch (error) {
+            console.error('Address validation error:', error);
+            setValidationResult({
+                success: false,
+                message: error.message || 'Failed to validate address'
+            });
+            toast.error(error.message || 'Failed to validate address');
+            setIsValidating(false);
+        }
+    };
+
+    const performGeocoding = () => {
+        const geocoder = new window.google.maps.Geocoder();
+        // Build complete address string including address line 2
+        let addressString = addressData.street_address;
+        if (addressData.street_address_2 && addressData.street_address_2.trim()) {
+            addressString += ', ' + addressData.street_address_2.trim();
+        }
+
+        // Add timeout to prevent hanging
+        const timeoutId = setTimeout(() => {
+            setValidationResult({
+                success: false,
+                message: 'Address validation timed out. Please try again.'
+            });
+            toast.error('Address validation timed out');
+            setIsValidating(false);
+        }, 10000); // 10 second timeout
+
+        geocoder.geocode({ address: addressString }, (results, status) => {
+                clearTimeout(timeoutId); // Clear timeout if geocoding completes
                 if (status === window.google.maps.GeocoderStatus.OK && results.length > 0) {
                     const result = results[0];
                     const components = parseAddressComponents(result.address_components);
@@ -277,11 +424,14 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData
                     // Update form data with validated address
                     setAddressData(prev => ({
                         ...prev,
+                        street_address: `${components.street_number || ''} ${components.route || ''}`.trim() || prev.street_address,
                         formatted_address: result.formatted_address,
                         latitude: result.geometry.location.lat(),
                         longitude: result.geometry.location.lng(),
                         place_id: result.place_id,
-                        county: components.administrative_area_level_2 || prev.county
+                        city: components.locality || '',
+                        state_id: findStateId(components.administrative_area_level_1_short),
+                        zip_code: components.postal_code || ''
                     }));
 
                     if (result.geometry.location) {
@@ -295,50 +445,93 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData
                             formatted_address: result.formatted_address,
                             latitude: result.geometry.location.lat(),
                             longitude: result.geometry.location.lng(),
-                            place_id: result.place_id
+                            place_id: result.place_id,
+                            city: components.locality || '',
+                            state_id: findStateId(components.administrative_area_level_1_short),
+                            zip_code: components.postal_code || ''
                         }
                     });
 
                     toast.success('Address validated successfully');
                 } else {
-                    setValidationResult({
-                        success: false,
-                        message: 'Address could not be validated. Please check your input.'
-                    });
-                    toast.error('Address validation failed');
+                    // Try with just the street address if the full address failed
+                    if (addressData.street_address_2 && addressData.street_address_2.trim()) {
+                        const fallbackTimeoutId = setTimeout(() => {
+                            setValidationResult({
+                                success: false,
+                                message: 'Address validation timed out. Please try again.'
+                            });
+                            toast.error('Address validation timed out');
+                            setIsValidating(false);
+                        }, 10000);
+
+                        geocoder.geocode({ address: addressData.street_address }, (results2, status2) => {
+                            clearTimeout(fallbackTimeoutId);
+                            if (status2 === window.google.maps.GeocoderStatus.OK && results2.length > 0) {
+                                const result = results2[0];
+                                const components = parseAddressComponents(result.address_components);
+
+                                setAddressData(prev => ({
+                                    ...prev,
+                                    street_address: `${components.street_number || ''} ${components.route || ''}`.trim() || prev.street_address,
+                                    formatted_address: result.formatted_address,
+                                    latitude: result.geometry.location.lat(),
+                                    longitude: result.geometry.location.lng(),
+                                    place_id: result.place_id,
+                                    city: components.locality || '',
+                                    state_id: findStateId(components.administrative_area_level_1_short),
+                                    zip_code: components.postal_code || ''
+                                }));
+
+                                if (result.geometry.location) {
+                                    updateMap(result.geometry.location.lat(), result.geometry.location.lng());
+                                }
+
+                                setValidationResult({
+                                    success: true,
+                                    message: 'Address validated successfully (address line 2 ignored)',
+                                    data: {
+                                        formatted_address: result.formatted_address,
+                                        latitude: result.geometry.location.lat(),
+                                        longitude: result.geometry.location.lng(),
+                                        place_id: result.place_id,
+                                        city: components.locality || '',
+                                        state_id: findStateId(components.administrative_area_level_1_short),
+                                        zip_code: components.postal_code || ''
+                                    }
+                                });
+
+                                toast.success('Address validated successfully (address line 2 ignored)');
+                            } else {
+                                setValidationResult({
+                                    success: false,
+                                    message: 'Address could not be validated. Please check your input and try again.'
+                                });
+                                toast.error('Address validation failed');
+                            }
+                            setIsValidating(false);
+                        });
+                    } else {
+                        setValidationResult({
+                            success: false,
+                            message: 'Address could not be validated. Please check your input and try again.'
+                        });
+                        toast.error('Address validation failed');
+                        setIsValidating(false);
+                    }
                 }
-                setIsValidating(false);
             });
-        } catch (error) {
-            console.error('Address validation error:', error);
-            setValidationResult({
-                success: false,
-                message: error.message || 'Failed to validate address'
-            });
-            toast.error(error.message || 'Failed to validate address');
-            setIsValidating(false);
-        }
-    };
+        };
 
     const validateForm = () => {
         const newErrors = {};
 
         if (!addressData.street_address.trim()) {
             newErrors.street_address = 'Street address is required';
-        }
-
-        if (!addressData.city.trim()) {
-            newErrors.city = 'City is required';
-        }
-
-        if (!addressData.state_id) {
-            newErrors.state_id = 'State is required';
-        }
-
-        if (!addressData.zip_code.trim()) {
-            newErrors.zip_code = 'ZIP code is required';
-        } else if (!/^\d{5}(-\d{4})?$/.test(addressData.zip_code)) {
-            newErrors.zip_code = 'Invalid ZIP code format';
+        } else if (addressData.street_address.trim().length < 5) {
+            newErrors.street_address = 'Street address is too short';
+        } else if (addressData.street_address.trim().length > 200) {
+            newErrors.street_address = 'Street address is too long';
         }
 
         setErrors(newErrors);
@@ -356,107 +549,56 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData
             return;
         }
 
+        // Debug: Log the address data being sent
+        console.log('AddressStep - Sending address data:', addressData);
+        console.log('AddressStep - Validation result:', validationResult);
+
         onNext(addressData);
     };
 
     return (
         <div className="space-y-6">
-            {/* Address Input Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                    <div className="relative">
-                        <Input
-                            label="Street Address"
-                            type="text"
-                            value={addressData.street_address}
-                            onChange={(e) => handleInputChange('street_address', e.target.value)}
-                            error={errors.street_address}
-                            placeholder="123 Main Street"
-                            required
-                        />
-                        
-                        {/* Address Suggestions */}
-                        {showSuggestions && suggestions.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                                {suggestions.map((suggestion, index) => (
-                                    <div
-                                        key={index}
-                                        className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                                        onClick={() => handleSuggestionClick(suggestion)}
-                                    >
-                                        <div className="font-medium text-gray-900">
-                                            {suggestion.structured_formatting.main_text}
-                                        </div>
-                                        <div className="text-sm text-gray-500">
-                                            {suggestion.structured_formatting.secondary_text}
-                                        </div>
+                        {/* Address Input Section */}
+            <div className="space-y-6">
+                <div className="relative">
+                    <Input
+                        label="Street Address"
+                        type="text"
+                        value={addressData.street_address}
+                        onChange={(e) => handleInputChange('street_address', e.target.value)}
+                        error={errors.street_address}
+                        placeholder="123 Main Street"
+                        required
+                    />
+                    
+                    {/* Address Suggestions */}
+                    {showSuggestions && suggestions.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                            {suggestions.map((suggestion, index) => (
+                                <div
+                                    key={index}
+                                    className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                    onClick={() => handleSuggestionClick(suggestion)}
+                                >
+                                    <div className="font-medium text-gray-900">
+                                        {suggestion.structured_formatting.main_text}
                                     </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                                    <div className="text-sm text-gray-500">
+                                        {suggestion.structured_formatting.secondary_text}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
-                <div className="md:col-span-2">
-                    <Input
-                        label="Address Line 2 (Optional)"
-                        type="text"
-                        value={addressData.street_address_2}
-                        onChange={(e) => handleInputChange('street_address_2', e.target.value)}
-                        placeholder="Apartment, suite, unit, etc."
-                    />
-                </div>
-
-                <div>
-                    <Input
-                        label="City"
-                        type="text"
-                        value={addressData.city}
-                        onChange={(e) => handleInputChange('city', e.target.value)}
-                        error={errors.city}
-                        placeholder="New York"
-                        required
-                    />
-                </div>
-
-                <div>
-                    <Select
-                        label="State"
-                        value={addressData.state_id}
-                        onChange={(e) => handleInputChange('state_id', e.target.value)}
-                        error={errors.state_id}
-                        required
-                    >
-                        <option value="">Select State</option>
-                        {parametricData.usStates.map(state => (
-                            <option key={state.id} value={state.id}>
-                                {state.name}
-                            </option>
-                        ))}
-                    </Select>
-                </div>
-
-                <div>
-                    <Input
-                        label="ZIP Code"
-                        type="text"
-                        value={addressData.zip_code}
-                        onChange={(e) => handleInputChange('zip_code', e.target.value)}
-                        error={errors.zip_code}
-                        placeholder="12345 or 12345-6789"
-                        required
-                    />
-                </div>
-
-                <div>
-                    <Input
-                        label="County (Optional)"
-                        type="text"
-                        value={addressData.county}
-                        onChange={(e) => handleInputChange('county', e.target.value)}
-                        placeholder="County name"
-                    />
-                </div>
+                <Input
+                    label="Address Line 2 (Optional)"
+                    type="text"
+                    value={addressData.street_address_2}
+                    onChange={(e) => handleInputChange('street_address_2', e.target.value)}
+                    placeholder="Apartment, suite, unit, etc."
+                />
             </div>
 
             {/* Address Validation */}
@@ -465,11 +607,16 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData
                     <h3 className="text-lg font-medium text-gray-900">Address Validation</h3>
                     <Button
                         onClick={validateAddress}
-                        disabled={isValidating}
+                        disabled={isValidating || !googleMapsLoaded}
                         variant="outline"
                         size="sm"
                     >
-                        {isValidating ? (
+                        {!googleMapsLoaded ? (
+                            <>
+                                <LoadingSpinner size="sm" className="mr-2" />
+                                Loading Maps...
+                            </>
+                        ) : isValidating ? (
                             <>
                                 <LoadingSpinner size="sm" className="mr-2" />
                                 Validating...
@@ -525,7 +672,7 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData
 
             {/* Navigation */}
             <div className="flex justify-between pt-6">
-                {!isFirstStep && (
+                {!isFirstStep && !isEditing && (
                     <Button
                         onClick={onPrevious}
                         variant="outline"
@@ -534,12 +681,12 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData
                     </Button>
                 )}
                 
-                <div className={isFirstStep ? 'ml-auto' : ''}>
+                <div className={isFirstStep && !isEditing ? 'ml-auto' : ''}>
                     <Button
                         onClick={handleNext}
                         disabled={!validationResult?.success}
                     >
-                        Next
+                        {isEditing ? 'Save & Return to Review' : 'Next'}
                     </Button>
                 </div>
             </div>

@@ -6,7 +6,7 @@ import Select from '../ui/Select';
 import FileUpload from '../ui/FileUpload';
 import toast from 'react-hot-toast';
 
-const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, parametricData }) => {
+const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData }) => {
     const [isCertified, setIsCertified] = useState(formData.is_certified ?? null); // null, true, false
     const [certificates, setCertificates] = useState(formData.certificates || []);
     const [certificateFiles, setCertificateFiles] = useState(formData.certificateFiles || []);
@@ -33,6 +33,8 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, parametri
             issuing_organization: '',
             issue_date: '',
             expiry_date: '',
+            certified_states: [], // For State Court Certification
+            issuing_state_id: '', // For Administrative Court Certification
             file: null,
             fileName: ''
         };
@@ -62,6 +64,24 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, parametri
         if (errors[`certificate_${certificateId}_${field}`]) {
             setErrors(prev => ({ ...prev, [`certificate_${certificateId}_${field}`]: null }));
         }
+    };
+
+    const handleStateSelection = (certificateId, stateId, isSelected) => {
+        setCertificates(prev => prev.map(cert => {
+            if (cert.id === certificateId) {
+                const currentStates = cert.certified_states || [];
+                let newStates;
+                
+                if (isSelected) {
+                    newStates = [...currentStates, stateId];
+                } else {
+                    newStates = currentStates.filter(id => id !== stateId);
+                }
+                
+                return { ...cert, certified_states: newStates };
+            }
+            return cert;
+        }));
     };
 
     const handleFileUpload = (certificateId, file) => {
@@ -133,6 +153,17 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, parametri
                 
                 if (cert.issue_date && cert.expiry_date && new Date(cert.issue_date) >= new Date(cert.expiry_date)) {
                     newErrors[`certificate_${cert.id}_expiry_date`] = 'Expiry date must be after issue date';
+                }
+
+                // Validate state selection for State Court Certification
+                const certificateType = parametricData?.certificateTypes?.find(ct => ct.id === cert.certificate_type_id);
+                if (certificateType?.code === 'court_certified' && (!cert.certified_states || cert.certified_states.length === 0)) {
+                    newErrors[`certificate_${cert.id}_certified_states`] = 'Please select at least one state where you are certified';
+                }
+
+                // Validate issuing state for Administrative Court Certification
+                if (certificateType?.code === 'ata_certified' && (!cert.issuing_state_id || cert.issuing_state_id === '')) {
+                    newErrors[`certificate_${cert.id}_issuing_state_id`] = 'Please select the issuing state for your Administrative Court certification';
                 }
             });
         }
@@ -293,8 +324,8 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, parametri
                                     <div className="md:col-span-2">
                                         <Select
                                             label="Certificate Type"
-                                            value={certificate.certificate_type_id}
-                                            onChange={(e) => handleCertificateChange(certificate.id, 'certificate_type_id', parseInt(e.target.value))}
+                                            value={certificate.certificate_type_id || ''}
+                                            onChange={(e) => handleCertificateChange(certificate.id, 'certificate_type_id', e.target.value ? parseInt(e.target.value) : '')}
                                             error={errors[`certificate_${certificate.id}_certificate_type_id`]}
                                             required
                                             options={parametricData?.certificateTypes?.map(type => ({
@@ -326,6 +357,51 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, parametri
                                             placeholder="Organization name (optional)"
                                         />
                                     </div>
+
+                                    {/* State Selection for State Court Certification */}
+                                    {certificate.certificate_type_id && 
+                                     parametricData?.certificateTypes?.find(ct => ct.id === certificate.certificate_type_id)?.code === 'court_certified' && (
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                States Where Certified *
+                                            </label>
+                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-3">
+                                                {parametricData?.usStates?.map(state => (
+                                                    <label key={state.id} className="flex items-center space-x-2 text-sm">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={(certificate.certified_states || []).includes(state.id)}
+                                                            onChange={(e) => handleStateSelection(certificate.id, state.id, e.target.checked)}
+                                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                        />
+                                                        <span className="text-gray-700">{state.name}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                            {errors[`certificate_${certificate.id}_certified_states`] && (
+                                                <p className="text-red-600 text-xs mt-1">{errors[`certificate_${certificate.id}_certified_states`]}</p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Issuing State Selection for Administrative Court Certification */}
+                                    {certificate.certificate_type_id && 
+                                     parametricData?.certificateTypes?.find(ct => ct.id === certificate.certificate_type_id)?.code === 'ata_certified' && (
+                                        <div className="md:col-span-2">
+                                            <Select
+                                                label="Issuing State"
+                                                value={certificate.issuing_state_id || ''}
+                                                onChange={(e) => handleCertificateChange(certificate.id, 'issuing_state_id', e.target.value ? parseInt(e.target.value) : '')}
+                                                error={errors[`certificate_${certificate.id}_issuing_state_id`]}
+                                                required
+                                                placeholder="Select Issuing State"
+                                                options={parametricData?.usStates?.map(state => ({
+                                                    value: state.id,
+                                                    label: state.name
+                                                })) || []}
+                                            />
+                                        </div>
+                                    )}
 
                                     <div>
                                         <Input
@@ -436,7 +512,7 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, parametri
 
             {/* Navigation */}
             <div className="flex justify-between pt-6">
-                {!isFirstStep && (
+                {!isFirstStep && !isEditing && (
                     <Button
                         onClick={onPrevious}
                         variant="outline"
@@ -445,12 +521,12 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, parametri
                     </Button>
                 )}
                 
-                <div className={isFirstStep ? 'ml-auto' : ''}>
+                <div className={isFirstStep && !isEditing ? 'ml-auto' : ''}>
                     <Button
                         onClick={handleNext}
                         disabled={isCertified === null}
                     >
-                        Next
+                        {isEditing ? 'Save & Return to Review' : 'Next'}
                     </Button>
                 </div>
             </div>

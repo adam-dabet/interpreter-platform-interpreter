@@ -6,7 +6,7 @@ import Select from '../ui/Select';
 import FileUpload from '../ui/FileUpload';
 import toast from 'react-hot-toast';
 
-const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep }) => {
+const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing }) => {
     const [entryMethod, setEntryMethod] = useState(formData.w9_entry_method || 'upload'); // 'upload' or 'manual'
     const [w9File, setW9File] = useState(formData.w9_file || null);
     
@@ -475,7 +475,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep }) => {
 
             {/* Navigation */}
             <div className="flex justify-between pt-6">
-                {!isFirstStep && (
+                {!isFirstStep && !isEditing && (
                     <Button
                         onClick={onPrevious}
                         variant="outline"
@@ -484,12 +484,12 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep }) => {
                     </Button>
                 )}
                 
-                <div className={isFirstStep ? 'ml-auto' : ''}>
+                <div className={isFirstStep && !isEditing ? 'ml-auto' : ''}>
                     <Button
                         onClick={handleNext}
                         disabled={entryMethod === 'upload' ? !w9File : false}
                     >
-                        Next
+                        {isEditing ? 'Save & Return to Review' : 'Next'}
                     </Button>
                 </div>
             </div>

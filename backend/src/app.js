@@ -4,7 +4,6 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-const applicationRoutes = require('./routes/applications');
 const emailService = require('./services/emailService');
 const loggerService = require('./services/loggerService');
 const { 
@@ -22,7 +21,7 @@ const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 const interpreterRoutes = require('./routes/interpreters');
 const parametricRoutes = require('./routes/parametric');
-const addressRoutes = require('./routes/address');
+const jobRoutes = require('./routes/jobs');
 
 // Security middleware
 app.use(helmet({
@@ -69,15 +68,16 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Static files (for development)
 if (process.env.NODE_ENV !== 'production') {
   app.use('/uploads', express.static('uploads'));
+  app.use('/uploads/interpreter-documents', express.static('uploads/interpreter-documents'));
+  app.use('/uploads/w9_forms', express.static('uploads/w9_forms'));
 }
 
 // Routes
-app.use('/api/applications', applicationRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/interpreters', interpreterRoutes);
 app.use('/api/parametric', parametricRoutes);
-app.use('/api/address', addressRoutes);
+app.use('/api/jobs', jobRoutes);
 app.use('/admin', express.static('public'));
 
 // Health check endpoint

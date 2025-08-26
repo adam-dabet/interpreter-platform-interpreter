@@ -28,6 +28,18 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
+    // If user is a provider, get their interpreter ID
+    if (result.rows[0].role === 'provider') {
+      const interpreterResult = await db.query(
+        'SELECT id FROM interpreters WHERE user_id = $1',
+        [decoded.userId]
+      );
+      
+      if (interpreterResult.rows.length > 0) {
+        decoded.interpreterId = interpreterResult.rows[0].id;
+      }
+    }
+
     req.user = decoded;
     next();
   } catch (error) {
@@ -48,7 +60,20 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+const requireRole = (role) => {
+  return (req, res, next) => {
+    if (req.user.role !== role) {
+      return res.status(403).json({
+        success: false,
+        message: `${role} access required`
+      });
+    }
+    next();
+  };
+};
+
 module.exports = {
   authenticateToken,
-  requireAdmin
+  requireAdmin,
+  requireRole
 };

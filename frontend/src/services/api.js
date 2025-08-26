@@ -9,17 +9,20 @@ const api = axios.create({
   },
 });
 
-// Request interceptor for debugging
+// Request interceptor for authentication
 api.interceptors.request.use(
   (config) => {
-    console.log('API Request:', config.method?.toUpperCase(), config.url);
-    if (config.data) {
-      console.log('Request Data:', JSON.stringify(config.data, null, 2));
+    // Add authentication token if available
+    const token = localStorage.getItem('interpreterToken') || localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log('🔐 Adding auth token to request:', config.url);
+    } else {
+      console.log('⚠️ No auth token found for request:', config.url);
     }
     return config;
   },
   (error) => {
-    console.error('API Request Error:', error);
     return Promise.reject(error);
   }
 );
@@ -55,21 +58,46 @@ api.interceptors.response.use(
   }
 );
 
-// API endpoints
-export const applicationAPI = {
-  // Submit application
-  submit: (data) => api.post('/applications/submit', data),
-  
-  // Get application status
-  getStatus: (applicationId) => api.get(`/applications/${applicationId}/status`),
-  
-  // Upload document
-  uploadDocument: (applicationId, formData) => {
-    return api.post(`/applications/${applicationId}/documents`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+
+
+// Generic API call function
+export const apiCall = async (endpoint, options = {}) => {
+  try {
+    const response = await api({
+      url: endpoint,
+      ...options,
     });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Auth API
+export const authAPI = {
+  // Interpreter login
+  interpreterLogin: (credentials) => {
+    return api.post('/auth/interpreter/login', credentials);
+  },
+  
+  // Admin login
+  adminLogin: (credentials) => {
+    return api.post('/auth/login', credentials);
+  },
+  
+  // Logout
+  logout: () => {
+    return api.post('/auth/logout');
+  },
+  
+  // Get profile
+  getProfile: () => {
+    return api.get('/auth/profile');
+  },
+  
+  // Change password
+  changePassword: (passwordData) => {
+    return api.post('/auth/change-password', passwordData);
   },
 };
 
@@ -83,25 +111,6 @@ export const interpreterAPI = {
       },
     });
   },
-
-  // Get interpreter profile
-  getProfile: (interpreterId) => {
-    return api.get(`/interpreters/${interpreterId}`);
-  },
-
-  // Update interpreter profile
-  updateProfile: (interpreterId, profileData) => {
-    return api.put(`/interpreters/${interpreterId}`, profileData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-  },
-
-  // Get all interpreters (with filters)
-  getAll: (params = {}) => {
-    return api.get('/interpreters', { params });
-  },
 };
 
 // Parametric Data API
@@ -111,50 +120,9 @@ export const parametricAPI = {
     return api.get('/parametric/all');
   },
 
-  // Get languages
-  getLanguages: () => {
-    return api.get('/parametric/languages');
-  },
 
-  // Get service types
-  getServiceTypes: () => {
-    return api.get('/parametric/service-types');
-  },
-
-  // Get certificate types
-  getCertificateTypes: () => {
-    return api.get('/parametric/certificate-types');
-  },
-
-  // Get US states
-  getUSStates: () => {
-    return api.get('/parametric/us-states');
-  },
 };
 
-// Address API
-export const addressAPI = {
-  // Validate address
-  validateAddress: (addressData) => {
-    return api.post('/address/validate', addressData);
-  },
 
-  // Get address suggestions
-  getSuggestions: (input, sessionToken = null) => {
-    return api.get('/address/suggestions', {
-      params: { input, session_token: sessionToken }
-    });
-  },
-
-  // Get place details
-  getPlaceDetails: (placeId) => {
-    return api.get(`/address/place/${placeId}`);
-  },
-
-  // Geocode address
-  geocodeAddress: (address) => {
-    return api.post('/address/geocode', { address });
-  },
-};
 
 export default api;

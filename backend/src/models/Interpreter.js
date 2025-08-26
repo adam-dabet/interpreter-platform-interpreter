@@ -27,14 +27,18 @@ class Interpreter {
             
             // Professional Information
             years_of_experience = 0,
-            hourly_rate = null,
             availability_notes = null,
             bio = null,
             
             // Arrays
             languages = [],
             service_types = [],
+            service_rates = [],
             certificates = [],
+            
+            // W-9 Information
+            w9_data = null,
+            w9_file = null,
             
             // Metadata
             created_by = null
@@ -51,15 +55,15 @@ class Interpreter {
                     first_name, last_name, middle_name, email, phone, date_of_birth, gender,
                     street_address, street_address_2, city, state_id, zip_code, county,
                     formatted_address, latitude, longitude, place_id,
-                    years_of_experience, hourly_rate, availability_notes, bio,
+                    years_of_experience, availability_notes, bio,
                     profile_status, created_by
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
                 RETURNING id, created_at
             `, [
                 first_name, last_name, middle_name, email, phone, date_of_birth, gender,
                 street_address, street_address_2, city, parseInt(state_id), zip_code, county,
                 formatted_address, latitude, longitude, place_id,
-                years_of_experience, hourly_rate, availability_notes, bio,
+                years_of_experience, availability_notes, bio,
                 'pending', created_by
             ]);
 
@@ -80,7 +84,7 @@ class Interpreter {
                 ]);
             }
 
-            // Insert service types
+            // Insert service types and rates
             for (const serviceTypeId of service_types) {
                 // Service types table uses INTEGER ids, so always convert to integer
                 const formattedServiceTypeId = parseInt(serviceTypeId);
@@ -89,6 +93,29 @@ class Interpreter {
                     INSERT INTO interpreter_service_types (interpreter_id, service_type_id)
                     VALUES ($1, $2)
                 `, [interpreterId, formattedServiceTypeId]);
+            }
+
+            // Insert service rates if provided
+            if (service_rates && service_rates.length > 0) {
+                for (const serviceRate of service_rates) {
+                    await client.query(`
+                        INSERT INTO interpreter_service_rates (
+                            interpreter_id, service_type_id, rate_type, rate_amount, rate_unit,
+                            custom_minimum_hours, custom_interval_minutes,
+                            custom_second_interval_rate_amount, custom_second_interval_rate_unit
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                    `, [
+                        interpreterId,
+                        parseInt(serviceRate.service_type_id),
+                        serviceRate.rate_type,
+                        serviceRate.rate_amount,
+                        serviceRate.rate_unit,
+                        serviceRate.custom_minimum_hours || null,
+                        serviceRate.custom_interval_minutes || null,
+                        serviceRate.custom_second_interval_rate_amount || null,
+                        serviceRate.custom_second_interval_rate_unit || null
+                    ]);
+                }
             }
 
             // Insert certificates (if any)
@@ -115,6 +142,58 @@ class Interpreter {
                 ]);
             }
 
+            // Insert W-9 form data (if provided)
+            if (w9_data || w9_file) {
+                let filePath = null;
+                let fileName = null;
+                let fileSize = null;
+
+                // Handle file upload if provided
+                if (w9_file) {
+                    filePath = w9_file.file_path || w9_file.path || null;
+                    fileName = w9_file.file_name || w9_file.originalname || null;
+                    fileSize = w9_file.file_size || w9_file.size || null;
+                }
+
+                // Use manual entry data or create default data
+                const w9FormData = w9_data || {
+                    business_name: `${first_name} ${last_name}`.trim(),
+                    business_type: 'individual',
+                    tax_classification: 'individual',
+                    address: street_address || '',
+                    city: city || '',
+                    state: state_id || '',
+                    zip_code: zip_code || ''
+                };
+
+                await client.query(`
+                    INSERT INTO interpreter_w9_forms (
+                        interpreter_id, business_name, business_type, tax_classification,
+                        ssn, ein, address, city, state, zip_code,
+                        exempt_payee_code, exempt_from_fatca, exempt_from_backup_withholding,
+                        file_path, file_name, file_size, entry_method
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                `, [
+                    interpreterId,
+                    w9FormData.business_name,
+                    w9FormData.business_type || 'individual',
+                    w9FormData.tax_classification || 'individual',
+                    w9FormData.ssn || null,
+                    w9FormData.ein || null,
+                    w9FormData.address,
+                    w9FormData.city,
+                    w9FormData.state,
+                    w9FormData.zip_code,
+                    w9FormData.exempt_payee_code || null,
+                    w9FormData.exempt_from_fatca || false,
+                    w9FormData.exempt_from_backup_withholding || false,
+                    filePath,
+                    fileName,
+                    fileSize,
+                    w9_file ? 'upload' : 'manual'
+                ]);
+            }
+
             await client.query('COMMIT');
 
             // Log the creation
@@ -124,7 +203,8 @@ class Interpreter {
                 email,
                 languageCount: languages.length,
                 serviceTypeCount: service_types.length,
-                certificateCount: certificates.length
+                certificateCount: certificates.length,
+                hasW9Data: !!(w9_data || w9_file)
             });
 
             return {
@@ -175,9 +255,42 @@ class Interpreter {
                         'issue_date', ic.issue_date,
                         'expiry_date', ic.expiry_date,
                         'verification_status', ic.verification_status,
+                        'file_path', ic.file_path,
                         'file_name', ic.file_name,
                         'file_size', ic.file_size
-                    )) FILTER (WHERE ic.id IS NOT NULL) as certificates
+                    )) FILTER (WHERE ic.id IS NOT NULL) as certificates,
+                    array_agg(DISTINCT jsonb_build_object(
+                        'service_type_id', isr.service_type_id,
+                        'service_type_name', st2.name,
+                        'rate_type', isr.rate_type,
+                        'rate_amount', isr.rate_amount,
+                        'rate_unit', isr.rate_unit,
+                        'custom_minimum_hours', isr.custom_minimum_hours,
+                        'custom_interval_minutes', isr.custom_interval_minutes,
+                        'custom_second_interval_rate_amount', isr.custom_second_interval_rate_amount,
+                        'custom_second_interval_rate_unit', isr.custom_second_interval_rate_unit
+                    )) FILTER (WHERE isr.id IS NOT NULL) as service_rates,
+                    array_agg(DISTINCT jsonb_build_object(
+                        'id', iw9.id,
+                        'business_name', iw9.business_name,
+                        'business_type', iw9.business_type,
+                        'tax_classification', iw9.tax_classification,
+                        'ssn', iw9.ssn,
+                        'ein', iw9.ein,
+                        'address', iw9.address,
+                        'city', iw9.city,
+                        'state', iw9.state,
+                        'zip_code', iw9.zip_code,
+                        'exempt_payee_code', iw9.exempt_payee_code,
+                        'exempt_from_fatca', iw9.exempt_from_fatca,
+                        'exempt_from_backup_withholding', iw9.exempt_from_backup_withholding,
+                        'file_path', iw9.file_path,
+                        'file_name', iw9.file_name,
+                        'file_size', iw9.file_size,
+                        'entry_method', iw9.entry_method,
+                        'verification_status', iw9.verification_status,
+                        'created_at', iw9.created_at
+                    )) FILTER (WHERE iw9.id IS NOT NULL) as w9_forms
                 FROM interpreters i
                 LEFT JOIN us_states s ON i.state_id = s.id
                 LEFT JOIN interpreter_languages il ON i.id = il.interpreter_id
@@ -186,6 +299,9 @@ class Interpreter {
                 LEFT JOIN service_types st ON ist.service_type_id = st.id
                 LEFT JOIN interpreter_certificates ic ON i.id = ic.interpreter_id
                 LEFT JOIN certificate_types ct ON ic.certificate_type_id = ct.id
+                LEFT JOIN interpreter_service_rates isr ON i.id = isr.interpreter_id
+                LEFT JOIN service_types st2 ON isr.service_type_id = st2.id
+                LEFT JOIN interpreter_w9_forms iw9 ON i.id = iw9.interpreter_id
                 WHERE i.id = $1
                 GROUP BY i.id, s.name, s.code
             `;
@@ -260,37 +376,7 @@ class Interpreter {
         }
     }
 
-    static async update(id, updates) {
-        try {
-            const setClause = Object.keys(updates)
-                .map((key, index) => `${key} = $${index + 2}`)
-                .join(', ');
 
-            const result = await db.query(
-                `UPDATE interpreters SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
-                [id, ...Object.values(updates)]
-            );
-
-            if (result.rows.length === 0) {
-                return null;
-            }
-
-            await loggerService.info('Interpreter profile updated', {
-                category: 'INTERPRETER',
-                interpreterId: id,
-                updatedFields: Object.keys(updates)
-            });
-
-            return result.rows[0];
-
-        } catch (error) {
-            await loggerService.error('Failed to update interpreter', error, {
-                category: 'INTERPRETER',
-                interpreterId: id
-            });
-            throw error;
-        }
-    }
 
     static async getAll(filters = {}, limit = 50, offset = 0) {
         try {
@@ -315,7 +401,7 @@ class Interpreter {
             if (language) {
                 whereClause += ` AND EXISTS (
                     SELECT 1 FROM interpreter_languages il 
-                    WHERE il.interpreter_id = i.id AND il.language_id = $${paramCounter}::uuid
+                    WHERE il.interpreter_id = i.id AND il.language_id = $${paramCounter}
                 )`;
                 queryParams.push(language); // language should be a UUID string
                 paramCounter++;
@@ -341,8 +427,8 @@ class Interpreter {
 
             const query = `
                 SELECT 
-                    i.id, i.first_name, i.last_name, i.email, i.phone, i.city,
-                    s.name as state_name, i.years_of_experience, i.hourly_rate,
+                    i.id, i.first_name, i.last_name, i.email, i.phone, i.street_address, i.street_address_2, i.city, i.zip_code, i.formatted_address,
+                    s.name as state_name, s.code as state_code, i.years_of_experience, i.hourly_rate, i.bio, i.availability_notes,
                     i.profile_status, i.verification_status, i.created_at,
                     COUNT(*) OVER() as total_count,
                     COALESCE(
@@ -352,16 +438,67 @@ class Interpreter {
                     COALESCE(
                         STRING_AGG(DISTINCT st.name, ', ' ORDER BY st.name), 
                         'N/A'
-                    ) as service_types
+                    ) as service_types,
+                    array_agg(DISTINCT jsonb_build_object(
+                        'service_type_id', isr.service_type_id,
+                        'service_type_name', st2.name,
+                        'rate_type', isr.rate_type,
+                        'rate_amount', isr.rate_amount,
+                        'rate_unit', isr.rate_unit,
+                        'custom_minimum_hours', isr.custom_minimum_hours,
+                        'custom_interval_minutes', isr.custom_interval_minutes,
+                        'custom_second_interval_rate_amount', isr.custom_second_interval_rate_amount,
+                        'custom_second_interval_rate_unit', isr.custom_second_interval_rate_unit
+                    )) FILTER (WHERE isr.id IS NOT NULL) as service_rates,
+                    array_agg(DISTINCT jsonb_build_object(
+                        'id', iw9.id,
+                        'business_name', iw9.business_name,
+                        'business_type', iw9.business_type,
+                        'tax_classification', iw9.tax_classification,
+                        'ssn', iw9.ssn,
+                        'ein', iw9.ein,
+                        'address', iw9.address,
+                        'city', iw9.city,
+                        'state', iw9.state,
+                        'zip_code', iw9.zip_code,
+                        'exempt_payee_code', iw9.exempt_payee_code,
+                        'exempt_from_fatca', iw9.exempt_from_fatca,
+                        'exempt_from_backup_withholding', iw9.exempt_from_backup_withholding,
+                        'file_path', iw9.file_path,
+                        'file_name', iw9.file_name,
+                        'file_size', iw9.file_size,
+                        'entry_method', iw9.entry_method,
+                        'verification_status', iw9.verification_status,
+                        'created_at', iw9.created_at
+                    )) FILTER (WHERE iw9.id IS NOT NULL) as w9_forms,
+                    array_agg(DISTINCT jsonb_build_object(
+                        'id', ic.id,
+                        'certificate_type_id', ic.certificate_type_id,
+                        'certificate_type_name', ct.name,
+                        'certificate_number', ic.certificate_number,
+                        'issuing_organization', ic.issuing_organization,
+                        'issue_date', ic.issue_date,
+                        'expiry_date', ic.expiry_date,
+                        'file_path', ic.file_path,
+                        'file_name', ic.file_name,
+                        'file_size', ic.file_size,
+                        'verification_status', ic.verification_status,
+                        'created_at', ic.created_at
+                    )) FILTER (WHERE ic.id IS NOT NULL) as certificates
                 FROM interpreters i
                 LEFT JOIN us_states s ON i.state_id = s.id
                 LEFT JOIN interpreter_languages il ON i.id = il.interpreter_id
                 LEFT JOIN languages l ON il.language_id = l.id
                 LEFT JOIN interpreter_service_types ist ON i.id = ist.interpreter_id
                 LEFT JOIN service_types st ON ist.service_type_id = st.id
+                LEFT JOIN interpreter_service_rates isr ON i.id = isr.interpreter_id
+                LEFT JOIN service_types st2 ON isr.service_type_id = st2.id
+                LEFT JOIN interpreter_w9_forms iw9 ON i.id = iw9.interpreter_id
+                LEFT JOIN interpreter_certificates ic ON i.id = ic.interpreter_id
+                LEFT JOIN certificate_types ct ON ic.certificate_type_id = ct.id
                 ${whereClause}
-                GROUP BY i.id, i.first_name, i.last_name, i.email, i.phone, i.city,
-                         s.name, i.years_of_experience, i.hourly_rate, i.profile_status, 
+                GROUP BY i.id, i.first_name, i.last_name, i.email, i.phone, i.street_address, i.street_address_2, i.city, i.zip_code, i.formatted_address,
+                         s.name, s.code, i.years_of_experience, i.hourly_rate, i.bio, i.availability_notes, i.profile_status, 
                          i.verification_status, i.created_at
                 ORDER BY i.created_at DESC
                 LIMIT $${paramCounter} OFFSET $${paramCounter + 1}
@@ -391,51 +528,7 @@ class Interpreter {
         }
     }
 
-    static async getPendingProfiles(limit = 50, offset = 0) {
-        try {
-            const result = await db.query(`
-                SELECT 
-                    i.id,
-                    i.first_name || ' ' || i.last_name as interpreter_name,
-                    i.email,
-                    i.phone,
-                    i.created_at,
-                    i.years_of_experience,
-                    s.name as state_name,
-                    (
-                        SELECT string_agg(l.name, ', ')
-                        FROM interpreter_languages il
-                        JOIN languages l ON il.language_id = l.id
-                        WHERE il.interpreter_id = i.id
-                    ) as languages,
-                    (
-                        SELECT string_agg(st.name, ', ')
-                        FROM interpreter_service_types ist
-                        JOIN service_types st ON ist.service_type_id = st.id
-                        WHERE ist.interpreter_id = i.id
-                    ) as service_types,
-                    i.profile_status,
-                    EXTRACT(DAY FROM CURRENT_TIMESTAMP - i.created_at) as days_pending,
-                    (
-                        SELECT COUNT(*) FROM interpreter_certificates ic 
-                        WHERE ic.interpreter_id = i.id
-                    ) as certificate_count
-                FROM interpreters i
-                LEFT JOIN us_states s ON i.state_id = s.id
-                WHERE i.profile_status IN ('draft', 'pending', 'under_review')
-                ORDER BY i.created_at ASC
-                LIMIT $1 OFFSET $2
-            `, [limit, offset]);
 
-            return result.rows;
-
-        } catch (error) {
-            await loggerService.error('Failed to get pending interpreter profiles', error, {
-                category: 'INTERPRETER'
-            });
-            throw error;
-        }
-    }
 
     static async getDashboardStats() {
         try {
@@ -464,6 +557,151 @@ class Interpreter {
             throw error;
         }
     }
+
+    // Delete interpreter profile and all related data
+    static async deleteById(interpreterId) {
+        try {
+            // Start a transaction to ensure data consistency
+            await db.query('BEGIN');
+
+            // Delete related records first (due to foreign key constraints)
+            
+            // Delete interpreter certificates
+            await db.query(
+                'DELETE FROM interpreter_certificates WHERE interpreter_id = $1',
+                [interpreterId]
+            );
+
+            // Delete interpreter W9 forms
+            await db.query(
+                'DELETE FROM interpreter_w9_forms WHERE interpreter_id = $1',
+                [interpreterId]
+            );
+
+            // Delete interpreter service rates
+            await db.query(
+                'DELETE FROM interpreter_service_rates WHERE interpreter_id = $1',
+                [interpreterId]
+            );
+
+            // Delete interpreter service types
+            await db.query(
+                'DELETE FROM interpreter_service_types WHERE interpreter_id = $1',
+                [interpreterId]
+            );
+
+            // Delete interpreter languages
+            await db.query(
+                'DELETE FROM interpreter_languages WHERE interpreter_id = $1',
+                [interpreterId]
+            );
+
+            // Finally, delete the interpreter profile
+            const result = await db.query(
+                'DELETE FROM interpreters WHERE id = $1 RETURNING *',
+                [interpreterId]
+            );
+
+            // Commit the transaction
+            await db.query('COMMIT');
+
+            await loggerService.info('Interpreter profile deleted', {
+                category: 'INTERPRETER',
+                interpreterId
+            });
+
+            return result.rows[0];
+
+        } catch (error) {
+            // Rollback the transaction on error
+            await db.query('ROLLBACK');
+            
+            await loggerService.error('Failed to delete interpreter profile', error, {
+                category: 'INTERPRETER',
+                interpreterId
+            });
+            throw error;
+        }
+    }
+
+    // Find interpreter by email
+    static async findByEmail(email) {
+        try {
+            const result = await db.query(
+                'SELECT * FROM interpreters WHERE email = $1',
+                [email]
+            );
+            return result.rows[0];
+        } catch (error) {
+            await loggerService.error('Failed to find interpreter by email', error, {
+                category: 'INTERPRETER',
+                email
+            });
+            throw error;
+        }
+    }
+
+    // Update interpreter profile
+    static async update(interpreterId, updateData) {
+        try {
+            console.log('Interpreter.update called with:', { interpreterId, updateData });
+            
+            // Build dynamic update query
+            const fields = [];
+            const values = [];
+            let paramCount = 0;
+
+            // Add fields to update
+            Object.keys(updateData).forEach(key => {
+                if (updateData[key] !== undefined && updateData[key] !== null) {
+                    paramCount++;
+                    fields.push(`${key} = $${paramCount}`);
+                    values.push(updateData[key]);
+                }
+            });
+
+            console.log('Update query fields:', fields);
+            console.log('Update query values:', values);
+
+            if (fields.length === 0) {
+                console.log('No fields to update, returning null');
+                return null; // No fields to update
+            }
+
+            // Add interpreter ID as the last parameter
+            values.push(interpreterId);
+
+            const query = `
+                UPDATE interpreters 
+                SET ${fields.join(', ')}
+                WHERE id = $${paramCount + 1}
+                RETURNING *
+            `;
+
+            console.log('Update query:', query);
+            const result = await db.query(query, values);
+
+            if (result.rows.length === 0) {
+                return null; // Interpreter not found
+            }
+
+            await loggerService.info('Interpreter profile updated', {
+                category: 'INTERPRETER',
+                interpreterId,
+                updatedFields: Object.keys(updateData)
+            });
+
+            return result.rows[0];
+
+        } catch (error) {
+            await loggerService.error('Failed to update interpreter profile', error, {
+                category: 'INTERPRETER',
+                interpreterId
+            });
+            throw error;
+        }
+    }
+
 }
 
 module.exports = Interpreter;

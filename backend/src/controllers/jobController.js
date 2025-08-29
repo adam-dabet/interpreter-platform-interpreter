@@ -26,12 +26,17 @@ class JobController {
           l2.name as target_language_name,
           st.name as service_type_name,
           u.first_name || ' ' || u.last_name as created_by_name,
+          cl.name as claimant_name,
+          c.claim_number as claim_number,
+          c.case_type as case_type,
           COUNT(*) OVER() as total_count
         FROM jobs j
         LEFT JOIN languages l1 ON j.source_language_id = l1.id
         LEFT JOIN languages l2 ON j.target_language_id = l2.id
         LEFT JOIN service_types st ON j.service_type_id = st.id
         LEFT JOIN users u ON j.created_by = u.id
+        LEFT JOIN claimants cl ON j.claimant_id = cl.id
+        LEFT JOIN claims c ON j.claim_id = c.id
         WHERE j.status = 'open' 
         AND j.scheduled_date >= CURRENT_DATE
       `;
@@ -331,7 +336,8 @@ class JobController {
         serviceType,
         language,
         interpreterType,
-        claimantName,
+        claimantId,
+        claimId,
         locationOfService
       } = req.body;
 
@@ -341,7 +347,39 @@ class JobController {
       
       // Map frontend fields to database fields
       const title = jobNumber;
-      const description = `Job for ${claimantName} - ${appointmentType} appointment`;
+      
+      // Get claimant information if provided
+      let claimantName = '';
+      let claimNumber = '';
+      if (claimantId) {
+        try {
+          const claimantResult = await db.query(
+            'SELECT name FROM claimants WHERE id = $1 AND is_active = true',
+            [claimantId]
+          );
+          if (claimantResult.rows.length > 0) {
+            claimantName = claimantResult.rows[0].name;
+          }
+        } catch (claimantError) {
+          console.error('Error fetching claimant:', claimantError);
+        }
+      }
+      
+      if (claimId) {
+        try {
+          const claimResult = await db.query(
+            'SELECT claim_number FROM claims WHERE id = $1 AND is_active = true',
+            [claimId]
+          );
+          if (claimResult.rows.length > 0) {
+            claimNumber = claimResult.rows[0].claim_number;
+          }
+        } catch (claimError) {
+          console.error('Error fetching claim:', claimError);
+        }
+      }
+      
+      const description = `Job for ${claimantName}${claimNumber ? ` (${claimNumber})` : ''} - ${appointmentType} appointment`;
       
       // Map appointment type to job type enum
       let job_type = 'other'; // default
@@ -554,8 +592,39 @@ class JobController {
           }
         }
       }
-      const hourly_rate = 50.00; // Default rate - should be configurable
-      const total_amount = (estimated_duration_minutes / 60) * hourly_rate;
+      
+      // Get the actual rate from the service type
+      let hourly_rate = 50.00; // Default fallback rate
+      let rate_unit = 'hours';
+      if (service_type_id) {
+        try {
+          const rateResult = await db.query(
+            'SELECT rate_amount, rate_unit FROM service_type_rates WHERE service_type_id = $1',
+            [service_type_id]
+          );
+          if (rateResult.rows.length > 0) {
+            const rateData = rateResult.rows[0];
+            hourly_rate = parseFloat(rateData.rate_amount) || 50.00;
+            rate_unit = rateData.rate_unit || 'hours';
+          }
+        } catch (rateError) {
+          console.error('Error fetching service type rate:', rateError);
+        }
+      }
+      
+      // Calculate total amount based on rate unit
+      let total_amount;
+      if (rate_unit === 'minutes') {
+        total_amount = estimated_duration_minutes * hourly_rate;
+      } else if (rate_unit === 'word') {
+        // For document translation, estimate words per minute
+        const wordsPerMinute = 150; // Average reading speed
+        const estimatedWords = estimated_duration_minutes * wordsPerMinute;
+        total_amount = estimatedWords * hourly_rate;
+      } else {
+        // Default to hourly rate
+        total_amount = (estimated_duration_minutes / 60) * hourly_rate;
+      }
       const client_name = claimantName;
       const client_email = 'client@example.com'; // Default - should be added to form
       const client_phone = '';
@@ -586,8 +655,8 @@ class JobController {
           scheduled_date, scheduled_time, estimated_duration_minutes,
           source_language_id, target_language_id, service_type_id, interpreter_type_id, appointment_type,
           hourly_rate, total_amount, client_name, client_email, client_phone,
-          client_notes, special_requirements, created_by
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+          client_notes, special_requirements, claimant_id, claim_id, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
         RETURNING *
       `;
 
@@ -597,7 +666,7 @@ class JobController {
         scheduled_date, scheduled_time, estimated_duration_minutes,
         source_language_id, target_language_id, service_type_id, interpreter_type_id, appointment_type,
         hourly_rate, total_amount, client_name, client_email, client_phone,
-        client_notes, special_requirements, created_by
+        client_notes, special_requirements, claimantId, claimId, created_by
       ];
 
       const result = await db.query(query, values);
@@ -649,7 +718,10 @@ class JobController {
           st.name as service_type_name,
           it.name as interpreter_type_name,
           u.first_name || ' ' || u.last_name as created_by_name,
-          i.first_name || ' ' || i.last_name as assigned_interpreter_name
+          i.first_name || ' ' || i.last_name as assigned_interpreter_name,
+          cl.name as claimant_name,
+          c.claim_number as claim_number,
+          c.case_type as case_type
         FROM jobs j
         LEFT JOIN languages l1 ON j.source_language_id = l1.id
         LEFT JOIN languages l2 ON j.target_language_id = l2.id
@@ -657,6 +729,8 @@ class JobController {
         LEFT JOIN interpreter_types it ON j.interpreter_type_id = it.id
         LEFT JOIN users u ON j.created_by = u.id
         LEFT JOIN interpreters i ON j.assigned_interpreter_id = i.id
+        LEFT JOIN claimants cl ON j.claimant_id = cl.id
+        LEFT JOIN claims c ON j.claim_id = c.id
         WHERE j.id = $1
       `;
 

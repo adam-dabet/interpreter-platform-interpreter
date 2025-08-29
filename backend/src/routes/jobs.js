@@ -30,7 +30,8 @@ const jobValidation = [
   body('serviceType').notEmpty().withMessage('Service type is required'),
   body('language').notEmpty().withMessage('Language is required'),
   body('interpreterType').notEmpty().withMessage('Interpreter type is required'),
-  body('claimantName').notEmpty().withMessage('Claimant name is required'),
+  body('claimantId').notEmpty().withMessage('Claimant is required'),
+  body('claimId').notEmpty().withMessage('Claim is required'),
   body('locationOfService').notEmpty().withMessage('Location of service is required')
 ];
 
@@ -67,7 +68,8 @@ const jobUpdateValidation = [
   body('reserveTime').optional().isInt({ min: 15, max: 480 }).withMessage('Reserve time must be between 15 and 480 minutes'),
   body('serviceType').optional().notEmpty().withMessage('Service type is required'),
   body('language').optional().notEmpty().withMessage('Language is required'),
-  body('claimantName').optional().notEmpty().withMessage('Claimant name cannot be empty'),
+  body('claimantId').optional().notEmpty().withMessage('Claimant cannot be empty'),
+  body('claimId').optional().notEmpty().withMessage('Claim cannot be empty'),
   body('locationOfService').optional().notEmpty().withMessage('Location of service cannot be empty')
 ];
 

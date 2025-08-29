@@ -823,14 +823,34 @@ const EditJob = ({ jobId, setCurrentView }) => {
                 Service Details
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <SearchableSelect
-                  label="Service Type"
-                  value={formData.serviceType}
-                  onChange={(e) => handleInputChange('serviceType', e.target.value)}
-                  options={serviceTypes.map(st => ({ value: st.id.toString(), label: st.name }))}
-                  placeholder="Select service type"
-                  required
-                />
+                <div>
+                  <SearchableSelect
+                    label="Service Type"
+                    value={formData.serviceType}
+                    onChange={(e) => handleInputChange('serviceType', e.target.value)}
+                    options={serviceTypes.map(st => ({ 
+                      value: st.id.toString(), 
+                      label: `${st.name} - $${st.platform_rate_amount || 'N/A'}/${st.platform_rate_unit === 'minutes' ? 'min' : st.platform_rate_unit === 'word' ? 'word' : 'hr'}`
+                    }))}
+                    placeholder="Select service type"
+                    required
+                  />
+                  {formData.serviceType && (() => {
+                    const selectedServiceType = serviceTypes.find(st => st.id.toString() === formData.serviceType);
+                    return selectedServiceType ? (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                        <p className="text-sm text-blue-800">
+                          <span className="font-medium">Rate:</span> ${selectedServiceType.platform_rate_amount || 'N/A'}/{selectedServiceType.platform_rate_unit === 'minutes' ? 'min' : selectedServiceType.platform_rate_unit === 'word' ? 'word' : 'hr'}
+                        </p>
+                        {selectedServiceType.platform_minimum_hours && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            Minimum: {selectedServiceType.platform_minimum_hours} hours
+                          </p>
+                        )}
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
                 <SearchableSelect
                   label="Language"
                   value={formData.language}

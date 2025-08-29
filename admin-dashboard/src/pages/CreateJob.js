@@ -182,7 +182,8 @@ const CreateJob = ({ setCurrentView }) => {
     serviceType: '',
     language: '',
     interpreterType: '',
-    claimantName: '',
+    claimantId: '',
+    claimId: '',
     locationOfService: ''
   });
 
@@ -190,6 +191,9 @@ const CreateJob = ({ setCurrentView }) => {
   const [serviceTypes, setServiceTypes] = useState([]);
   const [languages, setLanguages] = useState([]);
   const [interpreterTypes, setInterpreterTypes] = useState([]);
+  const [serviceLocations, setServiceLocations] = useState([]);
+  const [claimants, setClaimants] = useState([]);
+  const [claims, setClaims] = useState([]);
   const [map, setMap] = useState(null);
   const [autocomplete, setAutocomplete] = useState(null);
   const [mapsInitialized, setMapsInitialized] = useState(false);
@@ -329,12 +333,31 @@ const CreateJob = ({ setCurrentView }) => {
         const interpreterTypesData = await interpreterTypesResponse.json();
         setInterpreterTypes(interpreterTypesData.data || []);
       }
+
+      // Load service locations
+      const serviceLocationsResponse = await fetch(`${API_BASE}/admin/service-locations`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (serviceLocationsResponse.ok) {
+        const serviceLocationsData = await serviceLocationsResponse.json();
+        setServiceLocations(serviceLocationsData.data || []);
+      }
+
+      // Load claimants
+      const claimantsResponse = await fetch(`${API_BASE}/admin/claimants`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (claimantsResponse.ok) {
+        const claimantsData = await claimantsResponse.json();
+        setClaimants(claimantsData.data || []);
+      }
     } catch (error) {
       console.error('Error loading form options:', error);
       // Set empty arrays as fallback
       setServiceTypes([]);
       setLanguages([]);
       setInterpreterTypes([]);
+      setServiceLocations([]);
     }
   };
 
@@ -376,11 +399,45 @@ const CreateJob = ({ setCurrentView }) => {
     return 'other'; // Return 'other' for any appointment types that don't match the main categories
   };
 
+  const loadClaimsForClaimant = async (claimantId) => {
+    if (!claimantId) {
+      setClaims([]);
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE}/admin/claimants/${claimantId}/claims`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setClaims(data.data || []);
+      } else {
+        setClaims([]);
+      }
+    } catch (error) {
+      console.error('Error loading claims:', error);
+      setClaims([]);
+    }
+  };
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+    
+    // Load claims when claimant is selected
+    if (field === 'claimantId') {
+      loadClaimsForClaimant(value);
+      // Clear claim selection when claimant changes
+      setFormData(prev => ({
+        ...prev,
+        claimId: ''
+      }));
+    }
     
     // Auto-populate service type when appointment type changes
     if (field === 'appointmentType' && value) {
@@ -513,6 +570,26 @@ const CreateJob = ({ setCurrentView }) => {
     }
   };
 
+  const handleServiceLocationChange = (locationId) => {
+    if (locationId) {
+      const selectedLocation = serviceLocations.find(loc => loc.id.toString() === locationId);
+      if (selectedLocation) {
+        setFormData(prev => ({
+          ...prev,
+          locationOfService: selectedLocation.address,
+          serviceLocationId: locationId
+        }));
+        toast.success(`Location set to: ${selectedLocation.name}`);
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        locationOfService: '',
+        serviceLocationId: ''
+      }));
+    }
+  };
+
   const appointmentTypeOptions = [
     { value: 'acupuncture', label: 'Acupuncture' },
     { value: 'ame', label: 'AME' },
@@ -642,12 +719,28 @@ const CreateJob = ({ setCurrentView }) => {
                   placeholder="Enter job number"
                   required
                 />
-                <Input
-                  label="Claimant Name"
-                  value={formData.claimantName}
-                  onChange={(e) => handleInputChange('claimantName', e.target.value)}
-                  placeholder="Enter claimant name"
+                <SearchableSelect
+                  label="Claimant"
+                  value={formData.claimantId}
+                  onChange={(e) => handleInputChange('claimantId', e.target.value)}
+                  options={claimants.map(claimant => ({ 
+                    value: claimant.id.toString(), 
+                    label: `${claimant.name}${claimant.language ? ` (${claimant.language})` : ''}`
+                  }))}
+                  placeholder="Select claimant"
                   required
+                />
+                <SearchableSelect
+                  label="Claim"
+                  value={formData.claimId}
+                  onChange={(e) => handleInputChange('claimId', e.target.value)}
+                  options={claims.map(claim => ({ 
+                    value: claim.id.toString(), 
+                    label: `${claim.claim_number} - ${claim.case_type}`
+                  }))}
+                  placeholder={formData.claimantId ? "Select claim" : "Select claimant first"}
+                  required
+                  disabled={!formData.claimantId}
                 />
               </div>
             </div>
@@ -707,14 +800,34 @@ const CreateJob = ({ setCurrentView }) => {
                 Service Details
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <SearchableSelect
-                  label="Service Type"
-                  value={formData.serviceType}
-                  onChange={(e) => handleInputChange('serviceType', e.target.value)}
-                  options={serviceTypes.map(st => ({ value: st.id.toString(), label: st.name }))}
-                  placeholder="Select service type"
-                  required
-                />
+                <div>
+                  <SearchableSelect
+                    label="Service Type"
+                    value={formData.serviceType}
+                    onChange={(e) => handleInputChange('serviceType', e.target.value)}
+                    options={serviceTypes.map(st => ({ 
+                      value: st.id.toString(), 
+                      label: `${st.name} - $${st.platform_rate_amount || 'N/A'}/${st.platform_rate_unit === 'minutes' ? 'min' : st.platform_rate_unit === 'word' ? 'word' : 'hr'}`
+                    }))}
+                    placeholder="Select service type"
+                    required
+                  />
+                  {formData.serviceType && (() => {
+                    const selectedServiceType = serviceTypes.find(st => st.id.toString() === formData.serviceType);
+                    return selectedServiceType ? (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                        <p className="text-sm text-blue-800">
+                          <span className="font-medium">Rate:</span> ${selectedServiceType.platform_rate_amount || 'N/A'}/{selectedServiceType.platform_rate_unit === 'minutes' ? 'min' : selectedServiceType.platform_rate_unit === 'word' ? 'word' : 'hr'}
+                        </p>
+                        {selectedServiceType.platform_minimum_hours && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            Minimum: {selectedServiceType.platform_minimum_hours} hours
+                          </p>
+                        )}
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
                 <SearchableSelect
                   label="Language"
                   value={formData.language}
@@ -741,14 +854,41 @@ const CreateJob = ({ setCurrentView }) => {
                 Location
               </h3>
               <div className="grid grid-cols-1 gap-6">
-                <Input
-                  label="Location of Service"
-                  value={formData.locationOfService}
-                  onChange={(e) => handleInputChange('locationOfService', e.target.value)}
-                  placeholder="Enter location (e.g., City, State or Full Address)"
-                  required
-                  id="locationOfService"
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Service Location <span className="text-gray-500">(Optional - Select from saved locations)</span>
+                  </label>
+                  <select
+                    value={formData.serviceLocationId || ''}
+                    onChange={(e) => handleServiceLocationChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select a saved location...</option>
+                    {serviceLocations.map(location => (
+                      <option key={location.id} value={location.id}>
+                        {location.name} - {location.address}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Location of Service <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.locationOfService}
+                    onChange={(e) => handleInputChange('locationOfService', e.target.value)}
+                    placeholder="Enter location (e.g., City, State or Full Address)"
+                    required
+                    id="locationOfService"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 Select a saved location above to auto-fill this field, or enter a new location manually
+                  </p>
+                </div>
               </div>
             </div>
 

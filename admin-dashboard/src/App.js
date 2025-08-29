@@ -19,6 +19,10 @@ import JobManagement from './pages/JobManagement';
 import CreateJob from './pages/CreateJob';
 import JobDetails from './pages/JobDetails';
 import EditJob from './pages/EditJob';
+import ServiceLocations from './pages/ServiceLocations';
+import BillingAccounts from './pages/BillingAccounts';
+import Customers from './pages/Customers';
+import Claimants from './pages/Claimants';
 import Sidebar from './components/Sidebar';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
@@ -627,6 +631,22 @@ const AdminDashboard = () => {
         {currentView === 'edit-job' && (
           <EditJob jobId={viewParams.jobId} setCurrentView={handleViewChange} />
         )}
+
+        {currentView === 'service-locations' && (
+          <ServiceLocations setCurrentView={handleViewChange} />
+        )}
+
+        {currentView === 'billing-accounts' && (
+          <BillingAccounts setCurrentView={handleViewChange} />
+        )}
+
+        {currentView === 'customers' && (
+          <Customers setCurrentView={handleViewChange} />
+        )}
+
+        {currentView === 'claimants' && (
+          <Claimants setCurrentView={handleViewChange} />
+        )}
           </div>
         </div>
       </div>
@@ -732,7 +752,11 @@ const AdminDashboard = () => {
                             <p className="text-sm font-medium">{rate.service_type_name}</p>
                             <p className="text-sm text-gray-600">
                               {rate.rate_type === 'custom' ? 'Custom' : 'Platform'} Rate: 
-                              ${rate.rate_amount}/{rate.rate_unit}
+                              ${rate.rate_type === 'platform' ? 
+                                rate.platform_rate_amount : 
+                                rate.rate_amount}/{rate.rate_type === 'platform' ? 
+                                rate.platform_rate_unit : 
+                                rate.rate_unit}
                             </p>
                           </div>
                           <span className={`px-2 py-1 text-xs font-semibold rounded ${

@@ -1,10 +1,13 @@
 import React from 'react';
 import { 
   UserGroupIcon,
+  UserIcon,
   BriefcaseIcon,
   ChartBarIcon,
   CogIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  MapPinIcon,
+  CreditCardIcon
 } from '@heroicons/react/24/outline';
 
 const Sidebar = ({ currentView, setCurrentView, onLogout }) => {
@@ -20,6 +23,30 @@ const Sidebar = ({ currentView, setCurrentView, onLogout }) => {
       view: 'jobs', 
       icon: BriefcaseIcon,
       description: 'Manage interpretation jobs'
+    },
+    { 
+      name: 'Service Locations', 
+      view: 'service-locations', 
+      icon: MapPinIcon,
+      description: 'Manage service locations'
+    },
+    { 
+      name: 'Billing Accounts', 
+      view: 'billing-accounts', 
+      icon: CreditCardIcon,
+      description: 'Manage billing accounts and rates'
+    },
+    { 
+      name: 'Customers', 
+      view: 'customers', 
+      icon: UserGroupIcon,
+      description: 'Manage customers and relationships'
+    },
+    { 
+      name: 'Claimants', 
+      view: 'claimants', 
+      icon: UserIcon,
+      description: 'Manage claimants and claims'
     },
     { 
       name: 'Analytics', 

@@ -265,6 +265,8 @@ class Interpreter {
                         'rate_type', isr.rate_type,
                         'rate_amount', isr.rate_amount,
                         'rate_unit', isr.rate_unit,
+                        'platform_rate_amount', str.rate_amount,
+                        'platform_rate_unit', str.rate_unit,
                         'custom_minimum_hours', isr.custom_minimum_hours,
                         'custom_interval_minutes', isr.custom_interval_minutes,
                         'custom_second_interval_rate_amount', isr.custom_second_interval_rate_amount,
@@ -297,6 +299,9 @@ class Interpreter {
                 LEFT JOIN languages l ON il.language_id = l.id
                 LEFT JOIN interpreter_service_types ist ON i.id = ist.interpreter_id
                 LEFT JOIN service_types st ON ist.service_type_id = st.id
+                LEFT JOIN interpreter_service_rates isr ON i.id = isr.interpreter_id
+                LEFT JOIN service_types st2 ON isr.service_type_id = st2.id
+                LEFT JOIN service_type_rates str ON isr.service_type_id = str.service_type_id
                 LEFT JOIN interpreter_certificates ic ON i.id = ic.interpreter_id
                 LEFT JOIN certificate_types ct ON ic.certificate_type_id = ct.id
                 LEFT JOIN interpreter_service_rates isr ON i.id = isr.interpreter_id

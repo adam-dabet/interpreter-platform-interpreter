@@ -582,7 +582,7 @@ router.delete('/billing-accounts/:id', authenticateToken, async (req, res) => {
 router.get('/customers', authenticateToken, async (req, res) => {
     try {
         const result = await db.query(`
-            SELECT c.id, c.name, c.email, c.phone, c.title, c.is_active, c.created_at, c.updated_at,
+            SELECT c.id, c.name, c.email, c.phone, c.title, c.billing_account_id, c.is_active, c.created_at, c.updated_at,
                    ba.name as billing_account_name
             FROM customers c
             LEFT JOIN billing_accounts ba ON c.billing_account_id = ba.id
@@ -778,17 +778,17 @@ router.delete('/customers/:id', authenticateToken, async (req, res) => {
 router.get('/claimants', authenticateToken, async (req, res) => {
     try {
         const result = await db.query(`
-            SELECT cl.id, cl.name, cl.gender, cl.date_of_birth, cl.phone, cl.language, cl.address, 
-                   cl.is_active, cl.created_at, cl.updated_at,
+            SELECT cl.id, cl.first_name, cl.last_name, cl.name, cl.gender, cl.date_of_birth, cl.phone, cl.language, 
+                   cl.billing_account_id, cl.address, cl.address_latitude, cl.address_longitude, cl.employer_insured, cl.is_active, cl.created_at, cl.updated_at,
                    ba.name as billing_account_name,
                    COUNT(c.id) as claims_count
             FROM claimants cl
             LEFT JOIN billing_accounts ba ON cl.billing_account_id = ba.id
             LEFT JOIN claims c ON cl.id = c.claimant_id AND c.is_active = true
             WHERE cl.is_active = true 
-            GROUP BY cl.id, cl.name, cl.gender, cl.date_of_birth, cl.phone, cl.language, cl.address, 
-                     cl.is_active, cl.created_at, cl.updated_at, ba.name
-            ORDER BY cl.name ASC
+            GROUP BY cl.id, cl.first_name, cl.last_name, cl.name, cl.gender, cl.date_of_birth, cl.phone, cl.language, 
+                     cl.billing_account_id, cl.address, cl.address_latitude, cl.address_longitude, cl.employer_insured, cl.is_active, cl.created_at, cl.updated_at, ba.name
+            ORDER BY cl.first_name ASC, cl.last_name ASC
         `);
         
         res.json({
@@ -815,8 +815,8 @@ router.get('/claimants/:id', authenticateToken, async (req, res) => {
         
         // Get claimant details
         const claimantResult = await db.query(`
-            SELECT cl.id, cl.name, cl.gender, cl.date_of_birth, cl.phone, cl.language, cl.billing_account_id, 
-                   cl.address, cl.is_active, cl.created_at, cl.updated_at,
+            SELECT cl.id, cl.first_name, cl.last_name, cl.name, cl.gender, cl.date_of_birth, cl.phone, cl.language, 
+                   cl.billing_account_id, cl.address, cl.address_latitude, cl.address_longitude, cl.employer_insured, cl.is_active, cl.created_at, cl.updated_at,
                    ba.name as billing_account_name
             FROM claimants cl
             LEFT JOIN billing_accounts ba ON cl.billing_account_id = ba.id
@@ -832,10 +832,15 @@ router.get('/claimants/:id', authenticateToken, async (req, res) => {
         
         // Get claims for this claimant
         const claimsResult = await db.query(`
-            SELECT id, case_type, claim_number, date_of_injury, diagnosis, is_active, created_at, updated_at
-            FROM claims
-            WHERE claimant_id = $1 AND is_active = true
-            ORDER BY created_at DESC
+            SELECT c.id, c.case_type, c.claim_number, c.date_of_injury, c.diagnosis, c.contact_claims_handler_id, c.adjusters_assistant_id,
+                   c.is_active, c.created_at, c.updated_at,
+                   ch.name as contact_claims_handler_name,
+                   aa.name as adjusters_assistant_name
+            FROM claims c
+            LEFT JOIN customers ch ON c.contact_claims_handler_id = ch.id
+            LEFT JOIN customers aa ON c.adjusters_assistant_id = aa.id
+            WHERE c.claimant_id = $1 AND c.is_active = true
+            ORDER BY c.created_at DESC
         `, [id]);
         
         const claimant = claimantResult.rows[0];
@@ -861,21 +866,24 @@ router.get('/claimants/:id', authenticateToken, async (req, res) => {
 // Create a new claimant
 router.post('/claimants', authenticateToken, async (req, res) => {
     try {
-        const { name, gender, date_of_birth, phone, language, billing_account_id, address } = req.body;
+        const { first_name, last_name, gender, date_of_birth, phone, language, billing_account_id, address, address_latitude, address_longitude, employer_insured } = req.body;
         
         // Validate required fields
-        if (!name) {
+        if (!first_name || !last_name) {
             return res.status(400).json({
                 success: false,
-                message: 'Name is required'
+                message: 'First name and last name are required'
             });
         }
         
+        // Combine first and last name for the name field
+        const name = `${first_name} ${last_name}`.trim();
+        
         const result = await db.query(`
-            INSERT INTO claimants (name, gender, date_of_birth, phone, language, billing_account_id, address, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING id, name, gender, date_of_birth, phone, language, billing_account_id, address, is_active, created_at, updated_at
-        `, [name, gender, date_of_birth, phone, language, billing_account_id, address, req.user.id]);
+            INSERT INTO claimants (first_name, last_name, name, gender, date_of_birth, phone, language, billing_account_id, address, address_latitude, address_longitude, employer_insured, created_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            RETURNING id, first_name, last_name, name, gender, date_of_birth, phone, language, billing_account_id, address, address_latitude, address_longitude, employer_insured, is_active, created_at, updated_at
+        `, [first_name, last_name, name, gender, date_of_birth, phone, language, billing_account_id, address, address_latitude, address_longitude, employer_insured, req.user.id]);
         
         res.status(201).json({
             success: true,
@@ -899,31 +907,39 @@ router.post('/claimants', authenticateToken, async (req, res) => {
 router.put('/claimants/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, gender, date_of_birth, phone, language, billing_account_id, address, is_active } = req.body;
+        const { first_name, last_name, gender, date_of_birth, phone, language, billing_account_id, address, address_latitude, address_longitude, employer_insured, is_active } = req.body;
         
         // Validate required fields
-        if (!name) {
+        if (!first_name || !last_name) {
             return res.status(400).json({
                 success: false,
-                message: 'Name is required'
+                message: 'First name and last name are required'
             });
         }
         
+        // Combine first and last name for the name field
+        const name = `${first_name} ${last_name}`.trim();
+        
         const result = await db.query(`
             UPDATE claimants SET
-                name = $1,
-                gender = $2,
-                date_of_birth = $3,
-                phone = $4,
-                language = $5,
-                billing_account_id = $6,
-                address = $7,
-                is_active = $8,
-                last_updated_by = $9,
+                first_name = $1,
+                last_name = $2,
+                name = $3,
+                gender = $4,
+                date_of_birth = $5,
+                phone = $6,
+                language = $7,
+                billing_account_id = $8,
+                address = $9,
+                address_latitude = $10,
+                address_longitude = $11,
+                employer_insured = $12,
+                is_active = $13,
+                last_updated_by = $14,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = $10
-            RETURNING id, name, gender, date_of_birth, phone, language, billing_account_id, address, is_active, created_at, updated_at
-        `, [name, gender, date_of_birth, phone, language, billing_account_id, address, is_active, req.user.id, id]);
+            WHERE id = $15
+            RETURNING id, first_name, last_name, name, gender, date_of_birth, phone, language, billing_account_id, address, address_latitude, address_longitude, employer_insured, is_active, created_at, updated_at
+        `, [first_name, last_name, name, gender, date_of_birth, phone, language, billing_account_id, address, address_latitude, address_longitude, employer_insured, is_active, req.user.id, id]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({
@@ -995,10 +1011,15 @@ router.get('/claims', authenticateToken, async (req, res) => {
     try {
         const result = await db.query(`
             SELECT c.id, c.case_type, c.claim_number, c.date_of_injury, c.diagnosis, 
+                   c.contact_claims_handler_id, c.adjusters_assistant_id,
                    c.is_active, c.created_at, c.updated_at,
-                   cl.name as claimant_name, cl.id as claimant_id
+                   cl.name as claimant_name, cl.id as claimant_id,
+                   ch.name as contact_claims_handler_name,
+                   aa.name as adjusters_assistant_name
             FROM claims c
             JOIN claimants cl ON c.claimant_id = cl.id
+            LEFT JOIN customers ch ON c.contact_claims_handler_id = ch.id
+            LEFT JOIN customers aa ON c.adjusters_assistant_id = aa.id
             WHERE c.is_active = true AND cl.is_active = true
             ORDER BY c.created_at DESC
         `);
@@ -1026,10 +1047,16 @@ router.get('/claimants/:claimantId/claims', authenticateToken, async (req, res) 
         const { claimantId } = req.params;
         
         const result = await db.query(`
-            SELECT id, case_type, claim_number, date_of_injury, diagnosis, is_active, created_at, updated_at
-            FROM claims
-            WHERE claimant_id = $1 AND is_active = true
-            ORDER BY created_at DESC
+            SELECT c.id, c.case_type, c.claim_number, c.date_of_injury, c.diagnosis, 
+                   c.contact_claims_handler_id, c.adjusters_assistant_id,
+                   c.is_active, c.created_at, c.updated_at,
+                   ch.name as contact_claims_handler_name,
+                   aa.name as adjusters_assistant_name
+            FROM claims c
+            LEFT JOIN customers ch ON c.contact_claims_handler_id = ch.id
+            LEFT JOIN customers aa ON c.adjusters_assistant_id = aa.id
+            WHERE c.claimant_id = $1 AND c.is_active = true
+            ORDER BY c.created_at DESC
         `, [claimantId]);
         
         res.json({
@@ -1052,7 +1079,7 @@ router.get('/claimants/:claimantId/claims', authenticateToken, async (req, res) 
 // Create a new claim
 router.post('/claims', authenticateToken, async (req, res) => {
     try {
-        const { claimant_id, case_type, claim_number, date_of_injury, diagnosis } = req.body;
+        const { claimant_id, case_type, claim_number, date_of_injury, diagnosis, contact_claims_handler_id, adjusters_assistant_id } = req.body;
         
         // Validate required fields
         if (!claimant_id || !case_type || !claim_number) {
@@ -1063,10 +1090,10 @@ router.post('/claims', authenticateToken, async (req, res) => {
         }
         
         const result = await db.query(`
-            INSERT INTO claims (claimant_id, case_type, claim_number, date_of_injury, diagnosis, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, claimant_id, case_type, claim_number, date_of_injury, diagnosis, is_active, created_at, updated_at
-        `, [claimant_id, case_type, claim_number, date_of_injury, diagnosis, req.user.id]);
+            INSERT INTO claims (claimant_id, case_type, claim_number, date_of_injury, diagnosis, contact_claims_handler_id, adjusters_assistant_id, created_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id, claimant_id, case_type, claim_number, date_of_injury, diagnosis, contact_claims_handler_id, adjusters_assistant_id, is_active, created_at, updated_at
+        `, [claimant_id, case_type, claim_number, date_of_injury, diagnosis, contact_claims_handler_id, adjusters_assistant_id, req.user.id]);
         
         res.status(201).json({
             success: true,
@@ -1090,7 +1117,7 @@ router.post('/claims', authenticateToken, async (req, res) => {
 router.put('/claims/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const { case_type, claim_number, date_of_injury, diagnosis, is_active } = req.body;
+        const { case_type, claim_number, date_of_injury, diagnosis, contact_claims_handler_id, adjusters_assistant_id, is_active } = req.body;
         
         // Validate required fields
         if (!case_type || !claim_number) {
@@ -1106,12 +1133,14 @@ router.put('/claims/:id', authenticateToken, async (req, res) => {
                 claim_number = $2,
                 date_of_injury = $3,
                 diagnosis = $4,
-                is_active = $5,
-                last_updated_by = $6,
+                contact_claims_handler_id = $5,
+                adjusters_assistant_id = $6,
+                is_active = $7,
+                last_updated_by = $8,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = $7
-            RETURNING id, claimant_id, case_type, claim_number, date_of_injury, diagnosis, is_active, created_at, updated_at
-        `, [case_type, claim_number, date_of_injury, diagnosis, is_active, req.user.id, id]);
+            WHERE id = $9
+            RETURNING id, claimant_id, case_type, claim_number, date_of_injury, diagnosis, contact_claims_handler_id, adjusters_assistant_id, is_active, created_at, updated_at
+        `, [case_type, claim_number, date_of_injury, diagnosis, contact_claims_handler_id, adjusters_assistant_id, is_active, req.user.id, id]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({

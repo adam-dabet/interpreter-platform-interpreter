@@ -192,7 +192,8 @@ const EditJob = ({ jobId, setCurrentView }) => {
     serviceType: '',
     language: '',
     interpreterType: '',
-    claimantName: '',
+    claimantId: '',
+    claimId: '',
     locationOfService: ''
   });
 
@@ -201,6 +202,8 @@ const EditJob = ({ jobId, setCurrentView }) => {
   const [serviceTypes, setServiceTypes] = useState([]);
   const [languages, setLanguages] = useState([]);
   const [interpreterTypes, setInterpreterTypes] = useState([]);
+  const [claimants, setClaimants] = useState([]);
+  const [claims, setClaims] = useState([]);
   const [map, setMap] = useState(null);
   const [autocomplete, setAutocomplete] = useState(null);
   const [mapsInitialized, setMapsInitialized] = useState(false);
@@ -376,7 +379,8 @@ const EditJob = ({ jobId, setCurrentView }) => {
           serviceType: job.service_type_id ? job.service_type_id.toString() : '',
           language: job.source_language_id || '',
           interpreterType: job.interpreter_type_id ? job.interpreter_type_id.toString() : '',
-          claimantName: job.client_name || '',
+          claimantId: job.claimant_id ? job.claimant_id.toString() : '',
+          claimId: job.claim_id ? job.claim_id.toString() : '',
           locationOfService: job.location_address || ''
         };
         
@@ -388,6 +392,11 @@ const EditJob = ({ jobId, setCurrentView }) => {
         console.log('=== END LOADING DEBUG ===');
         
         setFormData(formDataToSet);
+        
+        // Load claims if claimant is set
+        if (job.claimant_id) {
+          loadClaimsForClaimant(job.claimant_id.toString());
+        }
       } else {
         toast.error('Failed to load job details');
       }
@@ -432,12 +441,46 @@ const EditJob = ({ jobId, setCurrentView }) => {
         console.log('Interpreter types loaded:', interpreterTypesData.data);
         setInterpreterTypes(interpreterTypesData.data || []);
       }
+
+      // Load claimants
+      const claimantsResponse = await fetch(`${API_BASE}/admin/claimants`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (claimantsResponse.ok) {
+        const claimantsData = await claimantsResponse.json();
+        setClaimants(claimantsData.data || []);
+      }
     } catch (error) {
       console.error('Error loading form options:', error);
       // Set empty arrays as fallback
       setServiceTypes([]);
       setLanguages([]);
       setInterpreterTypes([]);
+      setClaimants([]);
+    }
+  };
+
+  const loadClaimsForClaimant = async (claimantId) => {
+    if (!claimantId) {
+      setClaims([]);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE}/admin/claimants/${claimantId}/claims`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setClaims(data.data || []);
+      } else {
+        setClaims([]);
+      }
+    } catch (error) {
+      console.error('Error loading claims:', error);
+      setClaims([]);
     }
   };
 
@@ -525,12 +568,15 @@ const EditJob = ({ jobId, setCurrentView }) => {
               });
             }
           }
-        } else {
-          console.log('No matching service type found for code:', serviceTypeCode);
         }
-      } else {
-        console.log('Service types not loaded yet or no service type code found');
       }
+    }
+
+    // Load claims when claimant is selected
+    if (field === 'claimantId') {
+      loadClaimsForClaimant(value);
+      // Clear claim selection when claimant changes
+      setFormData(prev => ({ ...prev, claimId: '' }));
     }
     
     // Auto-populate interpreter type when service type changes directly
@@ -758,12 +804,30 @@ const EditJob = ({ jobId, setCurrentView }) => {
                   placeholder="Enter job number"
                   required
                 />
-                <Input
-                  label="Claimant Name"
-                  value={formData.claimantName}
-                  onChange={(e) => handleInputChange('claimantName', e.target.value)}
-                  placeholder="Enter claimant name"
+                <SearchableSelect
+                  label="Claimant"
+                  value={formData.claimantId}
+                  onChange={(e) => handleInputChange('claimantId', e.target.value)}
+                  options={claimants.map(claimant => ({
+                    value: claimant.id.toString(),
+                    label: `${claimant.first_name && claimant.last_name 
+                      ? `${claimant.first_name} ${claimant.last_name}`
+                      : claimant.name || 'Unnamed Claimant'
+                    }${claimant.language ? ` (${claimant.language})` : ''}`
+                  }))}
+                  placeholder="Select claimant"
                   required
+                />
+                <SearchableSelect
+                  label="Claim"
+                  value={formData.claimId}
+                  onChange={(e) => handleInputChange('claimId', e.target.value)}
+                  options={claims.map(claim => ({
+                    value: claim.id.toString(),
+                    label: `${claim.claim_number} - ${claim.case_type}`
+                  }))}
+                  placeholder={formData.claimantId ? "Select claim" : "Select claimant first"}
+                  disabled={!formData.claimantId}
                 />
               </div>
             </div>

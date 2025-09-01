@@ -723,10 +723,13 @@ const CreateJob = ({ setCurrentView }) => {
                   label="Claimant"
                   value={formData.claimantId}
                   onChange={(e) => handleInputChange('claimantId', e.target.value)}
-                  options={claimants.map(claimant => ({ 
-                    value: claimant.id.toString(), 
-                    label: `${claimant.name}${claimant.language ? ` (${claimant.language})` : ''}`
-                  }))}
+                              options={claimants.map(claimant => ({
+              value: claimant.id.toString(),
+              label: `${claimant.first_name && claimant.last_name 
+                ? `${claimant.first_name} ${claimant.last_name}`
+                : claimant.name || 'Unnamed Claimant'
+              }${claimant.language ? ` (${claimant.language})` : ''}`
+            }))}
                   placeholder="Select claimant"
                   required
                 />

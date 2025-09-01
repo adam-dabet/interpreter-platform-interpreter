@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
   PlusIcon, 
@@ -79,6 +79,107 @@ const Select = ({ value, onChange, options = [], placeholder, className = '', la
   </div>
 );
 
+const SearchableSelect = ({ value, onChange, options = [], placeholder, className = '', label, required = false }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredOptions, setFilteredOptions] = useState(options || []);
+  const dropdownRef = useRef(null);
+
+  // Initialize searchTerm with the selected option's label
+  useEffect(() => {
+    if (value && options && Array.isArray(options)) {
+      const selectedOption = options.find(option => option.value === value);
+      if (selectedOption) {
+        setSearchTerm(selectedOption.label || '');
+      }
+    } else if (!value) {
+      setSearchTerm('');
+    }
+  }, [value, options]);
+
+  useEffect(() => {
+    if (!options || !Array.isArray(options)) {
+      setFilteredOptions([]);
+      return;
+    }
+
+    const filtered = options.filter(option =>
+      option.label.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredOptions(filtered);
+  }, [searchTerm, options]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleSelect = (option) => {
+    setSearchTerm(option.label);
+    onChange({ target: { value: option.value } });
+    setIsOpen(false);
+  };
+
+  const handleInputChange = (e) => {
+    setSearchTerm(e.target.value);
+    setIsOpen(true);
+  };
+
+  return (
+    <div className={className} ref={dropdownRef}>
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+      )}
+      <div className="relative">
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={handleInputChange}
+          onFocus={() => setIsOpen(true)}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="absolute inset-y-0 right-0 flex items-center pr-2"
+        >
+          <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {isOpen && (
+          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => (
+                <div
+                  key={option.value}
+                  onClick={() => handleSelect(option)}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                >
+                  {option.label}
+                </div>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-gray-500">No options found</div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const Textarea = ({ value, onChange, placeholder, className = '', label, required = false, rows = 3 }) => (
   <div className={className}>
     {label && (
@@ -99,6 +200,7 @@ const Textarea = ({ value, onChange, placeholder, className = '', label, require
 const Claimants = ({ setCurrentView }) => {
   const [claimants, setClaimants] = useState([]);
   const [billingAccounts, setBillingAccounts] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -107,20 +209,29 @@ const Claimants = ({ setCurrentView }) => {
   const [editingClaim, setEditingClaim] = useState(null);
   const [selectedClaimant, setSelectedClaimant] = useState(null);
   const [expandedClaimant, setExpandedClaimant] = useState(null);
+  const [mapsInitialized, setMapsInitialized] = useState(false);
+  const [autocomplete, setAutocomplete] = useState(null);
+  const autocompleteRef = useRef(null);
   const [claimantFormData, setClaimantFormData] = useState({
-    name: '',
+    first_name: '',
+    last_name: '',
     gender: '',
     date_of_birth: '',
     phone: '',
     language: '',
     billing_account_id: '',
-    address: ''
+    address: '',
+    address_latitude: '',
+    address_longitude: '',
+    employer_insured: ''
   });
   const [claimFormData, setClaimFormData] = useState({
     case_type: '',
     claim_number: '',
     date_of_injury: '',
-    diagnosis: ''
+    diagnosis: '',
+    contact_claims_handler_id: '',
+    adjusters_assistant_id: ''
   });
 
   const genderOptions = [
@@ -143,7 +254,57 @@ const Claimants = ({ setCurrentView }) => {
   useEffect(() => {
     loadClaimants();
     loadBillingAccounts();
+    loadCustomers();
+    initializeGoogleMaps();
   }, []);
+
+  const initializeGoogleMaps = () => {
+    if (window.google && window.google.maps) {
+      setMapsInitialized(true);
+    } else {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => setMapsInitialized(true);
+      document.head.appendChild(script);
+    }
+  };
+
+  const setupAddressAutocomplete = (inputElement) => {
+    if (!window.google || !window.google.maps || !window.google.maps.places) {
+      return;
+    }
+
+    // Prevent multiple initializations
+    if (autocompleteRef.current) {
+      return;
+    }
+
+    const autocompleteInstance = new window.google.maps.places.Autocomplete(inputElement, {
+      types: ['address'],
+      componentRestrictions: { country: 'us' }
+    });
+
+    autocompleteInstance.addListener('place_changed', () => {
+      const place = autocompleteInstance.getPlace();
+      
+      if (place.geometry && place.geometry.location) {
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+        
+        setClaimantFormData(prev => ({
+          ...prev,
+          address: place.formatted_address || '',
+          address_latitude: lat.toString(),
+          address_longitude: lng.toString()
+        }));
+      }
+    });
+
+    autocompleteRef.current = autocompleteInstance;
+    setAutocomplete(autocompleteInstance);
+  };
 
   const loadClaimants = async () => {
     try {
@@ -186,6 +347,25 @@ const Claimants = ({ setCurrentView }) => {
       }
     } catch (error) {
       console.error('Error loading billing accounts:', error);
+    }
+  };
+
+  const loadCustomers = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE}/admin/customers`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCustomers(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading customers:', error);
     }
   };
 
@@ -363,14 +543,20 @@ const Claimants = ({ setCurrentView }) => {
 
   const handleEditClaimant = (claimant) => {
     setEditingClaimant(claimant);
+    // Reset autocomplete ref for new claimant
+    autocompleteRef.current = null;
     setClaimantFormData({
-      name: claimant.name || '',
+      first_name: claimant.first_name || '',
+      last_name: claimant.last_name || '',
       gender: claimant.gender || '',
-      date_of_birth: claimant.date_of_birth || '',
+      date_of_birth: formatDateForInput(claimant.date_of_birth),
       phone: claimant.phone || '',
       language: claimant.language || '',
       billing_account_id: claimant.billing_account_id ? claimant.billing_account_id.toString() : '',
-      address: claimant.address || ''
+      address: claimant.address || '',
+      address_latitude: claimant.address_latitude || '',
+      address_longitude: claimant.address_longitude || '',
+      employer_insured: claimant.employer_insured || ''
     });
     setShowModal(true);
   };
@@ -380,14 +566,18 @@ const Claimants = ({ setCurrentView }) => {
     setClaimFormData({
       case_type: claim.case_type || '',
       claim_number: claim.claim_number || '',
-      date_of_injury: claim.date_of_injury || '',
-      diagnosis: claim.diagnosis || ''
+      date_of_injury: formatDateForInput(claim.date_of_injury),
+      diagnosis: claim.diagnosis || '',
+      contact_claims_handler_id: claim.contact_claims_handler_id ? claim.contact_claims_handler_id.toString() : '',
+      adjusters_assistant_id: claim.adjusters_assistant_id ? claim.adjusters_assistant_id.toString() : ''
     });
     setShowClaimModal(true);
   };
 
   const handleCreateClaimant = () => {
     setEditingClaimant(null);
+    // Reset autocomplete ref for new claimant
+    autocompleteRef.current = null;
     resetClaimantForm();
     setShowModal(true);
   };
@@ -421,13 +611,17 @@ const Claimants = ({ setCurrentView }) => {
 
   const resetClaimantForm = () => {
     setClaimantFormData({
-      name: '',
+      first_name: '',
+      last_name: '',
       gender: '',
       date_of_birth: '',
       phone: '',
       language: '',
       billing_account_id: '',
-      address: ''
+      address: '',
+      address_latitude: '',
+      address_longitude: '',
+      employer_insured: ''
     });
   };
 
@@ -436,7 +630,9 @@ const Claimants = ({ setCurrentView }) => {
       case_type: '',
       claim_number: '',
       date_of_injury: '',
-      diagnosis: ''
+      diagnosis: '',
+      contact_claims_handler_id: '',
+      adjusters_assistant_id: ''
     });
   };
 
@@ -445,8 +641,16 @@ const Claimants = ({ setCurrentView }) => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0]; // Returns YYYY-MM-DD format
+  };
+
   const filteredClaimants = claimants.filter(claimant =>
-    claimant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (claimant.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     claimant.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     claimant.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
     claimant.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     claimant.language?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     claimant.billing_account_name?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -531,7 +735,12 @@ const Claimants = ({ setCurrentView }) => {
                       </button>
                       
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900">{claimant.name}</h3>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                      {claimant.first_name && claimant.last_name 
+                        ? `${claimant.first_name} ${claimant.last_name}`
+                        : claimant.name || 'Unnamed Claimant'
+                      }
+                    </h3>
                         <div className="flex items-center space-x-4 mt-1 text-sm text-gray-600">
                           {claimant.gender && <span>{claimant.gender}</span>}
                           {claimant.date_of_birth && (
@@ -600,7 +809,20 @@ const Claimants = ({ setCurrentView }) => {
                     {claimant.address && (
                       <div className="flex items-center">
                         <MapPinIcon className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
-                        <p className="text-sm text-gray-600 truncate">{claimant.address}</p>
+                        <div className="text-sm text-gray-600">
+                          <p className="truncate">{claimant.address}</p>
+                          {claimant.address_latitude && claimant.address_longitude && (
+                            <p className="text-xs text-gray-400">
+                              {claimant.address_latitude}, {claimant.address_longitude}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {claimant.employer_insured && (
+                      <div className="flex items-center">
+                        <span className="text-sm text-gray-600">Employer/Insured: {claimant.employer_insured}</span>
                       </div>
                     )}
                   </div>
@@ -632,6 +854,16 @@ const Claimants = ({ setCurrentView }) => {
                                   {claim.diagnosis && (
                                     <p className="text-sm text-gray-600 mt-1">
                                       Diagnosis: {claim.diagnosis}
+                                    </p>
+                                  )}
+                                  {claim.contact_claims_handler_name && (
+                                    <p className="text-sm text-gray-600 mt-1">
+                                      Contact: {claim.contact_claims_handler_name}
+                                    </p>
+                                  )}
+                                  {claim.adjusters_assistant_name && (
+                                    <p className="text-sm text-gray-600 mt-1">
+                                      Assistant: {claim.adjusters_assistant_name}
                                     </p>
                                   )}
                                 </div>
@@ -688,15 +920,24 @@ const Claimants = ({ setCurrentView }) => {
               </h3>
               
               <form onSubmit={handleClaimantSubmit} className="space-y-4">
-                <Input
-                  label="Full Name"
-                  value={claimantFormData.name}
-                  onChange={(e) => setClaimantFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter claimant name"
-                  required
-                />
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="First Name"
+                    value={claimantFormData.first_name}
+                    onChange={(e) => setClaimantFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                    placeholder="Enter first name"
+                    required
+                  />
+                  <Input
+                    label="Last Name"
+                    value={claimantFormData.last_name}
+                    onChange={(e) => setClaimantFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                    placeholder="Enter last name"
+                    required
+                  />
+                </div>
                 
-                <Select
+                <SearchableSelect
                   label="Gender"
                   value={claimantFormData.gender}
                   onChange={(e) => setClaimantFormData(prev => ({ ...prev, gender: e.target.value }))}
@@ -725,7 +966,7 @@ const Claimants = ({ setCurrentView }) => {
                   placeholder="Preferred language"
                 />
                 
-                <Select
+                <SearchableSelect
                   label="Billing Account"
                   value={claimantFormData.billing_account_id}
                   onChange={(e) => setClaimantFormData(prev => ({ ...prev, billing_account_id: e.target.value }))}
@@ -736,13 +977,35 @@ const Claimants = ({ setCurrentView }) => {
                   placeholder="Select billing account"
                 />
                 
-                <Textarea
-                  label="Address"
-                  value={claimantFormData.address}
-                  onChange={(e) => setClaimantFormData(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="Enter full address"
-                  rows={3}
+                <Input
+                  label="Employer/Insured"
+                  value={claimantFormData.employer_insured}
+                  onChange={(e) => setClaimantFormData(prev => ({ ...prev, employer_insured: e.target.value }))}
+                  placeholder="Enter employer or insured party name (optional)"
                 />
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={claimantFormData.address}
+                    onChange={(e) => setClaimantFormData(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder="Start typing address for autocomplete..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    ref={(input) => {
+                      if (input && mapsInitialized && !autocompleteRef.current) {
+                        setupAddressAutocomplete(input);
+                      }
+                    }}
+                  />
+                  {(claimantFormData.address_latitude && claimantFormData.address_longitude) && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      Coordinates: {claimantFormData.address_latitude}, {claimantFormData.address_longitude}
+                    </div>
+                  )}
+                </div>
                 
                 <div className="flex justify-end space-x-3 pt-4">
                   <Button
@@ -751,6 +1014,8 @@ const Claimants = ({ setCurrentView }) => {
                     onClick={() => {
                       setShowModal(false);
                       setEditingClaimant(null);
+                      // Reset autocomplete ref when closing modal
+                      autocompleteRef.current = null;
                       resetClaimantForm();
                     }}
                   >
@@ -778,13 +1043,16 @@ const Claimants = ({ setCurrentView }) => {
                 {editingClaim ? 'Edit Claim' : 'Add New Claim'}
                 {selectedClaimant && !editingClaim && (
                   <span className="block text-sm text-gray-600 mt-1">
-                    for {selectedClaimant.name}
+                    for {selectedClaimant.first_name && selectedClaimant.last_name 
+                      ? `${selectedClaimant.first_name} ${selectedClaimant.last_name}`
+                      : selectedClaimant.name || 'Unnamed Claimant'
+                    }
                   </span>
                 )}
               </h3>
               
               <form onSubmit={handleClaimSubmit} className="space-y-4">
-                <Select
+                <SearchableSelect
                   label="Case Type"
                   value={claimFormData.case_type}
                   onChange={(e) => setClaimFormData(prev => ({ ...prev, case_type: e.target.value }))}
@@ -814,6 +1082,28 @@ const Claimants = ({ setCurrentView }) => {
                   onChange={(e) => setClaimFormData(prev => ({ ...prev, diagnosis: e.target.value }))}
                   placeholder="Enter diagnosis or description"
                   rows={3}
+                />
+                
+                <SearchableSelect
+                  label="Contact/Claims Handler"
+                  value={claimFormData.contact_claims_handler_id}
+                  onChange={(e) => setClaimFormData(prev => ({ ...prev, contact_claims_handler_id: e.target.value }))}
+                  options={customers.map(customer => ({ 
+                    value: customer.id.toString(), 
+                    label: customer.name 
+                  }))}
+                  placeholder="Select contact/claims handler"
+                />
+                
+                <SearchableSelect
+                  label="Adjuster's Assistant"
+                  value={claimFormData.adjusters_assistant_id}
+                  onChange={(e) => setClaimFormData(prev => ({ ...prev, adjusters_assistant_id: e.target.value }))}
+                  options={customers.map(customer => ({ 
+                    value: customer.id.toString(), 
+                    label: customer.name 
+                  }))}
+                  placeholder="Select adjuster's assistant (optional)"
                 />
                 
                 <div className="flex justify-end space-x-3 pt-4">

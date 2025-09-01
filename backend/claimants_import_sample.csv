@@ -1,0 +1,6 @@
+claim_no,City,Claimant Address,Contact/Claims Handler: Full Name,Diagnosis,DOB,DOI,Employer/Insured,First Name,Gender,Language,Primary Phone Number,State,Zip,Billing Account: Account Name,Last Name,Adjusters Assistant: Full Name
+WC-2024-001,Los Angeles,123 Main St Los Angeles CA,John Smith,Lower back strain from lifting,1985-03-15,2024-01-15,ABC Construction,John,Male,Spanish,555-111-2222,CA,90210,ABC Construction Account,Johnson,Jane Doe
+PI-2024-002,San Francisco,456 Oak Ave San Francisco CA,Michael Brown,Whiplash from car accident,1978-07-22,2024-02-20,XYZ Insurance,Michael,Male,English,555-333-4444,CA,94102,XYZ Insurance Account,Brown,Sarah Wilson
+MM-2024-001,San Diego,789 Pine Rd San Diego CA,Dr. Sarah Johnson,Surgical complication,1992-11-08,2023-12-10,Medical Center,Dr. Sarah,Female,English,555-555-6666,CA,92101,Medical Center Account,Johnson,Robert Davis
+WC-2024-003,Sacramento,321 Elm St Sacramento CA,David Wilson,Slip and fall ankle fracture,1980-12-03,2024-03-05,Construction Co,David,Male,Spanish,555-777-8888,CA,95814,Construction Co Account,Wilson,Lisa Anderson
+PI-2024-003,Fresno,654 Maple Dr Fresno CA,Emily Chen,Head injury workplace accident,1988-05-19,2024-02-28,Manufacturing Inc,Emily,Female,Chinese,555-999-0000,CA,93710,Manufacturing Inc Account,Chen,Tom Martinez

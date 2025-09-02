@@ -1205,4 +1205,291 @@ router.delete('/claims/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// ===== JOBS ROUTES =====
+
+// Get job statistics
+router.get('/jobs/stats', authenticateToken, async (req, res) => {
+    try {
+        const result = await db.query(`
+            SELECT 
+                COUNT(*) as total_jobs,
+                COUNT(CASE WHEN status = 'open' THEN 1 END) as open_jobs,
+                COUNT(CASE WHEN status = 'assigned' THEN 1 END) as assigned_jobs,
+                COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress_jobs,
+                COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_jobs,
+                COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_jobs,
+                COALESCE(SUM(total_amount), 0) as total_revenue
+            FROM jobs 
+            WHERE is_active = true
+        `);
+        
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+    } catch (error) {
+        await loggerService.error('Failed to retrieve job stats', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve job stats'
+        });
+    }
+});
+
+// Get all jobs
+router.get('/jobs', authenticateToken, async (req, res) => {
+    try {
+        const result = await db.query(`
+            SELECT j.id, j.title, j.description, j.job_type, j.priority, j.status,
+                   j.location_address, j.location_city, j.location_state, j.location_zip_code,
+                   j.scheduled_date, j.scheduled_time, j.estimated_duration_minutes,
+                   j.hourly_rate, j.total_amount, j.payment_status, j.client_name,
+                   j.client_email, j.client_phone, j.client_notes, j.special_requirements,
+                   j.admin_notes, j.appointment_type, j.is_remote,
+                   j.created_at, j.updated_at,
+                   c.first_name as claimant_first_name, c.last_name as claimant_last_name,
+                   cl.claim_number, cl.case_type,
+                   i.first_name as interpreter_first_name, i.last_name as interpreter_last_name,
+                   req.name as requested_by_name,
+                   ba.name as billing_account_name,
+                   st.name as service_type_name,
+                   sl.name as source_language_name,
+                   tl.name as target_language_name
+            FROM jobs j
+            LEFT JOIN claimants c ON j.claimant_id = c.id
+            LEFT JOIN claims cl ON j.claim_id = cl.id
+            LEFT JOIN interpreters i ON j.assigned_interpreter_id = i.id
+            LEFT JOIN customers req ON j.requested_by_id = req.id
+            LEFT JOIN billing_accounts ba ON c.billing_account_id = ba.id
+            LEFT JOIN service_types st ON j.service_type_id = st.id
+            LEFT JOIN languages sl ON j.source_language_id = sl.id
+            LEFT JOIN languages tl ON j.target_language_id = tl.id
+            WHERE j.is_active = true
+            ORDER BY j.scheduled_date DESC, j.scheduled_time DESC
+        `);
+        
+        res.json({
+            success: true,
+            data: result.rows
+        });
+    } catch (error) {
+        await loggerService.error('Failed to retrieve jobs', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve jobs'
+        });
+    }
+});
+
+// Get a specific job
+router.get('/jobs/:id', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await db.query(`
+            SELECT j.*, 
+                   c.first_name as claimant_first_name, c.last_name as claimant_last_name,
+                   cl.claim_number, cl.case_type,
+                   i.first_name as interpreter_first_name, i.last_name as interpreter_last_name,
+                   req.name as requested_by_name,
+                   ba.name as billing_account_name
+            FROM jobs j
+            LEFT JOIN claimants c ON j.claimant_id = c.id
+            LEFT JOIN claims cl ON j.claim_id = cl.id
+            LEFT JOIN interpreters i ON j.assigned_interpreter_id = i.id
+            LEFT JOIN customers req ON j.requested_by_id = req.id
+            LEFT JOIN billing_accounts ba ON c.billing_account_id = ba.id
+            WHERE j.id = $1 AND j.is_active = true
+        `, [id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Job not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+    } catch (error) {
+        await loggerService.error('Failed to retrieve job', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve job'
+        });
+    }
+});
+
+// Create a new job
+router.post('/jobs', authenticateToken, async (req, res) => {
+    try {
+        const { 
+            title, description, job_type, priority, status, location_address, location_city,
+            location_state, location_zip_code, scheduled_date, scheduled_time, 
+            estimated_duration_minutes, hourly_rate, total_amount, payment_status,
+            client_name, client_email, client_phone, client_notes, special_requirements,
+            admin_notes, appointment_type, is_remote, claimant_id, claim_id,
+            requested_by_id, interpreter_type_id
+        } = req.body;
+        
+        // Validate required fields
+        if (!title || !job_type || !priority || !status || !scheduled_date || !scheduled_time) {
+            return res.status(400).json({
+                success: false,
+                message: 'Title, job type, priority, status, scheduled date, and scheduled time are required'
+            });
+        }
+        
+        const result = await db.query(`
+            INSERT INTO jobs (
+                title, description, job_type, priority, status, location_address, location_city,
+                location_state, location_zip_code, scheduled_date, scheduled_time,
+                estimated_duration_minutes, hourly_rate, total_amount, payment_status,
+                client_name, client_email, client_phone, client_notes, special_requirements,
+                admin_notes, appointment_type, is_remote, claimant_id, claim_id,
+                requested_by_id, interpreter_type_id, created_by
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+                $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28
+            )
+            RETURNING id, title, job_type, priority, status, scheduled_date, scheduled_time, created_at
+        `, [
+            title, description, job_type, priority, status, location_address, location_city,
+            location_state, location_zip_code, scheduled_date, scheduled_time,
+            estimated_duration_minutes, hourly_rate, total_amount, payment_status,
+            client_name, client_email, client_phone, client_notes, special_requirements,
+            admin_notes, appointment_type, is_remote, claimant_id, claim_id,
+            requested_by_id, interpreter_type_id, req.user.id
+        ]);
+        
+        res.json({
+            success: true,
+            message: 'Job created successfully',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        await loggerService.error('Failed to create job', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create job'
+        });
+    }
+});
+
+// Update a job
+router.put('/jobs/:id', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { 
+            title, description, job_type, priority, status, location_address, location_city,
+            location_state, location_zip_code, scheduled_date, scheduled_time, 
+            estimated_duration_minutes, hourly_rate, total_amount, payment_status,
+            client_name, client_email, client_phone, client_notes, special_requirements,
+            admin_notes, appointment_type, is_remote, claimant_id, claim_id,
+            requested_by_id, interpreter_type_id, assigned_interpreter_id
+        } = req.body;
+        
+        const result = await db.query(`
+            UPDATE jobs SET
+                title = $1, description = $2, job_type = $3, priority = $4, status = $5,
+                location_address = $6, location_city = $7, location_state = $8, location_zip_code = $9,
+                scheduled_date = $10, scheduled_time = $11, estimated_duration_minutes = $12,
+                hourly_rate = $13, total_amount = $14, payment_status = $15,
+                client_name = $16, client_email = $17, client_phone = $18, client_notes = $19,
+                special_requirements = $20, admin_notes = $21, appointment_type = $22,
+                is_remote = $23, claimant_id = $24, claim_id = $25, requested_by_id = $26,
+                interpreter_type_id = $27, assigned_interpreter_id = $28, updated_by = $29,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $30
+            RETURNING id, title, job_type, priority, status, scheduled_date, scheduled_time, updated_at
+        `, [
+            title, description, job_type, priority, status, location_address, location_city,
+            location_state, location_zip_code, scheduled_date, scheduled_time, estimated_duration_minutes,
+            hourly_rate, total_amount, payment_status, client_name, client_email, client_phone,
+            client_notes, special_requirements, admin_notes, appointment_type, is_remote,
+            claimant_id, claim_id, requested_by_id, interpreter_type_id, assigned_interpreter_id,
+            req.user.id, id
+        ]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Job not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Job updated successfully',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        await loggerService.error('Failed to update job', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update job'
+        });
+    }
+});
+
+// Delete a job (soft delete)
+router.delete('/jobs/:id', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await db.query(`
+            UPDATE jobs SET
+                is_active = false,
+                updated_by = $1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+            RETURNING id
+        `, [req.user.id, id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Job not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Job deleted successfully'
+        });
+    } catch (error) {
+        await loggerService.error('Failed to delete job', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to delete job'
+        });
+    }
+});
+
 module.exports = router;

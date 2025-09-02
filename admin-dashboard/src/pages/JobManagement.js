@@ -13,7 +13,15 @@ import {
 const JobManagement = ({ setCurrentView }) => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState({
+    total_jobs: 0,
+    open_jobs: 0,
+    assigned_jobs: 0,
+    in_progress_jobs: 0,
+    completed_jobs: 0,
+    cancelled_jobs: 0,
+    total_revenue: 0
+  });
   const [filter, setFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -22,6 +30,11 @@ const JobManagement = ({ setCurrentView }) => {
     loadJobs();
     loadStats();
   }, [filter, currentPage]);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Current state:', { jobs, stats, loading });
+  }, [jobs, stats, loading]);
 
   const loadJobs = useCallback(async () => {
     try {
@@ -33,7 +46,7 @@ const JobManagement = ({ setCurrentView }) => {
         ...(filter !== 'all' && { status: filter })
       });
       
-      const response = await fetch(`http://localhost:3001/api/jobs?${params}`, {
+      const response = await fetch(`http://localhost:3002/api/admin/jobs?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -42,8 +55,14 @@ const JobManagement = ({ setCurrentView }) => {
       
       if (response.ok) {
         const data = await response.json();
-        setJobs(data.data.jobs);
-        setTotalPages(data.data.pagination.total_pages);
+        console.log('Jobs API response:', data);
+        setJobs(data.data || []);
+        // Since we don't have pagination yet, set totalPages to 1
+        setTotalPages(1);
+      } else {
+        console.error('Failed to load jobs:', response.status);
+        setJobs([]);
+        setTotalPages(1);
       }
     } catch (error) {
       console.error('Error loading jobs:', error);
@@ -55,7 +74,7 @@ const JobManagement = ({ setCurrentView }) => {
   const loadStats = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('http://localhost:3001/api/jobs/stats', {
+      const response = await fetch('http://localhost:3002/api/admin/jobs/stats', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -64,7 +83,19 @@ const JobManagement = ({ setCurrentView }) => {
       
       if (response.ok) {
         const data = await response.json();
-        setStats(data.data);
+        console.log('Stats API response:', data);
+        setStats(data.data || {
+          total_jobs: 0,
+          open_jobs: 0,
+          assigned_jobs: 0,
+          in_progress_jobs: 0,
+          completed_jobs: 0,
+          cancelled_jobs: 0,
+          total_revenue: 0
+        });
+      } else {
+        console.error('Failed to load stats:', response.status);
+        // Keep default stats on error
       }
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -79,7 +110,7 @@ const JobManagement = ({ setCurrentView }) => {
     try {
       const token = localStorage.getItem('adminToken');
       
-      const response = await fetch(`http://localhost:3001/api/jobs/${jobId}`, {
+      const response = await fetch(`http://localhost:3002/api/admin/jobs/${jobId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -157,7 +188,7 @@ const JobManagement = ({ setCurrentView }) => {
     { value: 'cancelled', label: 'Cancelled' }
   ];
 
-  if (loading && jobs.length === 0) {
+  if (loading && (jobs || []).length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
@@ -256,7 +287,7 @@ const JobManagement = ({ setCurrentView }) => {
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
-        ) : jobs.length === 0 ? (
+        ) : (jobs || []).length === 0 ? (
           <div className="text-center py-12">
             <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No jobs found</h3>
@@ -279,6 +310,9 @@ const JobManagement = ({ setCurrentView }) => {
                     Service Details
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Requested By
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Location
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -290,7 +324,7 @@ const JobManagement = ({ setCurrentView }) => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {jobs.map((job) => (
+                {(jobs || []).map((job) => (
                   <tr key={job.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
@@ -313,6 +347,21 @@ const JobManagement = ({ setCurrentView }) => {
                       <div className="text-xs text-gray-400">
                         {formatCurrency(job.hourly_rate)}/hr
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {job.requested_by_name || 'Not specified'}
+                      </div>
+                      {job.claimant_first_name && job.claimant_last_name && (
+                        <div className="text-xs text-gray-500">
+                          Claimant: {job.claimant_first_name} {job.claimant_last_name}
+                        </div>
+                      )}
+                      {job.claim_number && (
+                        <div className="text-xs text-gray-400">
+                          Claim: {job.claim_number}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">

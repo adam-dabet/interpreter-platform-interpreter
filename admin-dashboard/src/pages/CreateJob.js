@@ -14,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3002/api';
 
 // UI Components
 const Button = ({ children, onClick, variant = 'primary', disabled = false, className = '' }) => {
@@ -184,6 +184,8 @@ const CreateJob = ({ setCurrentView }) => {
     interpreterType: '',
     claimantId: '',
     claimId: '',
+    requestedById: '',
+    serviceLocationId: '',
     locationOfService: ''
   });
 
@@ -194,113 +196,16 @@ const CreateJob = ({ setCurrentView }) => {
   const [serviceLocations, setServiceLocations] = useState([]);
   const [claimants, setClaimants] = useState([]);
   const [claims, setClaims] = useState([]);
-  const [map, setMap] = useState(null);
-  const [autocomplete, setAutocomplete] = useState(null);
-  const [mapsInitialized, setMapsInitialized] = useState(false);
+  const [customers, setCustomers] = useState([]);
+
 
   useEffect(() => {
     loadFormOptions();
-    
-    // Only initialize Google Maps once
-    if (!mapsInitialized) {
-      initializeGoogleMaps();
-    }
-    
-    // Cleanup function
-    return () => {
-      // Clean up any Google Maps related resources if needed
-      if (autocomplete) {
-        window.google?.maps?.event?.clearInstanceListeners(autocomplete);
-      }
-    };
-  }, [mapsInitialized]);
+  }, []);
 
-  const initializeGoogleMaps = () => {
-    // Prevent multiple initializations
-    if (mapsInitialized) {
-      return;
-    }
 
-    // Check if Google Maps API key is available
-    if (!process.env.REACT_APP_GOOGLE_MAPS_API_KEY) {
-      console.log('Google Maps API key not found. Location autocomplete will be disabled.');
-      return;
-    }
 
-    // Check if Google Maps is already loaded
-    if (window.google && window.google.maps) {
-      setupGoogleMaps();
-      setMapsInitialized(true);
-      return;
-    }
 
-    // Check if script is already being loaded
-    if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-      // Script is already being loaded, wait for it
-      const checkGoogleMaps = () => {
-        if (window.google && window.google.maps) {
-          setupGoogleMaps();
-          setMapsInitialized(true);
-        } else {
-          setTimeout(checkGoogleMaps, 100);
-        }
-      };
-      checkGoogleMaps();
-      return;
-    }
-
-    // Load Google Maps script
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      setupGoogleMaps();
-      setMapsInitialized(true);
-    };
-    script.onerror = () => {
-      console.log('Failed to load Google Maps API. Location will be saved as text only.');
-    };
-    document.head.appendChild(script);
-  };
-
-  const setupGoogleMaps = () => {
-    try {
-      // Check if Google Maps API is properly loaded
-      if (!window.google || !window.google.maps) {
-        console.log('Google Maps API not available. Location will be saved as text only.');
-        return;
-      }
-
-      // Wait a bit for the API to fully initialize
-      setTimeout(() => {
-        try {
-          // Create autocomplete for location input
-          const locationInput = document.getElementById('locationOfService');
-          if (locationInput) {
-            const autocompleteInstance = new window.google.maps.places.Autocomplete(locationInput, {
-              types: ['geocode'],
-              componentRestrictions: { country: 'us' }
-            });
-
-            autocompleteInstance.addListener('place_changed', () => {
-              const place = autocompleteInstance.getPlace();
-              if (place.geometry) {
-                const location = place.formatted_address;
-                handleInputChange('locationOfService', location);
-              }
-            });
-
-            setAutocomplete(autocompleteInstance);
-          }
-        } catch (error) {
-          console.error('Error setting up Google Maps autocomplete:', error);
-        }
-      }, 1000);
-    } catch (error) {
-      console.error('Error in setupGoogleMaps:', error);
-    }
-  };
 
   const loadFormOptions = async () => {
     try {
@@ -334,6 +239,15 @@ const CreateJob = ({ setCurrentView }) => {
         setInterpreterTypes(interpreterTypesData.data || []);
       }
 
+      // Load claimants
+      const claimantsResponse = await fetch(`${API_BASE}/admin/claimants`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (claimantsResponse.ok) {
+        const claimantsData = await claimantsResponse.json();
+        setClaimants(claimantsData.data || []);
+      }
+
       // Load service locations
       const serviceLocationsResponse = await fetch(`${API_BASE}/admin/service-locations`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -343,13 +257,13 @@ const CreateJob = ({ setCurrentView }) => {
         setServiceLocations(serviceLocationsData.data || []);
       }
 
-      // Load claimants
-      const claimantsResponse = await fetch(`${API_BASE}/admin/claimants`, {
+      // Load customers
+      const customersResponse = await fetch(`${API_BASE}/admin/customers`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (claimantsResponse.ok) {
-        const claimantsData = await claimantsResponse.json();
-        setClaimants(claimantsData.data || []);
+      if (customersResponse.ok) {
+        const customersData = await customersResponse.json();
+        setCustomers(customersData.data || []);
       }
     } catch (error) {
       console.error('Error loading form options:', error);
@@ -358,6 +272,8 @@ const CreateJob = ({ setCurrentView }) => {
       setLanguages([]);
       setInterpreterTypes([]);
       setServiceLocations([]);
+      setClaimants([]);
+      setCustomers([]);
     }
   };
 
@@ -524,18 +440,28 @@ const CreateJob = ({ setCurrentView }) => {
       
       // Create the data object to send to API
       const jobData = {
-        ...formData,
-        reserveTime: totalReserveMinutes.toString() // Convert to string for API
+        title: formData.jobNumber,
+        description: `Job ${formData.jobNumber}`,
+        job_type: 'medical', // Default to medical, can be enhanced later
+        priority: 'normal', // Default priority
+        status: 'open', // Default status
+        scheduled_date: formData.appointmentDate,
+        scheduled_time: formData.appointmentTime,
+        estimated_duration_minutes: totalReserveMinutes,
+        appointment_type: formData.appointmentType,
+        claimant_id: formData.claimantId ? parseInt(formData.claimantId) : null,
+        claim_id: formData.claimId ? parseInt(formData.claimId) : null,
+        requested_by_id: formData.requestedById ? parseInt(formData.requestedById) : null,
+        service_type_id: formData.serviceType ? parseInt(formData.serviceType) : null,
+        interpreter_type_id: formData.interpreterType ? parseInt(formData.interpreterType) : null,
+        location_address: formData.locationOfService,
+        is_remote: false // Default to in-person, can be enhanced later
       };
-      
-      // Remove the separate hours and minutes fields from the data sent to API
-      delete jobData.reserveHours;
-      delete jobData.reserveMinutes;
       
       console.log('Sending job data:', jobData);
       console.log('Form data before processing:', formData);
       
-      const response = await fetch(`${API_BASE}/jobs`, {
+      const response = await fetch(`${API_BASE}/admin/jobs`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -745,6 +671,17 @@ const CreateJob = ({ setCurrentView }) => {
                   required
                   disabled={!formData.claimantId}
                 />
+                <SearchableSelect
+                  label="Requested By"
+                  value={formData.requestedById}
+                  onChange={(e) => handleInputChange('requestedById', e.target.value)}
+                  options={customers.map(customer => ({
+                    value: customer.id.toString(),
+                    label: customer.name
+                  }))}
+                  placeholder="Select customer who requested this job"
+                  required
+                />
               </div>
             </div>
 
@@ -850,7 +787,7 @@ const CreateJob = ({ setCurrentView }) => {
               </div>
             </div>
 
-            {/* Location */}
+                                    {/* Location */}
             <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center border-b border-gray-200 pb-3">
                 <MapPinIcon className="h-5 w-5 mr-2 text-blue-600" />
@@ -859,37 +796,52 @@ const CreateJob = ({ setCurrentView }) => {
               <div className="grid grid-cols-1 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Service Location <span className="text-gray-500">(Optional - Select from saved locations)</span>
+                    Service Location <span className="text-gray-500">(Select from saved locations)</span>
                   </label>
                   <select
                     value={formData.serviceLocationId || ''}
                     onChange={(e) => handleServiceLocationChange(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="">Select a saved location...</option>
+                    <option value="">Select a service location...</option>
                     {serviceLocations.map(location => (
                       <option key={location.id} value={location.id}>
                         {location.name} - {location.address}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 Select from pre-configured service locations. To add new locations, go to Service Locations management.
+                  </p>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Location of Service <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={formData.locationOfService}
-                    onChange={(e) => handleInputChange('locationOfService', e.target.value)}
-                    placeholder="Enter location (e.g., City, State or Full Address)"
-                    required
-                    id="locationOfService"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.locationOfService}
+                      onChange={(e) => handleInputChange('locationOfService', e.target.value)}
+                      placeholder="Location will auto-fill from selected service location, or type manually"
+                      required
+                      id="locationOfService"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
+                    />
+                    {formData.locationOfService && (
+                      <button
+                        type="button"
+                        onClick={() => handleInputChange('locationOfService', '')}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        title="Clear location"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    💡 Select a saved location above to auto-fill this field, or enter a new location manually
+                    💡 This field auto-fills when you select a service location above, or you can type the location manually.
                   </p>
                 </div>
               </div>

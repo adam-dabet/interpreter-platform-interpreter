@@ -685,7 +685,7 @@ router.post('/customers', authenticateToken, async (req, res) => {
 router.put('/customers/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, email, phone, title, billing_account_id, is_active } = req.body;
+        const { name, email, phone, title, billing_account_id } = req.body;
         
         // Validate required fields
         if (!name) {
@@ -702,12 +702,11 @@ router.put('/customers/:id', authenticateToken, async (req, res) => {
                 phone = $3,
                 title = $4,
                 billing_account_id = $5,
-                is_active = $6,
-                last_updated_by = $7,
+                last_updated_by = $6,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = $8
+            WHERE id = $7
             RETURNING id, name, email, phone, title, billing_account_id, is_active, created_at, updated_at
-        `, [name, email, phone, title, billing_account_id, is_active, req.user.id, id]);
+        `, [name, email, phone, title, billing_account_id, req.user.id, id]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({
@@ -1246,7 +1245,7 @@ router.get('/jobs', authenticateToken, async (req, res) => {
         const result = await db.query(`
             SELECT j.id, j.title, j.description, j.job_type, j.priority, j.status,
                    j.location_address, j.location_city, j.location_state, j.location_zip_code,
-                   j.scheduled_date, j.scheduled_time, j.estimated_duration_minutes,
+                   j.scheduled_date, j.scheduled_time, j.arrival_time, j.estimated_duration_minutes,
                    j.hourly_rate, j.total_amount, j.payment_status, j.client_name,
                    j.client_email, j.client_phone, j.client_notes, j.special_requirements,
                    j.admin_notes, j.appointment_type, j.is_remote,
@@ -1256,6 +1255,7 @@ router.get('/jobs', authenticateToken, async (req, res) => {
                    i.first_name as interpreter_first_name, i.last_name as interpreter_last_name,
                    req.name as requested_by_name,
                    ba.name as billing_account_name,
+                   j.billing_account_id,
                    st.name as service_type_name,
                    sl.name as source_language_name,
                    tl.name as target_language_name
@@ -1264,7 +1264,7 @@ router.get('/jobs', authenticateToken, async (req, res) => {
             LEFT JOIN claims cl ON j.claim_id = cl.id
             LEFT JOIN interpreters i ON j.assigned_interpreter_id = i.id
             LEFT JOIN customers req ON j.requested_by_id = req.id
-            LEFT JOIN billing_accounts ba ON c.billing_account_id = ba.id
+            LEFT JOIN billing_accounts ba ON j.billing_account_id = ba.id
             LEFT JOIN service_types st ON j.service_type_id = st.id
             LEFT JOIN languages sl ON j.source_language_id = sl.id
             LEFT JOIN languages tl ON j.target_language_id = tl.id
@@ -1306,7 +1306,7 @@ router.get('/jobs/:id', authenticateToken, async (req, res) => {
             LEFT JOIN claims cl ON j.claim_id = cl.id
             LEFT JOIN interpreters i ON j.assigned_interpreter_id = i.id
             LEFT JOIN customers req ON j.requested_by_id = req.id
-            LEFT JOIN billing_accounts ba ON c.billing_account_id = ba.id
+            LEFT JOIN billing_accounts ba ON j.billing_account_id = ba.id
             WHERE j.id = $1 AND j.is_active = true
         `, [id]);
         
@@ -1339,11 +1339,11 @@ router.post('/jobs', authenticateToken, async (req, res) => {
     try {
         const { 
             title, description, job_type, priority, status, location_address, location_city,
-            location_state, location_zip_code, scheduled_date, scheduled_time, 
+            location_state, location_zip_code, scheduled_date, scheduled_time, arrival_time,
             estimated_duration_minutes, hourly_rate, total_amount, payment_status,
             client_name, client_email, client_phone, client_notes, special_requirements,
             admin_notes, appointment_type, is_remote, claimant_id, claim_id,
-            requested_by_id, interpreter_type_id
+            requested_by_id, billing_account_id, interpreter_type_id
         } = req.body;
         
         // Validate required fields
@@ -1357,23 +1357,23 @@ router.post('/jobs', authenticateToken, async (req, res) => {
         const result = await db.query(`
             INSERT INTO jobs (
                 title, description, job_type, priority, status, location_address, location_city,
-                location_state, location_zip_code, scheduled_date, scheduled_time,
+                location_state, location_zip_code, scheduled_date, scheduled_time, arrival_time,
                 estimated_duration_minutes, hourly_rate, total_amount, payment_status,
                 client_name, client_email, client_phone, client_notes, special_requirements,
                 admin_notes, appointment_type, is_remote, claimant_id, claim_id,
-                requested_by_id, interpreter_type_id, created_by
+                requested_by_id, billing_account_id, interpreter_type_id, created_by
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-                $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28
+                $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
             )
             RETURNING id, title, job_type, priority, status, scheduled_date, scheduled_time, created_at
         `, [
             title, description, job_type, priority, status, location_address, location_city,
-            location_state, location_zip_code, scheduled_date, scheduled_time,
+            location_state, location_zip_code, scheduled_date, scheduled_time, arrival_time,
             estimated_duration_minutes, hourly_rate, total_amount, payment_status,
             client_name, client_email, client_phone, client_notes, special_requirements,
             admin_notes, appointment_type, is_remote, claimant_id, claim_id,
-            requested_by_id, interpreter_type_id, req.user.id
+            requested_by_id, billing_account_id, interpreter_type_id, req.user.id
         ]);
         
         res.json({
@@ -1400,32 +1400,32 @@ router.put('/jobs/:id', authenticateToken, async (req, res) => {
         const { id } = req.params;
         const { 
             title, description, job_type, priority, status, location_address, location_city,
-            location_state, location_zip_code, scheduled_date, scheduled_time, 
+            location_state, location_zip_code, scheduled_date, scheduled_time, arrival_time,
             estimated_duration_minutes, hourly_rate, total_amount, payment_status,
             client_name, client_email, client_phone, client_notes, special_requirements,
             admin_notes, appointment_type, is_remote, claimant_id, claim_id,
-            requested_by_id, interpreter_type_id, assigned_interpreter_id
+            requested_by_id, billing_account_id, interpreter_type_id, assigned_interpreter_id
         } = req.body;
         
         const result = await db.query(`
             UPDATE jobs SET
                 title = $1, description = $2, job_type = $3, priority = $4, status = $5,
                 location_address = $6, location_city = $7, location_state = $8, location_zip_code = $9,
-                scheduled_date = $10, scheduled_time = $11, estimated_duration_minutes = $12,
-                hourly_rate = $13, total_amount = $14, payment_status = $15,
-                client_name = $16, client_email = $17, client_phone = $18, client_notes = $19,
-                special_requirements = $20, admin_notes = $21, appointment_type = $22,
-                is_remote = $23, claimant_id = $24, claim_id = $25, requested_by_id = $26,
-                interpreter_type_id = $27, assigned_interpreter_id = $28, updated_by = $29,
+                scheduled_date = $10, scheduled_time = $11, arrival_time = $12, estimated_duration_minutes = $13,
+                hourly_rate = $14, total_amount = $15, payment_status = $16,
+                client_name = $17, client_email = $18, client_phone = $19, client_notes = $20,
+                special_requirements = $21, admin_notes = $22, appointment_type = $23,
+                is_remote = $24, claimant_id = $25, claim_id = $26, requested_by_id = $27,
+                billing_account_id = $28, interpreter_type_id = $29, assigned_interpreter_id = $30, updated_by = $31,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = $30
+            WHERE id = $32
             RETURNING id, title, job_type, priority, status, scheduled_date, scheduled_time, updated_at
         `, [
             title, description, job_type, priority, status, location_address, location_city,
-            location_state, location_zip_code, scheduled_date, scheduled_time, estimated_duration_minutes,
+            location_state, location_zip_code, scheduled_date, scheduled_time, arrival_time, estimated_duration_minutes,
             hourly_rate, total_amount, payment_status, client_name, client_email, client_phone,
             client_notes, special_requirements, admin_notes, appointment_type, is_remote,
-            claimant_id, claim_id, requested_by_id, interpreter_type_id, assigned_interpreter_id,
+            claimant_id, claim_id, requested_by_id, billing_account_id, interpreter_type_id, assigned_interpreter_id,
             req.user.id, id
         ]);
         

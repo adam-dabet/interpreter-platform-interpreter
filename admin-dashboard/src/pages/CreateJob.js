@@ -176,6 +176,7 @@ const CreateJob = ({ setCurrentView }) => {
     jobNumber: '',
     appointmentDate: '',
     appointmentTime: '',
+    arrivalTime: '',
     appointmentType: '',
     reserveHours: '',
     reserveMinutes: '',
@@ -185,6 +186,7 @@ const CreateJob = ({ setCurrentView }) => {
     claimantId: '',
     claimId: '',
     requestedById: '',
+    billingAccountId: '',
     serviceLocationId: '',
     locationOfService: ''
   });
@@ -197,6 +199,7 @@ const CreateJob = ({ setCurrentView }) => {
   const [claimants, setClaimants] = useState([]);
   const [claims, setClaims] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [billingAccounts, setBillingAccounts] = useState([]);
 
 
   useEffect(() => {
@@ -264,6 +267,15 @@ const CreateJob = ({ setCurrentView }) => {
       if (customersResponse.ok) {
         const customersData = await customersResponse.json();
         setCustomers(customersData.data || []);
+      }
+
+      // Load billing accounts
+      const billingAccountsResponse = await fetch(`${API_BASE}/admin/billing-accounts`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (billingAccountsResponse.ok) {
+        const billingAccountsData = await billingAccountsResponse.json();
+        setBillingAccounts(billingAccountsData.data || []);
       }
     } catch (error) {
       console.error('Error loading form options:', error);
@@ -433,6 +445,18 @@ const CreateJob = ({ setCurrentView }) => {
     try {
       const token = localStorage.getItem('adminToken');
       
+      // Validate arrival time if provided
+      if (formData.arrivalTime && formData.appointmentTime) {
+        const appointmentTime = new Date(`2000-01-01T${formData.appointmentTime}`);
+        const arrivalTime = new Date(`2000-01-01T${formData.arrivalTime}`);
+        
+        if (arrivalTime >= appointmentTime) {
+          toast.error('Arrival time must be before appointment time');
+          setLoading(false);
+          return;
+        }
+      }
+      
       // Combine hours and minutes into total minutes for the API
       const hours = parseInt(formData.reserveHours) || 0;
       const minutes = parseInt(formData.reserveMinutes) || 0;
@@ -447,11 +471,13 @@ const CreateJob = ({ setCurrentView }) => {
         status: 'open', // Default status
         scheduled_date: formData.appointmentDate,
         scheduled_time: formData.appointmentTime,
+        arrival_time: formData.arrivalTime || null,
         estimated_duration_minutes: totalReserveMinutes,
         appointment_type: formData.appointmentType,
         claimant_id: formData.claimantId ? parseInt(formData.claimantId) : null,
         claim_id: formData.claimId ? parseInt(formData.claimId) : null,
         requested_by_id: formData.requestedById ? parseInt(formData.requestedById) : null,
+        billing_account_id: formData.billingAccountId ? parseInt(formData.billingAccountId) : null,
         service_type_id: formData.serviceType ? parseInt(formData.serviceType) : null,
         interpreter_type_id: formData.interpreterType ? parseInt(formData.interpreterType) : null,
         location_address: formData.locationOfService,
@@ -682,6 +708,20 @@ const CreateJob = ({ setCurrentView }) => {
                   placeholder="Select customer who requested this job"
                   required
                 />
+                <SearchableSelect
+                  label="Billing Account"
+                  value={formData.billingAccountId}
+                  onChange={(e) => handleInputChange('billingAccountId', e.target.value)}
+                  options={billingAccounts.map(account => ({
+                    value: account.id.toString(),
+                    label: account.name
+                  }))}
+                  placeholder="Select billing account"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  💡 Select the billing account that will be charged for this job
+                </p>
               </div>
             </div>
 
@@ -706,6 +746,16 @@ const CreateJob = ({ setCurrentView }) => {
                   onChange={(e) => handleInputChange('appointmentTime', e.target.value)}
                   required
                 />
+                <Input
+                  label="Arrival Time"
+                  type="time"
+                  value={formData.arrivalTime}
+                  onChange={(e) => handleInputChange('arrivalTime', e.target.value)}
+                  placeholder="When interpreter should arrive"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  💡 Set this if the interpreter needs to arrive before the appointment time (e.g., arrive at 1:30 PM for a 2:00 PM appointment)
+                </p>
                 <SearchableSelect
                   label="Appointment Type"
                   value={formData.appointmentType}

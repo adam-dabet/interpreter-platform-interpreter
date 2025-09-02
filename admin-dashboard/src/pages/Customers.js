@@ -12,7 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3002/api';
 
 // UI Components
 const Button = ({ children, onClick, variant = 'primary', disabled = false, className = '' }) => {
@@ -208,6 +208,7 @@ const Customers = ({ setCurrentView }) => {
       
       if (response.ok) {
         const data = await response.json();
+        console.log('Loaded customers:', data.data);
         setCustomers(data.data || []);
       } else {
         toast.error('Failed to load customers');
@@ -259,6 +260,7 @@ const Customers = ({ setCurrentView }) => {
 
       if (response.ok) {
         const result = await response.json();
+        console.log('Customer update response:', result);
         toast.success(result.message);
         setShowModal(false);
         setEditingCustomer(null);
@@ -266,6 +268,7 @@ const Customers = ({ setCurrentView }) => {
         loadCustomers();
       } else {
         const error = await response.json();
+        console.error('Customer update error:', error);
         toast.error(error.message || 'Failed to save customer');
       }
     } catch (error) {

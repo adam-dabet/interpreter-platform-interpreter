@@ -335,6 +335,11 @@ const JobManagement = ({ setCurrentView }) => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{formatDate(job.scheduled_date)}</div>
                       <div className="text-sm text-gray-500">{formatTime(job.scheduled_time)}</div>
+                      {job.arrival_time && (
+                        <div className="text-xs text-blue-600">
+                          Arrive: {formatTime(job.arrival_time)}
+                        </div>
+                      )}
                       <div className="text-xs text-gray-400">
                         {job.is_remote ? 'Remote' : 'In Person'} • {job.estimated_duration_minutes} min
                       </div>
@@ -352,6 +357,11 @@ const JobManagement = ({ setCurrentView }) => {
                       <div className="text-sm text-gray-900">
                         {job.requested_by_name || 'Not specified'}
                       </div>
+                      {job.billing_account_name && (
+                        <div className="text-xs text-green-600">
+                          Billing: {job.billing_account_name}
+                        </div>
+                      )}
                       {job.claimant_first_name && job.claimant_last_name && (
                         <div className="text-xs text-gray-500">
                           Claimant: {job.claimant_first_name} {job.claimant_last_name}

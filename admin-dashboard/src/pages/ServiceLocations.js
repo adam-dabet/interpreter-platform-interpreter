@@ -159,10 +159,9 @@ const ServiceLocations = ({ setCurrentView }) => {
       if (addressInput) {
         const autocompleteInstance = new window.google.maps.places.Autocomplete(addressInput, {
           // Types include:
-          // - 'geocode': Street addresses
-          // - 'establishment': Business names, restaurants, stores
-          // - 'point_of_interest': Landmarks, parks, museums
-          types: ['geocode', 'establishment', 'point_of_interest'],
+          // - 'establishment': Business names, restaurants, stores (covers most use cases)
+          // Note: 'geocode' cannot be mixed with other types due to Google Maps API restrictions
+          types: ['establishment'],
           componentRestrictions: { country: 'us' }
         });
 
@@ -391,7 +390,7 @@ const ServiceLocations = ({ setCurrentView }) => {
               <MapPinIcon className="h-4 w-4 text-blue-600" />
               <span className="text-sm text-blue-800">
                 {mapsInitialized ? (
-                  '✅ Google Maps Active - Search for business names and addresses'
+                  '✅ Google Maps Active - Search for business names and establishments'
                 ) : (
                   '⏳ Loading Google Maps...'
                 )}
@@ -399,7 +398,7 @@ const ServiceLocations = ({ setCurrentView }) => {
             </div>
             {mapsInitialized && (
               <div className="mt-2 text-xs text-blue-700">
-                💡 <strong>Tip:</strong> When adding locations, search for business names like "Walmart" or addresses like "123 Main St"
+                💡 <strong>Tip:</strong> When adding locations, search for business names like "Walmart", "UCSF Medical Center", or "Starbucks"
               </div>
             )}
           </div>
@@ -531,7 +530,7 @@ const ServiceLocations = ({ setCurrentView }) => {
                   <MapPinIcon className="h-4 w-4 text-blue-600" />
                   <span className="text-sm text-blue-800">
                     {mapsInitialized ? (
-                      '✅ Google Maps Ready - Search for business names, addresses, or landmarks'
+                      '✅ Google Maps Ready - Search for business names and establishments'
                     ) : (
                       '⏳ Loading Google Maps... Please wait'
                     )}
@@ -539,7 +538,7 @@ const ServiceLocations = ({ setCurrentView }) => {
                 </div>
                 {mapsInitialized && (
                   <div className="mt-2 text-xs text-blue-700">
-                    💡 <strong>Examples:</strong> "Walmart", "UCSF Medical Center", "Golden Gate Bridge", "123 Main St, San Francisco"
+                    💡 <strong>Examples:</strong> "Walmart", "UCSF Medical Center", "Starbucks", "CVS Pharmacy"
                   </div>
                 )}
               </div>
@@ -562,13 +561,13 @@ const ServiceLocations = ({ setCurrentView }) => {
                      type="text"
                      value={formData.address}
                      onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                     placeholder="Search for business names, addresses, or landmarks..."
+                     placeholder="Search for business names like 'Walmart' or 'UCSF Medical Center'..."
                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                      required
                    />
                    {mapsInitialized ? (
                      <p className="text-xs text-green-600 mt-1">
-                       ✅ Google Maps Active - Search for "Walmart", "UCSF Medical Center", "123 Main St", etc.
+                       ✅ Google Maps Active - Search for business names like "Walmart", "UCSF Medical Center", "Starbucks"
                      </p>
                    ) : (
                      <p className="text-xs text-orange-600 mt-1">

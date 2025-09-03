@@ -304,8 +304,6 @@ class Interpreter {
                 LEFT JOIN service_type_rates str ON isr.service_type_id = str.service_type_id
                 LEFT JOIN interpreter_certificates ic ON i.id = ic.interpreter_id
                 LEFT JOIN certificate_types ct ON ic.certificate_type_id = ct.id
-                LEFT JOIN interpreter_service_rates isr ON i.id = isr.interpreter_id
-                LEFT JOIN service_types st2 ON isr.service_type_id = st2.id
                 LEFT JOIN interpreter_w9_forms iw9 ON i.id = iw9.interpreter_id
                 WHERE i.id = $1
                 GROUP BY i.id, s.name, s.code

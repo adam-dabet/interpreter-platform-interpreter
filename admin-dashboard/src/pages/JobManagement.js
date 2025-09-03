@@ -23,6 +23,7 @@ const JobManagement = ({ setCurrentView }) => {
     total_revenue: 0
   });
   const [filter, setFilter] = useState('all');
+  const [workflowFilter, setWorkflowFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -179,6 +180,32 @@ const JobManagement = ({ setCurrentView }) => {
     }
   };
 
+  const getWorkflowStatusColor = (workflowStatus) => {
+    switch (workflowStatus) {
+      case 'assigned': return 'text-blue-600 bg-blue-100';
+      case 'started': return 'text-green-600 bg-green-100';
+      case 'completed': return 'text-orange-600 bg-orange-100';
+      case 'reported': return 'text-purple-600 bg-purple-100';
+      case 'authorized': return 'text-indigo-600 bg-indigo-100';
+      case 'billed': return 'text-yellow-600 bg-yellow-100';
+      case 'paid': return 'text-emerald-600 bg-emerald-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getWorkflowStatusLabel = (workflowStatus) => {
+    switch (workflowStatus) {
+      case 'assigned': return 'Assigned';
+      case 'started': return 'Started';
+      case 'completed': return 'Completed';
+      case 'reported': return 'Reported';
+      case 'authorized': return 'Authorized';
+      case 'billed': return 'Billed';
+      case 'paid': return 'Paid';
+      default: return 'Unknown';
+    }
+  };
+
   const filters = [
     { value: 'all', label: 'All Jobs' },
     { value: 'open', label: 'Open' },
@@ -186,6 +213,17 @@ const JobManagement = ({ setCurrentView }) => {
     { value: 'in_progress', label: 'In Progress' },
     { value: 'completed', label: 'Completed' },
     { value: 'cancelled', label: 'Cancelled' }
+  ];
+
+  const workflowFilters = [
+    { value: 'all', label: 'All Workflows' },
+    { value: 'assigned', label: 'Assigned' },
+    { value: 'started', label: 'Started' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'reported', label: 'Reported' },
+    { value: 'authorized', label: 'Authorized' },
+    { value: 'billed', label: 'Billed' },
+    { value: 'paid', label: 'Paid' }
   ];
 
   if (loading && (jobs || []).length === 0) {
@@ -260,19 +298,36 @@ const JobManagement = ({ setCurrentView }) => {
             Create Job
           </button>
           
-          <div className="flex items-center space-x-2">
-            <FunnelIcon className="h-5 w-5 text-gray-400" />
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {filters.map((filterOption) => (
-                <option key={filterOption.value} value={filterOption.value}>
-                  {filterOption.label}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <FunnelIcon className="h-5 w-5 text-gray-400" />
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {filters.map((filterOption) => (
+                  <option key={filterOption.value} value={filterOption.value}>
+                    {filterOption.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <ClockIcon className="h-5 w-5 text-gray-400" />
+              <select
+                value={workflowFilter}
+                onChange={(e) => setWorkflowFilter(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {workflowFilters.map((filterOption) => (
+                  <option key={filterOption.value} value={filterOption.value}>
+                    {filterOption.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -317,6 +372,9 @@ const JobManagement = ({ setCurrentView }) => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Workflow
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -388,6 +446,23 @@ const JobManagement = ({ setCurrentView }) => {
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
                         {job.status.replace('_', ' ')}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col space-y-1">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getWorkflowStatusColor(job.workflow_status)}`}>
+                          {getWorkflowStatusLabel(job.workflow_status)}
+                        </span>
+                        {job.workflow_status === 'started' && job.job_started_at && (
+                          <div className="text-xs text-gray-500">
+                            Started: {formatTime(job.job_started_at)}
+                          </div>
+                        )}
+                        {job.workflow_status === 'completed' && job.actual_duration_minutes && (
+                          <div className="text-xs text-gray-500">
+                            Duration: {job.actual_duration_minutes} min
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">

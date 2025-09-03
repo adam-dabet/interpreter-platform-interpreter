@@ -10,6 +10,7 @@ import {
   BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import JobWorkflow from '../components/JobWorkflow';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -315,6 +316,17 @@ const JobDetails = ({ jobId, setCurrentView }) => {
               <p className="text-sm text-gray-900">{job.special_requirements}</p>
             </div>
           )}
+
+          {/* Job Workflow */}
+          <div className="lg:col-span-2">
+            <JobWorkflow 
+              job={job} 
+              onJobUpdate={(updatedJob) => {
+                setJob(updatedJob);
+                toast.success('Job updated successfully');
+              }}
+            />
+          </div>
         </motion.div>
       </div>
     </div>

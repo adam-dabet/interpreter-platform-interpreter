@@ -387,7 +387,7 @@ const Profile = () => {
                   profile.languages.map((lang, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
                       <span className="text-sm font-medium text-gray-900">
-                        {lang.language_name || lang.native_name || 'Unknown Language'}
+                        {lang.name || lang.native_name || 'Unknown Language'}
                       </span>
                       <span className="text-xs text-gray-500 capitalize">
                         {lang.proficiency_level || 'Not specified'}
@@ -408,10 +408,10 @@ const Profile = () => {
                   profile.service_types.map((service, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
                       <span className="text-sm font-medium text-gray-900">
-                        {service.service_type_name || 'Unknown Service'}
+                        {service.name || 'Unknown Service'}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {service.service_type_description || 'No description available'}
+                        {service.code || 'No description available'}
                       </span>
                     </div>
                   ))
@@ -444,12 +444,12 @@ const Profile = () => {
                       {rate.service_type_name}
                     </h4>
                     <p className="text-xs text-gray-500">
-                      Rate Type: {rate.rate_type || 'Standard'}
+                      {rate.service_type_name}
                     </p>
                   </div>
                   <div className="text-right">
                     <span className="text-sm font-medium text-gray-900">
-                      ${rate.rate_amount}/{rate.rate_unit}
+                      ${rate.rate_amount}/hour
                     </span>
                     {rate.custom_minimum_hours && (
                       <p className="text-xs text-gray-500">

@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import InterpreterCompletionReport from '../components/InterpreterCompletionReport';
 
 const JobDashboard = () => {
   const [activeTab, setActiveTab] = useState('upcoming');
@@ -25,6 +26,8 @@ const JobDashboard = () => {
   const [filter, setFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [showCompletionReport, setShowCompletionReport] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
 
   useEffect(() => {
     loadJobs();
@@ -72,14 +75,7 @@ const JobDashboard = () => {
           response = await jobAPI.declineJob(jobId, data);
           toast.success('Job declined');
           break;
-        case 'start':
-          response = await jobAPI.startJob(jobId);
-          toast.success('Job started!');
-          break;
-        case 'complete':
-          response = await jobAPI.completeJob(jobId, data);
-          toast.success('Job completed!');
-          break;
+
         default:
           return;
       }
@@ -138,9 +134,34 @@ const JobDashboard = () => {
     }).format(amount || 0);
   };
 
+  // Filter jobs based on active tab
+  const getFilteredJobs = () => {
+    if (activeTab === 'upcoming') {
+      return jobs.filter(job => 
+        job.assignment_status === 'accepted' || 
+        (job.assignment_status === 'pending' && job.status === 'open')
+      );
+    } else if (activeTab === 'past') {
+      return jobs.filter(job => 
+        ['completed', 'declined'].includes(job.assignment_status)
+      );
+    }
+    return jobs; // Return all jobs for other tabs
+  };
+
   const tabs = [
-    { id: 'upcoming', name: 'Upcoming Jobs', count: jobs.filter(job => ['accepted', 'pending'].includes(job.assignment_status)).length },
-    { id: 'past', name: 'Past Jobs', count: jobs.filter(job => ['completed', 'declined'].includes(job.assignment_status)).length },
+    { 
+      id: 'upcoming', 
+      name: 'Upcoming Jobs', 
+      count: getFilteredJobs().length 
+    },
+    { 
+      id: 'past', 
+      name: 'Past Jobs', 
+      count: jobs.filter(job => 
+        ['completed', 'declined'].includes(job.assignment_status)
+      ).length 
+    },
     { id: 'earnings', name: 'Earnings', count: null }
   ];
 
@@ -152,7 +173,7 @@ const JobDashboard = () => {
     { value: 'declined', label: 'Declined' }
   ];
 
-  if (loading && jobs.length === 0) {
+  if (loading && getFilteredJobs().length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <LoadingSpinner />
@@ -288,7 +309,7 @@ const JobDashboard = () => {
             <div className="flex items-center justify-center py-12">
               <LoadingSpinner />
             </div>
-          ) : jobs.length === 0 ? (
+          ) : getFilteredJobs().length === 0 ? (
             <div className="text-center py-12">
               <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No jobs found</h3>
@@ -301,7 +322,7 @@ const JobDashboard = () => {
             </div>
           ) : (
             <>
-              {jobs.map((job) => (
+              {getFilteredJobs().map((job) => (
                 <motion.div
                   key={job.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -388,19 +409,12 @@ const JobDashboard = () => {
                     {job.assignment_status === 'accepted' && job.status === 'assigned' && (
                       <Button
                         size="sm"
-                        onClick={() => handleJobAction(job.id, 'start')}
+                        onClick={() => {
+                          setSelectedJob(job);
+                          setShowCompletionReport(true);
+                        }}
                       >
-                        <PlayIcon className="h-4 w-4 mr-1" />
-                        Start Job
-                      </Button>
-                    )}
-                    
-                    {job.assignment_status === 'accepted' && job.status === 'in_progress' && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleJobAction(job.id, 'complete', { actual_hours: 1 })}
-                      >
-                        <StopIcon className="h-4 w-4 mr-1" />
+                        <CheckCircleIcon className="h-4 w-4 mr-1" />
                         Complete Job
                       </Button>
                     )}
@@ -409,29 +423,34 @@ const JobDashboard = () => {
               ))}
               
               {/* Pagination */}
-              {totalPages > 1 && (
+              {getFilteredJobs().length > 0 && (
                 <div className="flex items-center justify-center space-x-2 mt-8">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                  >
-                    Previous
-                  </Button>
-                  
-                  <span className="text-sm text-gray-600">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                  >
-                    Next
-                  </Button>
+                  <div className="text-sm text-gray-600">
+                    Showing {getFilteredJobs().length} of {jobs.length} total jobs
+                  </div>
+                </div>
+              )}
+
+              {/* Completion Report Modal */}
+              {showCompletionReport && selectedJob && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                    <InterpreterCompletionReport
+                      jobId={selectedJob.id}
+                      jobData={selectedJob}
+                      onSubmit={(data) => {
+                        setShowCompletionReport(false);
+                        setSelectedJob(null);
+                        loadJobs();
+                        loadEarnings();
+                        toast.success('Completion report submitted successfully!');
+                      }}
+                      onCancel={() => {
+                        setShowCompletionReport(false);
+                        setSelectedJob(null);
+                      }}
+                    />
+                  </div>
                 </div>
               )}
             </>

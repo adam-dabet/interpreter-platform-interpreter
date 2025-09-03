@@ -208,6 +208,22 @@ class EmailService {
       'high'
     );
   }
+
+  async sendCustomerMagicLink(magicLinkData) {
+    return this.queueEmail(
+      'customer_magic_link',
+      magicLinkData.email,
+      magicLinkData.customer_name,
+      {
+        customer_name: magicLinkData.customer_name,
+        magic_link_url: magicLinkData.magic_link_url,
+        expires_in_minutes: magicLinkData.expires_in_minutes || 30,
+        platform_name: 'Interpreter Platform',
+        support_email: process.env.SUPPORT_EMAIL || 'support@interpreterplatform.com'
+      },
+      'high'
+    );
+  }
 }
 
 module.exports = new EmailService();

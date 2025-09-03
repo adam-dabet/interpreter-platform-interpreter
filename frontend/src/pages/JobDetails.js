@@ -309,19 +309,22 @@ const JobDetails = () => {
                 <p className="text-sm text-gray-500 mb-4">
                   {profile?.service_rates ? 'Your earnings' : 'per hour'}
                 </p>
-                {profile?.service_rates && (
-                  <div className="text-xs text-gray-400 mb-4">
-                    {(() => {
-                      const serviceRate = profile.service_rates.find(
-                        rate => rate.service_type_id === job.service_type_id
-                      );
-                      if (serviceRate) {
-                        return `${formatCurrency(serviceRate.rate_amount)}/${serviceRate.rate_unit}`;
-                      }
-                      return `${formatCurrency(job.hourly_rate)}/hour`;
-                    })()}
-                  </div>
-                )}
+                                        {profile?.service_rates && (
+                          <div className="text-xs text-gray-400 mb-4">
+                            {(() => {
+                              const serviceRate = profile.service_rates.find(
+                                rate => rate.service_type_id === job.service_type_id
+                              );
+                              if (serviceRate && serviceRate.rate_amount && serviceRate.rate_unit) {
+                                return `${formatCurrency(serviceRate.rate_amount)}/${serviceRate.rate_unit}`;
+                              }
+                              if (job.hourly_rate) {
+                                return `${formatCurrency(job.hourly_rate)}/hour`;
+                              }
+                              return 'Rate not set';
+                            })()}
+                          </div>
+                        )}
                 <div className="text-sm text-gray-600">
                   Duration: {job.estimated_duration_minutes} minutes
                 </div>
@@ -337,23 +340,45 @@ const JobDetails = () => {
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
               <div className="space-y-3">
-                <Button
-                  className="w-full"
-                  onClick={() => handleJobAction('accept')}
-                  disabled={actionLoading}
-                >
-                  <CheckCircleIcon className="h-4 w-4 mr-2" />
-                  {actionLoading ? 'Processing...' : 'Accept Job'}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => handleJobAction('decline')}
-                  disabled={actionLoading}
-                >
-                  <XCircleIcon className="h-4 w-4 mr-2" />
-                  {actionLoading ? 'Processing...' : 'Decline Job'}
-                </Button>
+                {job.status === 'open' ? (
+                  <>
+                    <Button
+                      className="w-full"
+                      onClick={() => handleJobAction('accept')}
+                      disabled={actionLoading}
+                    >
+                      <CheckCircleIcon className="h-4 w-4 mr-2" />
+                      {actionLoading ? 'Processing...' : 'Accept Job'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => handleJobAction('decline')}
+                      disabled={actionLoading}
+                    >
+                      <XCircleIcon className="h-4 w-4 mr-2" />
+                      {actionLoading ? 'Processing...' : 'Decline Job'}
+                    </Button>
+                  </>
+                ) : job.status === 'assigned' && job.assigned_interpreter_id ? (
+                  <div className="text-center py-4">
+                    <div className="text-lg font-semibold text-green-600 mb-2">
+                      ✓ Job Accepted
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      This job has been assigned to you
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <div className="text-lg font-semibold text-gray-600 mb-2">
+                      Job Status: {job.status}
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      This job is not available for acceptance
+                    </p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>

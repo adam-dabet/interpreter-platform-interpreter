@@ -234,14 +234,14 @@ class JobAssignmentController {
       const interpreterId = req.user.interpreterId;
       const { actual_hours, notes } = req.body;
 
-      // Check if interpreter is assigned to this job and it's in progress
+      // Check if interpreter is assigned to this job
       const assignmentCheck = await db.query(
         'SELECT ja.*, j.status as job_status, j.hourly_rate FROM job_assignments ja JOIN jobs j ON ja.job_id = j.id WHERE ja.job_id = $1 AND ja.interpreter_id = $2 AND ja.status = $3',
         [jobId, interpreterId, 'accepted']
       );
 
       if (assignmentCheck.rows.length === 0) {
-        return res.status(404).json({ success: false, message: 'Job assignment not found or not in progress' });
+        return res.status(404).json({ success: false, message: 'Job assignment not found or not accepted' });
       }
 
       const assignment = assignmentCheck.rows[0];
@@ -320,11 +320,28 @@ class JobAssignmentController {
 
       const recentJobs = await db.query(recentJobsQuery, [interpreterId]);
 
+      // Get interpreter's service rates for display
+      const serviceRatesQuery = `
+        SELECT 
+          isr.service_type_id,
+          isr.rate_amount,
+          isr.rate_unit,
+          isr.rate_type,
+          st.name as service_type_name
+        FROM interpreter_service_rates isr
+        JOIN service_types st ON isr.service_type_id = st.id
+        WHERE isr.interpreter_id = $1
+        ORDER BY st.name
+      `;
+
+      const serviceRates = await db.query(serviceRatesQuery, [interpreterId]);
+
       res.json({
         success: true,
         data: {
           summary: result.rows[0],
-          recent_jobs: recentJobs.rows
+          recent_jobs: recentJobs.rows,
+          service_rates: serviceRates.rows
         }
       });
     } catch (error) {

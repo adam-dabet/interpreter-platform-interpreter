@@ -436,10 +436,13 @@ const JobSearch = () => {
                               const serviceRate = profile.service_rates.find(
                                 rate => rate.service_type_id === job.service_type_id
                               );
-                              if (serviceRate) {
+                              if (serviceRate && serviceRate.rate_amount && serviceRate.rate_unit) {
                                 return `${formatCurrency(serviceRate.rate_amount)}/${serviceRate.rate_unit}`;
                               }
-                              return `${formatCurrency(job.hourly_rate)}/hour`;
+                              if (job.hourly_rate) {
+                                return `${formatCurrency(job.hourly_rate)}/hour`;
+                              }
+                              return 'Rate not set';
                             })()}
                           </div>
                         )}
@@ -455,13 +458,20 @@ const JobSearch = () => {
                       >
                         View Details
                       </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleJobAction(job.id, 'accept')}
-                      >
-                        <CheckCircleIcon className="h-4 w-4 mr-1" />
-                        Accept
-                      </Button>
+                      {job.status === 'open' && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleJobAction(job.id, 'accept')}
+                        >
+                          <CheckCircleIcon className="h-4 w-4 mr-1" />
+                          Accept
+                        </Button>
+                      )}
+                      {job.status === 'assigned' && job.assigned_interpreter_id && (
+                        <span className="text-sm text-gray-500 px-3 py-2 bg-gray-100 rounded-md">
+                          Job Assigned
+                        </span>
+                      )}
                     </div>
                   </motion.div>
                 ))}

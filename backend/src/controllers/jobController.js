@@ -117,6 +117,11 @@ class JobController {
             AND i.is_active = true
             AND i.profile_status = 'approved'
           )
+          -- Exclude jobs that the interpreter has already responded to
+          AND NOT EXISTS (
+            SELECT 1 FROM job_assignments ja
+            WHERE ja.job_id = j.id AND ja.interpreter_id = $${paramCount + 1}
+          )
         `;
         paramCount++;
         queryParams.push(interpreter_id);

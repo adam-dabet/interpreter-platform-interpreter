@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const multer = require('multer');
 require('dotenv').config();
 
 const emailService = require('./services/emailService');
@@ -22,6 +23,7 @@ const adminRoutes = require('./routes/admin');
 const interpreterRoutes = require('./routes/interpreters');
 const parametricRoutes = require('./routes/parametric');
 const jobRoutes = require('./routes/jobs');
+const customerRoutes = require('./routes/customer');
 
 // Security middleware
 app.use(helmet({
@@ -65,11 +67,22 @@ app.use(rateLimitLogger);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Multer middleware for handling multipart/form-data (file uploads)
+const upload = multer({
+  dest: 'uploads/temp/',
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 5 // Maximum 5 files
+  }
+});
+app.use(upload.any()); // Handle any multipart form data
+
 // Static files (for development)
 if (process.env.NODE_ENV !== 'production') {
   app.use('/uploads', express.static('uploads'));
   app.use('/uploads/interpreter-documents', express.static('uploads/interpreter-documents'));
   app.use('/uploads/w9_forms', express.static('uploads/w9_forms'));
+  app.use('/uploads/completion-reports', express.static('uploads/completion-reports'));
 }
 
 // Routes
@@ -78,6 +91,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/interpreters', interpreterRoutes);
 app.use('/api/parametric', parametricRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/customer', customerRoutes);
 app.use('/admin', express.static('public'));
 
 // Health check endpoint

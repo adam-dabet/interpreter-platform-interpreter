@@ -25,8 +25,8 @@ router.get('/dashboard/stats', authenticateToken, adminController.getDashboardSt
 
 // Interpreter profile management routes (protected)
 router.get('/profiles/pending', authenticateToken, adminController.getPendingProfiles);
-router.get('/profiles', authenticateToken, adminController.getAllProfiles); // New route for all applications
 router.get('/profiles/:profileId', authenticateToken, adminController.getProfileDetails);
+router.get('/profiles', authenticateToken, adminController.getAllProfiles); // New route for all applications
 router.put('/profiles/:profileId/status', 
   authenticateToken,
   [
@@ -878,11 +878,22 @@ router.post('/claimants', authenticateToken, async (req, res) => {
         // Combine first and last name for the name field
         const name = `${first_name} ${last_name}`.trim();
         
+        // Convert empty strings to null for optional fields
+        const cleanBillingAccountId = billing_account_id === '' ? null : billing_account_id;
+        const cleanAddressLatitude = address_latitude === '' ? null : address_latitude;
+        const cleanAddressLongitude = address_longitude === '' ? null : address_longitude;
+        const cleanDateOfBirth = date_of_birth === '' ? null : date_of_birth;
+        const cleanGender = gender === '' ? null : gender;
+        const cleanPhone = phone === '' ? null : phone;
+        const cleanLanguage = language === '' ? null : language;
+        const cleanAddress = address === '' ? null : address;
+        const cleanEmployerInsured = employer_insured === '' ? null : employer_insured;
+        
         const result = await db.query(`
             INSERT INTO claimants (first_name, last_name, name, gender, date_of_birth, phone, language, billing_account_id, address, address_latitude, address_longitude, employer_insured, created_by)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING id, first_name, last_name, name, gender, date_of_birth, phone, language, billing_account_id, address, address_latitude, address_longitude, employer_insured, is_active, created_at, updated_at
-        `, [first_name, last_name, name, gender, date_of_birth, phone, language, billing_account_id, address, address_latitude, address_longitude, employer_insured, req.user.id]);
+        `, [first_name, last_name, name, cleanGender, cleanDateOfBirth, cleanPhone, cleanLanguage, cleanBillingAccountId, cleanAddress, cleanAddressLatitude, cleanAddressLongitude, cleanEmployerInsured, req.user.id]);
         
         res.status(201).json({
             success: true,
@@ -919,6 +930,17 @@ router.put('/claimants/:id', authenticateToken, async (req, res) => {
         // Combine first and last name for the name field
         const name = `${first_name} ${last_name}`.trim();
         
+        // Convert empty strings to null for optional fields
+        const cleanBillingAccountId = billing_account_id === '' ? null : billing_account_id;
+        const cleanAddressLatitude = address_latitude === '' ? null : address_latitude;
+        const cleanAddressLongitude = address_longitude === '' ? null : address_longitude;
+        const cleanDateOfBirth = date_of_birth === '' ? null : date_of_birth;
+        const cleanGender = gender === '' ? null : gender;
+        const cleanPhone = phone === '' ? null : phone;
+        const cleanLanguage = language === '' ? null : language;
+        const cleanAddress = address === '' ? null : address;
+        const cleanEmployerInsured = employer_insured === '' ? null : employer_insured;
+        
         const result = await db.query(`
             UPDATE claimants SET
                 first_name = $1,
@@ -938,7 +960,7 @@ router.put('/claimants/:id', authenticateToken, async (req, res) => {
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $15
             RETURNING id, first_name, last_name, name, gender, date_of_birth, phone, language, billing_account_id, address, address_latitude, address_longitude, employer_insured, is_active, created_at, updated_at
-        `, [first_name, last_name, name, gender, date_of_birth, phone, language, billing_account_id, address, address_latitude, address_longitude, employer_insured, is_active, req.user.id, id]);
+        `, [first_name, last_name, name, cleanGender, cleanDateOfBirth, cleanPhone, cleanLanguage, cleanBillingAccountId, cleanAddress, cleanAddressLatitude, cleanAddressLongitude, cleanEmployerInsured, is_active, req.user.id, id]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({
@@ -1088,11 +1110,17 @@ router.post('/claims', authenticateToken, async (req, res) => {
             });
         }
         
+        // Convert empty strings to null for optional fields
+        const cleanContactClaimsHandlerId = contact_claims_handler_id === '' ? null : contact_claims_handler_id;
+        const cleanAdjustersAssistantId = adjusters_assistant_id === '' ? null : adjusters_assistant_id;
+        const cleanDateOfInjury = date_of_injury === '' ? null : date_of_injury;
+        const cleanDiagnosis = diagnosis === '' ? null : diagnosis;
+        
         const result = await db.query(`
             INSERT INTO claims (claimant_id, case_type, claim_number, date_of_injury, diagnosis, contact_claims_handler_id, adjusters_assistant_id, created_by)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING id, claimant_id, case_type, claim_number, date_of_injury, diagnosis, contact_claims_handler_id, adjusters_assistant_id, is_active, created_at, updated_at
-        `, [claimant_id, case_type, claim_number, date_of_injury, diagnosis, contact_claims_handler_id, adjusters_assistant_id, req.user.id]);
+        `, [claimant_id, case_type, claim_number, cleanDateOfInjury, cleanDiagnosis, cleanContactClaimsHandlerId, cleanAdjustersAssistantId, req.user.id]);
         
         res.status(201).json({
             success: true,
@@ -1126,6 +1154,12 @@ router.put('/claims/:id', authenticateToken, async (req, res) => {
             });
         }
         
+        // Convert empty strings to null for optional fields
+        const cleanContactClaimsHandlerId = contact_claims_handler_id === '' ? null : contact_claims_handler_id;
+        const cleanAdjustersAssistantId = adjusters_assistant_id === '' ? null : adjusters_assistant_id;
+        const cleanDateOfInjury = date_of_injury === '' ? null : date_of_injury;
+        const cleanDiagnosis = diagnosis === '' ? null : diagnosis;
+        
         const result = await db.query(`
             UPDATE claims SET
                 case_type = $1,
@@ -1139,7 +1173,7 @@ router.put('/claims/:id', authenticateToken, async (req, res) => {
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $9
             RETURNING id, claimant_id, case_type, claim_number, date_of_injury, diagnosis, contact_claims_handler_id, adjusters_assistant_id, is_active, created_at, updated_at
-        `, [case_type, claim_number, date_of_injury, diagnosis, contact_claims_handler_id, adjusters_assistant_id, is_active, req.user.id, id]);
+        `, [case_type, claim_number, cleanDateOfInjury, cleanDiagnosis, cleanContactClaimsHandlerId, cleanAdjustersAssistantId, is_active, req.user.id, id]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({
@@ -1343,7 +1377,7 @@ router.post('/jobs', authenticateToken, async (req, res) => {
             estimated_duration_minutes, hourly_rate, total_amount, payment_status,
             client_name, client_email, client_phone, client_notes, special_requirements,
             admin_notes, appointment_type, is_remote, claimant_id, claim_id,
-            requested_by_id, billing_account_id, interpreter_type_id
+            requested_by_id, billing_account_id, interpreter_type_id, workflow_status
         } = req.body;
         
         // Validate required fields
@@ -1361,10 +1395,10 @@ router.post('/jobs', authenticateToken, async (req, res) => {
                 estimated_duration_minutes, hourly_rate, total_amount, payment_status,
                 client_name, client_email, client_phone, client_notes, special_requirements,
                 admin_notes, appointment_type, is_remote, claimant_id, claim_id,
-                requested_by_id, billing_account_id, interpreter_type_id, created_by
+                requested_by_id, billing_account_id, interpreter_type_id, workflow_status, created_by
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-                $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
+                $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
             )
             RETURNING id, title, job_type, priority, status, scheduled_date, scheduled_time, created_at
         `, [
@@ -1373,7 +1407,7 @@ router.post('/jobs', authenticateToken, async (req, res) => {
             estimated_duration_minutes, hourly_rate, total_amount, payment_status,
             client_name, client_email, client_phone, client_notes, special_requirements,
             admin_notes, appointment_type, is_remote, claimant_id, claim_id,
-            requested_by_id, billing_account_id, interpreter_type_id, req.user.id
+            requested_by_id, billing_account_id, interpreter_type_id, workflow_status || 'assigned', req.user.id
         ]);
         
         res.json({
@@ -1488,6 +1522,296 @@ router.delete('/jobs/:id', authenticateToken, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to delete job'
+        });
+    }
+});
+
+// ===== JOB WORKFLOW ROUTES =====
+
+// Start job timer (interpreter starts job)
+router.post('/jobs/:id/start', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await db.query(`
+            UPDATE jobs SET
+                job_started_at = CURRENT_TIMESTAMP,
+                workflow_status = 'started',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1 AND is_active = true
+            RETURNING id, job_started_at, workflow_status
+        `, [id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Job not found or already started'
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Job started successfully',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        await loggerService.error('Failed to start job', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to start job'
+        });
+    }
+});
+
+// End job timer (interpreter ends job)
+router.post('/jobs/:id/end', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { actual_duration_minutes } = req.body;
+        
+        const result = await db.query(`
+            UPDATE jobs SET
+                job_ended_at = CURRENT_TIMESTAMP,
+                actual_duration_minutes = $1,
+                workflow_status = 'completed',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2 AND is_active = true AND job_started_at IS NOT NULL
+            RETURNING id, job_ended_at, actual_duration_minutes, workflow_status
+        `, [actual_duration_minutes, id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Job not found or not started'
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Job ended successfully',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        await loggerService.error('Failed to end job', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to end job'
+        });
+    }
+});
+
+// Submit completion report
+router.post('/jobs/:id/completion-report', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { 
+            start_time, end_time, result, status, supporting_files, notes 
+        } = req.body;
+        
+        const completionData = {
+            start_time,
+            end_time,
+            result,
+            status,
+            supporting_files,
+            notes,
+            submitted_at: new Date().toISOString()
+        };
+        
+        const result_query = await db.query(`
+            UPDATE jobs SET
+                completion_report_submitted = true,
+                completion_report_submitted_at = CURRENT_TIMESTAMP,
+                completion_report_data = $1,
+                workflow_status = 'reported',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2 AND is_active = true AND job_ended_at IS NOT NULL
+            RETURNING id, completion_report_submitted, workflow_status
+        `, [JSON.stringify(completionData), id]);
+        
+        if (result_query.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Job not found or not completed'
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Completion report submitted successfully',
+            data: result_query.rows[0]
+        });
+    } catch (error) {
+        await loggerService.error('Failed to submit completion report', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to submit completion report'
+        });
+    }
+});
+
+// Add job note (immutable)
+router.post('/jobs/:id/notes', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { note_text, note_type } = req.body;
+        
+        if (!note_text) {
+            return res.status(400).json({
+                success: false,
+                message: 'Note text is required'
+            });
+        }
+        
+        const result = await db.query(`
+            INSERT INTO job_notes (job_id, note_text, note_type, created_by_admin)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id, note_text, note_type, created_at
+        `, [id, note_text, note_type || 'general', req.user.id]);
+        
+        res.json({
+            success: true,
+            message: 'Note added successfully',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        await loggerService.error('Failed to add job note', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to add job note'
+        });
+    }
+});
+
+// Get job notes
+router.get('/jobs/:id/notes', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await db.query(`
+            SELECT jn.id, jn.note_text, jn.note_type, jn.created_at,
+                   i.first_name as interpreter_first_name, i.last_name as interpreter_last_name,
+                   u.email as admin_email
+            FROM job_notes jn
+            LEFT JOIN interpreters i ON jn.created_by = i.id
+            LEFT JOIN users u ON jn.created_by_admin = u.id
+            WHERE jn.job_id = $1
+            ORDER BY jn.created_at DESC
+        `, [id]);
+        
+        res.json({
+            success: true,
+            data: result.rows
+        });
+    } catch (error) {
+        await loggerService.error('Failed to retrieve job notes', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve job notes'
+        });
+    }
+});
+
+// Send claimant reminder
+router.post('/jobs/:id/send-reminder', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await db.query(`
+            UPDATE jobs SET
+                claimant_reminder_sent = true,
+                claimant_reminder_sent_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1 AND is_active = true
+            RETURNING id, claimant_reminder_sent, claimant_reminder_sent_at
+        `, [id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Job not found'
+            });
+        }
+        
+        // TODO: Implement actual email/SMS reminder logic
+        // For now, just mark as sent
+        
+        res.json({
+            success: true,
+            message: 'Claimant reminder sent successfully',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        await loggerService.error('Failed to send claimant reminder', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to send claimant reminder'
+        });
+    }
+});
+
+// Update billing authorization
+router.put('/jobs/:id/billing-authorization', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { authorization_obtained, notes } = req.body;
+        
+        const result = await db.query(`
+            UPDATE jobs SET
+                billing_authorization_obtained = $1,
+                billing_authorization_obtained_at = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE NULL END,
+                billing_authorization_notes = $2,
+                workflow_status = CASE WHEN $1 = true THEN 'authorized' ELSE 'assigned' END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $3 AND is_active = true
+            RETURNING id, billing_authorization_obtained, workflow_status
+        `, [authorization_obtained, notes, id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Job not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Billing authorization updated successfully',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        await loggerService.error('Failed to update billing authorization', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update billing authorization'
         });
     }
 });

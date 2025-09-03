@@ -317,7 +317,7 @@ const CreateJob = ({ setCurrentView }) => {
     ];
     
     if (medicalTypes.includes(appointmentType)) {
-      return 'medical'; // Return the service type code for medical
+      return 'medical_non_legal'; // Return the service type code for medical (non-legal)
     } else if (legalTypes.includes(appointmentType)) {
       return 'legal'; // Return the service type code for legal
     } else if (telehealthTypes.includes(appointmentType)) {
@@ -479,8 +479,18 @@ const CreateJob = ({ setCurrentView }) => {
         requested_by_id: formData.requestedById ? parseInt(formData.requestedById) : null,
         billing_account_id: formData.billingAccountId ? parseInt(formData.billingAccountId) : null,
         service_type_id: formData.serviceType ? parseInt(formData.serviceType) : null,
-        interpreter_type_id: formData.interpreterType ? parseInt(formData.interpreterType) : null,
+        hourly_rate: (() => {
+          if (formData.serviceType) {
+            const selectedServiceType = serviceTypes.find(st => st.id.toString() === formData.serviceType);
+            return selectedServiceType?.platform_rate_amount || null;
+          }
+          return null;
+        })(),
+        interpreter_type_id: formData.interpreterType || null,
         location_address: formData.locationOfService,
+        location_city: formData.locationCity || null,
+        location_state: formData.locationState || null,
+        location_zip_code: formData.locationZipCode || null,
         is_remote: false // Default to in-person, can be enhanced later
       };
       
@@ -529,6 +539,9 @@ const CreateJob = ({ setCurrentView }) => {
         setFormData(prev => ({
           ...prev,
           locationOfService: selectedLocation.address,
+          locationCity: selectedLocation.city,
+          locationState: selectedLocation.state,
+          locationZipCode: selectedLocation.zip_code,
           serviceLocationId: locationId
         }));
         toast.success(`Location set to: ${selectedLocation.name}`);
@@ -537,6 +550,9 @@ const CreateJob = ({ setCurrentView }) => {
       setFormData(prev => ({
         ...prev,
         locationOfService: '',
+        locationCity: '',
+        locationState: '',
+        locationZipCode: '',
         serviceLocationId: ''
       }));
     }

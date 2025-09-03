@@ -26,14 +26,10 @@ const jobAPI = {
     return api.post(`/jobs/${jobId}/decline`, data);
   },
 
-  // Start a job
-  startJob: (jobId) => {
-    return api.post(`/jobs/${jobId}/start`);
-  },
-
-  // Complete a job
-  completeJob: (jobId, data = {}) => {
-    return api.post(`/jobs/${jobId}/complete`, data);
+  // Complete a job (now triggers completion report)
+  completeJob: (jobId) => {
+    // This will now open the completion report form instead of directly completing
+    return Promise.resolve({ success: true, message: 'Opening completion report form' });
   },
 
   // Admin: Get all jobs

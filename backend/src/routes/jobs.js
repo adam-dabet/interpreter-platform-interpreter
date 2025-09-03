@@ -77,7 +77,7 @@ const assignmentValidation = [
   body('agreed_rate').optional().isFloat({ min: 0 }).withMessage('Agreed rate must be a positive number'),
   body('declined_reason').optional().isLength({ max: 500 }).withMessage('Decline reason must be less than 500 characters'),
   body('actual_hours').optional().isFloat({ min: 0.1, max: 24 }).withMessage('Actual hours must be between 0.1 and 24'),
-  body('interpreter_id').optional().isUUID().withMessage('Valid interpreter ID is required'),
+  body('interpreter_id').optional().isInt({ min: 1 }).withMessage('Valid interpreter ID is required'),
   body('agreed_rate').optional().isFloat({ min: 0 }).withMessage('Agreed rate must be a positive number')
 ];
 
@@ -126,21 +126,6 @@ router.post('/:jobId/decline',
   param('jobId').isUUID().withMessage('Valid job ID is required'),
   assignmentValidation,
   jobAssignmentController.declineJob
-);
-
-router.post('/:jobId/start',
-  authenticateToken,
-  requireRole('provider'),
-  param('jobId').isUUID().withMessage('Valid job ID is required'),
-  jobAssignmentController.startJob
-);
-
-router.post('/:jobId/complete',
-  authenticateToken,
-  requireRole('provider'),
-  param('jobId').isUUID().withMessage('Valid job ID is required'),
-  assignmentValidation,
-  jobAssignmentController.completeJob
 );
 
 // Admin routes (require admin authentication)

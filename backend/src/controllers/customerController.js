@@ -574,7 +574,48 @@ class CustomerController {
       const endMinutes = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1]);
       const durationMinutes = endMinutes - startMinutes;
 
-
+      // Get coordinates from the address using a geocoding service
+      let latitude = null;
+      let longitude = null;
+      
+      if (locationAddress) {
+        try {
+          // Use a free geocoding service (Nominatim/OpenStreetMap)
+          const encodedAddress = encodeURIComponent(locationAddress);
+          const geocodingUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1`;
+          
+          console.log('Geocoding address:', locationAddress);
+          
+          const geocodeResponse = await fetch(geocodingUrl, {
+            headers: {
+              'User-Agent': 'InterpreterPlatform/1.0'
+            }
+          });
+          
+          if (geocodeResponse.ok) {
+            const geocodeData = await geocodeResponse.json();
+            
+            if (geocodeData && geocodeData.length > 0) {
+              const location = geocodeData[0];
+              latitude = parseFloat(location.lat);
+              longitude = parseFloat(location.lon);
+              
+              console.log('Geocoding successful:', {
+                address: locationAddress,
+                lat: latitude,
+                lon: longitude,
+                display_name: location.display_name
+              });
+            } else {
+              console.log('No geocoding results found for:', locationAddress);
+            }
+          } else {
+            console.log('Geocoding request failed:', geocodeResponse.status);
+          }
+        } catch (geocodeError) {
+          console.error('Error during geocoding:', geocodeError);
+        }
+      }
 
       const jobResult = await db.query(`
         INSERT INTO jobs (
@@ -583,10 +624,10 @@ class CustomerController {
           appointment_type, claimant_id, claim_id, requested_by_id,
           service_type_id, source_language_id, interpreter_type_id,
           location_address, location_city, location_state, location_zip_code,
-          is_remote, hourly_rate, billing_account_id, special_requirements, created_by, created_at
+          latitude, longitude, is_remote, hourly_rate, billing_account_id, special_requirements, created_by, created_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-          $17, $18, $19, $20, $21, $22, $23, $24, $25, CURRENT_TIMESTAMP
+          $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, CURRENT_TIMESTAMP
         ) RETURNING id, created_at
       `, [
         title,
@@ -609,6 +650,8 @@ class CustomerController {
         locationCity || null,
         locationState || null,
         locationZipCode || null,
+        latitude,
+        longitude,
         isRemote || false,
         hourlyRate,
         billingAccountId,

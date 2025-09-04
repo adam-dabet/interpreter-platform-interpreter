@@ -65,6 +65,27 @@ router.get('/claims', customerController.getMyClaims);
 router.get('/appointments', customerController.getMyAppointments);
 router.get('/appointments/:appointmentId', customerController.getAppointmentDetails);
 
+// Parametric data routes
+router.get('/interpreter-types', customerController.getInterpreterTypes);
+router.get('/languages', customerController.getLanguages);
+
+// Claims routes
+router.get('/claimants/:claimantId/claims', customerController.getClaimsForClaimant);
+
+// Billing accounts and customers routes
+router.get('/billing-accounts', customerController.getMyBillingAccounts);
+router.get('/customers', customerController.getMyCustomers);
+
+// Claimant management routes
+router.post('/claimants', authenticateCustomer, customerController.createClaimant);
+router.put('/claimants/:id', authenticateCustomer, customerController.updateClaimant);
+router.delete('/claimants/:id', authenticateCustomer, customerController.deleteClaimant);
+
+// Claim management routes
+router.post('/claims', authenticateCustomer, customerController.createClaim);
+router.put('/claims/:id', authenticateCustomer, customerController.updateClaim);
+router.delete('/claims/:id', authenticateCustomer, customerController.deleteClaim);
+
 // Job request route
 router.post('/appointments',
   [
@@ -99,6 +120,56 @@ router.post('/appointments',
   ],
   handleValidationErrors,
   customerController.createJobRequest
+);
+
+// Simple appointment creation route (frontend format)
+router.post('/appointments/simple',
+  [
+    body('appointmentDate')
+      .isISO8601()
+      .withMessage('Valid appointment date is required'),
+    body('startTime')
+      .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
+      .withMessage('Valid start time is required (HH:MM format)'),
+    body('endTime')
+      .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
+      .withMessage('Valid end time is required (HH:MM format)'),
+    body('appointmentType')
+      .notEmpty()
+      .isLength({ max: 100 })
+      .withMessage('Appointment type is required and must be less than 100 characters'),
+    body('claimantId')
+      .isInt({ min: 1 })
+      .withMessage('Valid claimant ID is required'),
+    body('claimId')
+      .isInt({ min: 1 })
+      .withMessage('Valid claim ID is required'),
+    body('serviceTypeId')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('Valid service type ID is required'),
+    body('interpreterType')
+      .notEmpty()
+      .withMessage('Interpreter type is required'),
+    body('doctorName')
+      .optional()
+      .isLength({ max: 255 })
+      .withMessage('Doctor name must be less than 255 characters'),
+    body('employer')
+      .optional()
+      .isString()
+      .withMessage('Employer must be a string'),
+    body('examiner')
+      .optional()
+      .isString()
+      .withMessage('Examiner must be a string'),
+    body('isRemote')
+      .optional()
+      .isBoolean()
+      .withMessage('isRemote must be a boolean')
+  ],
+  handleValidationErrors,
+  customerController.createSimpleAppointment
 );
 
 module.exports = router;

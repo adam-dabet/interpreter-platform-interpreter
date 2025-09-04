@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Appointments from './pages/Appointments';
 import AppointmentDetails from './pages/AppointmentDetails';
 import NewAppointment from './pages/NewAppointment';
+import Claimants from './pages/Claimants';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
@@ -43,6 +44,7 @@ function AppRoutes() {
           <Route path="appointments" element={<Appointments />} />
           <Route path="appointments/:id" element={<AppointmentDetails />} />
           <Route path="appointments/new" element={<NewAppointment />} />
+          <Route path="claimants" element={<Claimants />} />
         </Route>
 
         {/* Catch-all redirect */}

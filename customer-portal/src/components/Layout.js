@@ -23,6 +23,7 @@ const Layout = () => {
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     { name: 'Appointments', href: '/appointments', icon: CalendarIcon },
     { name: 'New Appointment', href: '/appointments/new', icon: PlusIcon },
+    { name: 'Claimants', href: '/claimants', icon: UsersIcon },
   ];
 
   const isActive = (href) => {

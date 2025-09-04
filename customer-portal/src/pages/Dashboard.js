@@ -326,6 +326,44 @@ const Dashboard = () => {
               )}
             </div>
           </motion.div>
+
+          {/* Claimants Management */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white rounded-lg shadow"
+          >
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">Claimants Management</h2>
+                <button
+                  onClick={() => navigate('/claimants')}
+                  className="flex items-center text-blue-600 hover:text-blue-500 font-medium"
+                >
+                  <UsersIcon className="h-4 w-4 mr-1" />
+                  Manage
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="text-center py-4">
+                <UsersIcon className="mx-auto h-12 w-12 text-blue-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                  {dashboardData.stats.claimantsCount} Claimants
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Manage claimants in your billing account
+                </p>
+                <button
+                  onClick={() => navigate('/claimants')}
+                  className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                >
+                  Manage Claimants
+                </button>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
         {/* Quick Actions */}

@@ -6,7 +6,6 @@ import {
   CalendarIcon, 
   MapPinIcon,
   UserIcon,
-  DocumentTextIcon,
   LanguageIcon,
   ArrowLeftIcon,
   InformationCircleIcon,
@@ -17,6 +16,79 @@ import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+
+// Appointment type options (matching admin portal)
+const appointmentTypeOptions = [
+  { value: 'acupuncture', label: 'Acupuncture' },
+  { value: 'ame', label: 'AME' },
+  { value: 'aoe_coe', label: 'AOE/COE' },
+  { value: 'benefit_meeting', label: 'Benefit Meeting' },
+  { value: 'cardiac_evaluation', label: 'Cardiac Evaluation' },
+  { value: 'chiropractor', label: 'Chiropractor' },
+  { value: 'consult_telehealth', label: 'Consult (Telehealth)' },
+  { value: 'consult_treat', label: 'Consult & Treat' },
+  { value: 'consultation', label: 'Consultation' },
+  { value: 'ct_scan', label: 'Ct Scan' },
+  { value: 'dentist', label: 'Dentist' },
+  { value: 'deposition', label: 'Deposition' },
+  { value: 'deposition_zoom', label: 'Deposition (Via Zoom)' },
+  { value: 'diagnostic_testing', label: 'Diagnostic Testing' },
+  { value: 'ekg', label: 'EKG' },
+  { value: 'emg', label: 'EMG' },
+  { value: 'employee_meeting', label: 'Employee Meeting' },
+  { value: 'epidural_injection', label: 'Epidural Injection' },
+  { value: 'equipment_explination', label: 'Equipment Explination' },
+  { value: 'evaluation', label: 'Evaluation' },
+  { value: 'follow_up', label: 'Follow Up' },
+  { value: 'follow_up_telehealth', label: 'Follow up (Telehealth)' },
+  { value: 'follow_up_lab_work', label: 'Follow Up & Lab Work' },
+  { value: 'follow_up_pt', label: 'Follow Up & PT' },
+  { value: 'functional_capacity', label: 'Functional Capacity' },
+  { value: 'hearing_loss', label: 'Hearing Loss' },
+  { value: 'hernia_consult', label: 'Hernia Consult' },
+  { value: 'ime', label: 'IME' },
+  { value: 'initial_appointment', label: 'Initial Appointment' },
+  { value: 'injection', label: 'Injection' },
+  { value: 'injection_steroid', label: 'Injection Steroid' },
+  { value: 'internal_medicine', label: 'Internal Medicine' },
+  { value: 'interview', label: 'Interview' },
+  { value: 'interview_witness', label: 'Interview Witness' },
+  { value: 'laser_procedure', label: 'Laser Procedure' },
+  { value: 'legal', label: 'Legal' },
+  { value: 'medical', label: 'Medical' },
+  { value: 'medical_telehealth', label: 'Medical (Telehealth)' },
+  { value: 'medical_clerance', label: 'Medical Clerance' },
+  { value: 'medical_procedure', label: 'Medical Procedure' },
+  { value: 'mri', label: 'MRI' },
+  { value: 'ncm_meeting', label: 'NCM Meeting' },
+  { value: 'occupational', label: 'Occupational' },
+  { value: 'one_time_appointment', label: 'One-Time Appointment' },
+  { value: 'orthopaedic', label: 'Orthopaedic' },
+  { value: 'pain_management', label: 'Pain Management' },
+  { value: 'physical_therapy', label: 'Physical Therapy' },
+  { value: 'physical_therapy_initial', label: 'Physical Therapy Initial' },
+  { value: 'psychological', label: 'Psychological' },
+  { value: 'qme', label: 'QME' },
+  { value: 'recorded_statement', label: 'Recorded Statement' },
+  { value: 'second_opinion', label: 'Second Opinion' },
+  { value: 'settlement_documents', label: 'Settlement Documents' },
+  { value: 'status_conference', label: 'Status Conference' },
+  { value: 'status_conference_remote', label: 'Status Conference (Remote)' },
+  { value: 'surgery', label: 'Surgery' },
+  { value: 'surgery_check_in', label: 'Surgery Check In' },
+  { value: 'surgery_discharge', label: 'Surgery Discharge' },
+  { value: 'surgery_post_op', label: 'Surgery Post-Op' },
+  { value: 'surgery_pre_op', label: 'Surgery Pre-Op' },
+  { value: 'surgical_consult', label: 'Surgical Consult' },
+  { value: 'trial', label: 'Trial' },
+  { value: 'vocational_evaluation', label: 'Vocational Evaluation' },
+  { value: 'x_ray', label: 'X-Ray' },
+  { value: 'mandatory_settlement_agreement', label: 'Mandatory Settlement Agreement' },
+  { value: 'hearing', label: 'Hearing' },
+  { value: 'mandatory_settlement_conference', label: 'Mandatory Settlement Conference' },
+  { value: 'permanent_stationary', label: 'Permanent & Stationary' },
+  { value: 'cognitive_behavioral_therapy', label: 'Cognitive behavioral therapy' }
+];
 
 // UI Components
 const Input = ({ value, onChange, placeholder, type = 'text', className = '', label, required = false, disabled = false, readOnly = false }) => (
@@ -38,28 +110,6 @@ const Input = ({ value, onChange, placeholder, type = 'text', className = '', la
   </div>
 );
 
-const Select = ({ value, onChange, options = [], placeholder, className = '', label, required = false, disabled = false }) => (
-  <div className={className}>
-    {label && (
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-    )}
-    <select
-      value={value}
-      onChange={onChange}
-      disabled={disabled}
-      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${disabled ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''}`}
-    >
-      <option value="">{placeholder}</option>
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  </div>
-);
 
 const SearchableSelect = ({ value, onChange, options = [], placeholder, className = '', label, required = false, disabled = false }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -119,7 +169,6 @@ const SearchableSelect = ({ value, onChange, options = [], placeholder, classNam
     setIsOpen(true);
   };
 
-  const selectedOption = options && Array.isArray(options) ? options.find(option => option.value === value) : null;
 
   return (
     <div className={`relative searchable-select ${className}`} ref={dropdownRef}>
@@ -163,15 +212,23 @@ const NewAppointment = () => {
   const { makeAuthenticatedRequest } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [mapsInitialized, setMapsInitialized] = useState(false);
+  const locationAutocompleteRef = useRef(null);
   const [formOptions, setFormOptions] = useState({
     claimants: [],
-    claims: []
+    claims: [],
+    interpreterTypes: [],
+    serviceTypes: [],
+    languages: []
   });
   const [formData, setFormData] = useState({
     // Appointment Details
     appointmentDate: '',
     startTime: '',
     endTime: '',
+    arrivalTime: '',
+    appointmentType: '',
+    appointmentNotes: '',
     doctorName: '',
     isRemote: false,
     locationAddress: '',
@@ -185,32 +242,44 @@ const NewAppointment = () => {
     claimId: '',
     
     // Auto-populated Claimant Information (read-only)
-    claimantName: '',
-    claimantAddress: '',
-    claimantCity: '',
-    claimantState: '',
-    claimantZipCode: '',
-    dateOfBirth: '',
-    dateOfInjury: '',
+    claimantFirstName: '',
+    claimantLastName: '',
+    claimantGender: '',
+    claimantDateOfBirth: '',
     claimantPhone: '',
-    
-    // Employer & Examiner
-    employer: '',
-    examiner: '',
+    claimantLanguage: '',
+    claimantAddress: '',
+    claimantAddressLatitude: '',
+    claimantAddressLongitude: '',
+    claimantEmployerInsured: '',
     
     // Interpreter Requirements
-    language: 'Spanish',
+    language: '',
+    interpreterType: '',
+    serviceType: '',
     specialRequirements: ''
   });
 
   const loadFormOptions = useCallback(async () => {
     try {
-      const claimantsResponse = await makeAuthenticatedRequest(`${API_BASE}/customer/claimants`);
+      const [claimantsResponse, interpreterTypesResponse, serviceTypesResponse, languagesResponse] = await Promise.all([
+        makeAuthenticatedRequest(`${API_BASE}/customer/claimants`),
+        makeAuthenticatedRequest(`${API_BASE}/customer/interpreter-types`),
+        makeAuthenticatedRequest(`${API_BASE}/parametric/service-types`),
+        makeAuthenticatedRequest(`${API_BASE}/customer/languages`)
+      ]);
+      
       const claimantsData = await claimantsResponse.json();
+      const interpreterTypesData = await interpreterTypesResponse.json();
+      const serviceTypesData = await serviceTypesResponse.json();
+      const languagesData = await languagesResponse.json();
 
       setFormOptions({
         claimants: claimantsData.data || [],
-        claims: []
+        claims: [],
+        interpreterTypes: interpreterTypesData.data || [],
+        serviceTypes: serviceTypesData.data || [],
+        languages: languagesData.data || []
       });
     } catch (error) {
       console.error('Error loading form options:', error);
@@ -218,10 +287,123 @@ const NewAppointment = () => {
     }
   }, [makeAuthenticatedRequest]);
 
+  // Setup location autocomplete (must be defined before initializeGoogleMaps)
+  const setupLocationAutocomplete = useCallback(() => {
+    try {
+      if (!window.google || !window.google.maps || !window.google.maps.places) {
+        console.warn('Google Maps Places API not available');
+        return;
+      }
+
+      if (!locationAutocompleteRef.current) {
+        console.warn('Location autocomplete ref not available');
+        return;
+      }
+
+      const autocomplete = new window.google.maps.places.Autocomplete(
+        locationAutocompleteRef.current,
+        {
+          types: ['establishment', 'geocode'],
+          componentRestrictions: { country: 'us' }
+        }
+      );
+
+      autocomplete.addListener('place_changed', () => {
+        try {
+          const place = autocomplete.getPlace();
+          if (place.geometry && place.geometry.location) {
+            const addressComponents = place.address_components || [];
+            let city = '';
+            let state = '';
+            let zipCode = '';
+
+            addressComponents.forEach(component => {
+              const types = component.types;
+              if (types.includes('locality')) {
+                city = component.long_name;
+              } else if (types.includes('administrative_area_level_1')) {
+                state = component.short_name;
+              } else if (types.includes('postal_code')) {
+                zipCode = component.long_name;
+              }
+            });
+
+            setFormData(prev => ({
+              ...prev,
+              locationAddress: place.formatted_address || place.name || '',
+              locationCity: city,
+              locationState: state,
+              locationZipCode: zipCode
+            }));
+          }
+        } catch (error) {
+          console.error('Error handling place selection:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Error setting up location autocomplete:', error);
+      setMapsInitialized(false);
+    }
+  }, []);
+
+  // Google Maps initialization
+  const initializeGoogleMaps = useCallback(() => {
+    // Check if Google Maps is already loaded
+    if (window.google && window.google.maps && window.google.maps.places) {
+      setMapsInitialized(true);
+      setupLocationAutocomplete();
+      return;
+    }
+
+    // Check if API key exists
+    const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+    if (!apiKey || apiKey === 'your_actual_api_key_here') {
+      console.warn('Google Maps API key not configured. Address autocomplete will be disabled.');
+      setMapsInitialized(false);
+      return;
+    }
+
+    // Check if script is already being loaded
+    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+    if (existingScript) {
+      console.log('Google Maps script already exists, waiting for load...');
+      return;
+    }
+
+    // Create and load the script
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    
+    script.onload = () => {
+      try {
+        if (window.google && window.google.maps && window.google.maps.places) {
+          console.log('Google Maps API loaded successfully');
+          setMapsInitialized(true);
+          setupLocationAutocomplete();
+        } else {
+          console.error('Google Maps API loaded but objects not available');
+          setMapsInitialized(false);
+        }
+      } catch (error) {
+        console.error('Error initializing Google Maps:', error);
+        setMapsInitialized(false);
+      }
+    };
+    
+    script.onerror = (error) => {
+      console.error('Failed to load Google Maps API:', error);
+      setMapsInitialized(false);
+    };
+    
+    document.head.appendChild(script);
+  }, [setupLocationAutocomplete]);
+
   const loadClaimsForClaimant = useCallback(async (claimantId) => {
     try {
       const response = await makeAuthenticatedRequest(
-        `${API_BASE}/customer/claims?claimantId=${claimantId}`
+        `${API_BASE}/customer/claimants/${claimantId}/claims`
       );
       
       const data = await response.json();
@@ -236,7 +418,15 @@ const NewAppointment = () => {
 
   useEffect(() => {
     loadFormOptions();
-  }, [loadFormOptions]);
+    
+    // Initialize Google Maps with error handling
+    try {
+      initializeGoogleMaps();
+    } catch (error) {
+      console.error('Error initializing Google Maps:', error);
+      setMapsInitialized(false);
+    }
+  }, [loadFormOptions, initializeGoogleMaps]);
 
   useEffect(() => {
     // Load claims when claimant is selected
@@ -247,6 +437,13 @@ const NewAppointment = () => {
       setFormData(prev => ({ ...prev, claimId: '' }));
     }
   }, [formData.claimantId, loadClaimsForClaimant]);
+
+  // Setup autocomplete when maps are initialized and ref is available
+  useEffect(() => {
+    if (mapsInitialized && locationAutocompleteRef.current) {
+      setupLocationAutocomplete();
+    }
+  }, [mapsInitialized, setupLocationAutocomplete]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -262,16 +459,18 @@ const NewAppointment = () => {
         ...prev,
         claimantId: '',
         claimId: '',
-        claimantName: '',
-        claimantAddress: '',
-        claimantCity: '',
-        claimantState: '',
-        claimantZipCode: '',
-        dateOfBirth: '',
-        dateOfInjury: '',
+        claimantFirstName: '',
+        claimantLastName: '',
+        claimantGender: '',
+        claimantDateOfBirth: '',
         claimantPhone: '',
-        employer: '',
-        examiner: ''
+        claimantLanguage: '',
+        claimantAddress: '',
+        claimantAddressLatitude: '',
+        claimantAddressLongitude: '',
+        claimantEmployerInsured: '',
+        appointmentType: '',
+        appointmentNotes: '' // Clear appointment notes when clearing claimant
       }));
       return;
     }
@@ -302,22 +501,19 @@ const NewAppointment = () => {
         ...prev,
         claimantId: claimantId,
         claimId: '',
-        // Name - use first_name + last_name if available, fallback to name field
-        claimantName: selectedClaimant.first_name && selectedClaimant.last_name 
-          ? `${selectedClaimant.first_name} ${selectedClaimant.last_name}`
-          : selectedClaimant.name || '',
-        // Address - use the address field
-        claimantAddress: selectedClaimant.address || '',
-        // City, State, ZIP - use the new separate fields
-        claimantCity: selectedClaimant.city || '',
-        claimantState: selectedClaimant.state || '',
-        claimantZipCode: selectedClaimant.zip_code || '',
-        // Other fields - format dates properly
-        dateOfBirth: formatDateForInput(selectedClaimant.date_of_birth),
-        dateOfInjury: formatDateForInput(selectedClaimant.date_of_injury),
+        // Updated claimant fields to match new structure
+        claimantFirstName: selectedClaimant.first_name || '',
+        claimantLastName: selectedClaimant.last_name || '',
+        claimantGender: selectedClaimant.gender || '',
+        claimantDateOfBirth: formatDateForInput(selectedClaimant.date_of_birth),
         claimantPhone: selectedClaimant.phone || '',
-        employer: selectedClaimant.employer || '',
-        examiner: selectedClaimant.examiner || ''
+        claimantLanguage: selectedClaimant.language || '',
+        claimantAddress: selectedClaimant.address || '',
+        claimantAddressLatitude: selectedClaimant.address_latitude || '',
+        claimantAddressLongitude: selectedClaimant.address_longitude || '',
+        claimantEmployerInsured: selectedClaimant.employer_insured || '',
+        appointmentType: '', // Reset appointment type when a new claimant is selected
+        appointmentNotes: '' // Clear appointment notes when a new claimant is selected
       }));
 
       // Load claims for this claimant
@@ -380,7 +576,9 @@ const NewAppointment = () => {
       dateOfInjury: '',
       claimantPhone: '',
       employer: '',
-      examiner: ''
+      examiner: '',
+      appointmentType: '',
+      appointmentNotes: ''
     }));
     setFormOptions(prev => ({ ...prev, claims: [] }));
   };
@@ -392,7 +590,8 @@ const NewAppointment = () => {
     try {
       // Validate required fields
       if (!formData.appointmentDate || !formData.startTime || !formData.endTime || 
-          !formData.doctorName || !formData.claimantId || !formData.employer || !formData.examiner) {
+          !formData.appointmentType || !formData.claimantId || 
+          !formData.claimId || !formData.interpreterType || !formData.serviceType) {
         toast.error('Please fill in all required fields');
         setLoading(false);
         return;
@@ -417,6 +616,8 @@ const NewAppointment = () => {
         appointmentDate: formData.appointmentDate,
         startTime: formData.startTime,
         endTime: formData.endTime,
+        arrivalTime: formData.arrivalTime,
+        appointmentType: formData.appointmentType,
         doctorName: formData.doctorName,
         isRemote: formData.isRemote,
         locationAddress: formData.locationAddress,
@@ -426,6 +627,7 @@ const NewAppointment = () => {
         phone: formData.phone,
         claimantId: parseInt(formData.claimantId),
         claimId: formData.claimId ? parseInt(formData.claimId) : null,
+        serviceTypeId: formData.serviceType ? parseInt(formData.serviceType) : undefined,
         // Include all claimant details for reference
         claimantName: formData.claimantName,
         claimantAddress: formData.claimantAddress,
@@ -438,11 +640,13 @@ const NewAppointment = () => {
         employer: formData.employer,
         examiner: formData.examiner,
         language: formData.language,
-        specialRequirements: formData.specialRequirements
+        interpreterType: formData.interpreterType,
+        specialRequirements: formData.specialRequirements,
+        appointmentNotes: formData.appointmentNotes // Include appointment notes
       };
 
       const response = await makeAuthenticatedRequest(
-        `${API_BASE}/customer/appointments`,
+        `${API_BASE}/customer/appointments/simple`,
         {
           method: 'POST',
           body: JSON.stringify(appointmentData)
@@ -499,69 +703,6 @@ const NewAppointment = () => {
           className="bg-white rounded-lg shadow"
         >
           <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Claimant & Claim Selection */}
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-                <UserIcon className="h-5 w-5 mr-2 text-blue-600" />
-                Select Claimant & Claim
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <SearchableSelect
-                    label="Claimant"
-                    value={formData.claimantId}
-                    onChange={(e) => handleClaimantChange(e.target.value)}
-                    options={formOptions.claimants.map(claimant => ({
-                      value: claimant.id.toString(),
-                      label: claimant.first_name && claimant.last_name 
-                        ? `${claimant.first_name} ${claimant.last_name}`
-                        : claimant.name || `Claimant ${claimant.id}`
-                    }))}
-                    placeholder="Search for a claimant..."
-                    required
-                  />
-                  {formData.claimantId && (
-                    <button
-                      type="button"
-                      onClick={clearClaimantSelection}
-                      className="mt-2 text-sm text-red-600 hover:text-red-800 flex items-center"
-                    >
-                      <XMarkIcon className="h-4 w-4 mr-1" />
-                      Clear selection
-                    </button>
-                  )}
-                </div>
-                
-                <div>
-                  <Select
-                    label="Claim (Optional)"
-                    value={formData.claimId}
-                    onChange={(e) => handleClaimChange(e.target.value)}
-                    options={formOptions.claims.map(claim => ({
-                      value: claim.id.toString(),
-                      label: `${claim.claim_number} - ${claim.case_type}`
-                    }))}
-                    placeholder={formData.claimantId ? "Select a claim" : "Select claimant first"}
-                    disabled={!formData.claimantId}
-                  />
-                </div>
-              </div>
-              
-              {formData.claimantId && (
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center mb-2">
-                    <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-2" />
-                    <span className="text-sm font-medium text-blue-800">
-                      Claimant Information Auto-filled
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-600">
-                    The claimant's information has been automatically populated below. You can review and modify if needed.
-                  </p>
-                </div>
-              )}
-            </div>
 
             {/* Appointment Details */}
             <div className="p-6 border-b border-gray-200">
@@ -596,11 +737,34 @@ const NewAppointment = () => {
                 />
                 
                 <Input
+                  label="Arrival Time"
+                  type="time"
+                  value={formData.arrivalTime}
+                  onChange={(e) => handleInputChange('arrivalTime', e.target.value)}
+                  placeholder="When should interpreter arrive?"
+                />
+                
+                <SearchableSelect
+                  label="Appointment Type"
+                  value={formData.appointmentType}
+                  onChange={(e) => handleInputChange('appointmentType', e.target.value)}
+                  options={appointmentTypeOptions}
+                  placeholder="Select appointment type"
+                  required
+                />
+                
+                <Input
+                  label="Appointment Notes"
+                  value={formData.appointmentNotes || ''}
+                  onChange={(e) => handleInputChange('appointmentNotes', e.target.value)}
+                  placeholder="Additional details about the appointment..."
+                />
+                
+                <Input
                   label="Doctor Name"
                   value={formData.doctorName}
                   onChange={(e) => handleInputChange('doctorName', e.target.value)}
                   placeholder="e.g., Dr. La Pilusa"
-                  required
                 />
               </div>
             </div>
@@ -629,13 +793,25 @@ const NewAppointment = () => {
                 {!formData.isRemote && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="md:col-span-2">
-                      <Input
-                        label="Address"
-                        value={formData.locationAddress}
-                        onChange={(e) => handleInputChange('locationAddress', e.target.value)}
-                        placeholder="Street address"
-                        required
-                      />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Address <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          ref={locationAutocompleteRef}
+                          type="text"
+                          value={formData.locationAddress}
+                          onChange={(e) => handleInputChange('locationAddress', e.target.value)}
+                          placeholder={mapsInitialized ? "Start typing a business address..." : "Enter business address"}
+                          required
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        {mapsInitialized && (
+                          <p className="mt-1 text-xs text-gray-500">
+                            💡 Start typing to see business address suggestions
+                          </p>
+                        )}
+                      </div>
                     </div>
                     
                     <Input
@@ -687,20 +863,47 @@ const NewAppointment = () => {
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input
+                <SearchableSelect
                   label="Language"
                   value={formData.language}
                   onChange={(e) => handleInputChange('language', e.target.value)}
-                  placeholder="e.g., Spanish"
+                  options={formOptions.languages.map(lang => ({ value: lang.id, label: lang.name }))}
+                  placeholder="Select language"
                   required
                 />
                 
-                <Input
-                  label="Special Requirements"
-                  value={formData.specialRequirements}
-                  onChange={(e) => handleInputChange('specialRequirements', e.target.value)}
-                  placeholder="Any special requirements or notes"
+                <SearchableSelect
+                  label="Service Type"
+                  value={formData.serviceType}
+                  onChange={(e) => handleInputChange('serviceType', e.target.value)}
+                  options={formOptions.serviceTypes.map(type => ({
+                    value: type.id.toString(),
+                    label: type.name
+                  }))}
+                  placeholder="Select service type"
+                  required
                 />
+                
+                <SearchableSelect
+                  label="Interpreter Type"
+                  value={formData.interpreterType}
+                  onChange={(e) => handleInputChange('interpreterType', e.target.value)}
+                  options={formOptions.interpreterTypes.map(type => ({
+                    value: type.id.toString(),
+                    label: type.name
+                  }))}
+                  placeholder="Select interpreter type"
+                  required
+                />
+                
+                <div className="md:col-span-2">
+                  <Input
+                    label="Special Requirements"
+                    value={formData.specialRequirements}
+                    onChange={(e) => handleInputChange('specialRequirements', e.target.value)}
+                    placeholder="Any special requirements or notes"
+                  />
+                </div>
               </div>
             </div>
 
@@ -711,30 +914,103 @@ const NewAppointment = () => {
                 Claimant Information
               </h3>
               
+              {/* Claimant & Claim Selection */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <SearchableSelect
+                    label="Select Claimant"
+                    value={formData.claimantId}
+                    onChange={(e) => handleClaimantChange(e.target.value)}
+                    options={formOptions.claimants.map(claimant => ({
+                      value: claimant.id.toString(),
+                      label: claimant.first_name && claimant.last_name 
+                        ? `${claimant.first_name} ${claimant.last_name}`
+                        : claimant.name || `Claimant ${claimant.id}`
+                    }))}
+                    placeholder="Search for a claimant..."
+                    required
+                  />
+                  {formData.claimantId && (
+                    <button
+                      type="button"
+                      onClick={clearClaimantSelection}
+                      className="mt-2 text-sm text-red-600 hover:text-red-800 flex items-center"
+                    >
+                      <XMarkIcon className="h-4 w-4 mr-1" />
+                      Clear selection
+                    </button>
+                  )}
+                </div>
+                
+                <div>
+                  <SearchableSelect
+                    label="Select Claim"
+                    value={formData.claimId}
+                    onChange={(e) => handleClaimChange(e.target.value)}
+                    options={formOptions.claims.map(claim => ({
+                      value: claim.id.toString(),
+                      label: `${claim.claim_number} - ${claim.case_type}`
+                    }))}
+                    placeholder={formData.claimantId ? "Select claim" : "Select claimant first"}
+                    required
+                    disabled={!formData.claimantId}
+                  />
+                </div>
+              </div>
+              
+              {formData.claimantId && (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-2" />
+                    <span className="text-sm font-medium text-blue-800">
+                      Claimant Information Auto-filled
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-600">
+                    The claimant's information has been automatically populated below. You can review and modify if needed.
+                  </p>
+                </div>
+              )}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input
-                  label="Name"
-                  value={formData.claimantName}
-                  onChange={(e) => handleInputChange('claimantName', e.target.value)}
-                  placeholder="e.g., Stephanie Duffy"
+                  label="First Name"
+                  value={formData.claimantFirstName}
+                  onChange={(e) => handleInputChange('claimantFirstName', e.target.value)}
+                  placeholder="e.g., Stephanie"
                   required
                   readOnly={!!formData.claimantId}
+                />
+                
+                <Input
+                  label="Last Name"
+                  value={formData.claimantLastName}
+                  onChange={(e) => handleInputChange('claimantLastName', e.target.value)}
+                  placeholder="e.g., Duffy"
+                  required
+                  readOnly={!!formData.claimantId}
+                />
+                
+                <SearchableSelect
+                  label="Gender"
+                  value={formData.claimantGender}
+                  onChange={(e) => handleInputChange('claimantGender', e.target.value)}
+                  options={[
+                    { value: 'Male', label: 'Male' },
+                    { value: 'Female', label: 'Female' },
+                    { value: 'Other', label: 'Other' },
+                    { value: 'Prefer not to say', label: 'Prefer not to say' }
+                  ]}
+                  placeholder="Select gender"
+                  required
+                  disabled={!!formData.claimantId}
                 />
                 
                 <Input
                   label="Date of Birth"
                   type="date"
-                  value={formData.dateOfBirth}
-                  onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                  required
-                  readOnly={!!formData.claimantId}
-                />
-                
-                <Input
-                  label="Date of Injury"
-                  type="date"
-                  value={formData.dateOfInjury}
-                  onChange={(e) => handleInputChange('dateOfInjury', e.target.value)}
+                  value={formData.claimantDateOfBirth}
+                  onChange={(e) => handleInputChange('claimantDateOfBirth', e.target.value)}
                   required
                   readOnly={!!formData.claimantId}
                 />
@@ -745,6 +1021,15 @@ const NewAppointment = () => {
                   value={formData.claimantPhone}
                   onChange={(e) => handleInputChange('claimantPhone', e.target.value)}
                   placeholder="e.g., (619)221-3162"
+                  required
+                  readOnly={!!formData.claimantId}
+                />
+                
+                <Input
+                  label="Language"
+                  value={formData.claimantLanguage}
+                  onChange={(e) => handleInputChange('claimantLanguage', e.target.value)}
+                  placeholder="e.g., Spanish"
                   required
                   readOnly={!!formData.claimantId}
                 />
@@ -761,61 +1046,25 @@ const NewAppointment = () => {
                 </div>
                 
                 <Input
-                  label="City"
-                  value={formData.claimantCity}
-                  onChange={(e) => handleInputChange('claimantCity', e.target.value)}
-                  placeholder="e.g., San Diego"
-                  required
-                  readOnly={!!formData.claimantId}
-                />
-                
-                <Input
-                  label="State"
-                  value={formData.claimantState}
-                  onChange={(e) => handleInputChange('claimantState', e.target.value)}
-                  placeholder="e.g., CA"
-                  required
-                  readOnly={!!formData.claimantId}
-                />
-                
-                <Input
-                  label="ZIP Code"
-                  value={formData.claimantZipCode}
-                  onChange={(e) => handleInputChange('claimantZipCode', e.target.value)}
-                  placeholder="e.g., 92101"
-                  required
-                  readOnly={!!formData.claimantId}
-                />
-              </div>
-            </div>
-
-            {/* Employer & Examiner */}
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-                <DocumentTextIcon className="h-5 w-5 mr-2 text-blue-600" />
-                Employer & Examiner
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input
-                  label="Employer"
-                  value={formData.employer}
-                  onChange={(e) => handleInputChange('employer', e.target.value)}
+                  label="Employer/Insured"
+                  value={formData.claimantEmployerInsured}
+                  onChange={(e) => handleInputChange('claimantEmployerInsured', e.target.value)}
                   placeholder="e.g., Episcopal Community Services"
                   required
                   readOnly={!!formData.claimantId}
                 />
                 
-                <Input
-                  label="Examiner"
-                  value={formData.examiner}
-                  onChange={(e) => handleInputChange('examiner', e.target.value)}
-                  placeholder="e.g., Frank Vega"
-                  required
-                  readOnly={!!formData.claimantId}
-                />
+                {/* Show coordinates if available */}
+                {(formData.claimantAddressLatitude || formData.claimantAddressLongitude) && (
+                  <div className="md:col-span-2">
+                    <div className="text-sm text-gray-600">
+                      <strong>Coordinates:</strong> {formData.claimantAddressLatitude}, {formData.claimantAddressLongitude}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+
 
             {/* Submit Buttons */}
             <div className="flex justify-end space-x-4 p-6 border-t border-gray-200">

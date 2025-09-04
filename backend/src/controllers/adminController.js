@@ -5,6 +5,118 @@ const loggerService = require('../services/loggerService');
 const userService = require('../services/userService');
 
 class AdminController {
+  // Authorize a job request (change status from pending_authorization to open)
+  async authorizeJob(req, res) {
+    try {
+      const { jobId } = req.params;
+      const adminId = req.user.userId;
+
+      // Verify job exists and is pending authorization
+      const jobResult = await db.query(
+        'SELECT id, title, status FROM jobs WHERE id = $1 AND status = $2',
+        [jobId, 'pending_authorization']
+      );
+
+      if (jobResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Job not found or not pending authorization'
+        });
+      }
+
+      // Update job status to open (available for interpreters)
+      await db.query(
+        'UPDATE jobs SET status = $1, authorized_by = $2, authorized_at = CURRENT_TIMESTAMP WHERE id = $3',
+        ['open', adminId, jobId]
+      );
+
+      await loggerService.info('Job authorized by admin', {
+        category: 'ADMIN_JOB',
+        adminId: adminId,
+        jobId: jobId
+      });
+
+      res.json({
+        success: true,
+        message: 'Job authorized successfully and made available to interpreters',
+        data: {
+          jobId: jobId,
+          status: 'open',
+          authorizedAt: new Date().toISOString()
+        }
+      });
+
+    } catch (error) {
+      await loggerService.error('Failed to authorize job', error, {
+        category: 'ADMIN_JOB',
+        adminId: req.user?.userId,
+        jobId: req.params.jobId
+      });
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to authorize job'
+      });
+    }
+  }
+
+  // Reject a job request
+  async rejectJob(req, res) {
+    try {
+      const { jobId } = req.params;
+      const { reason } = req.body;
+      const adminId = req.user.userId;
+
+      // Verify job exists and is pending authorization
+      const jobResult = await db.query(
+        'SELECT id, title, status FROM jobs WHERE id = $1 AND status = $2',
+        [jobId, 'pending_authorization']
+      );
+
+      if (jobResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Job not found or not pending authorization'
+        });
+      }
+
+      // Update job status to rejected
+      await db.query(
+        'UPDATE jobs SET status = $1, authorized_by = $2, authorized_at = CURRENT_TIMESTAMP, rejection_reason = $3 WHERE id = $4',
+        ['rejected', adminId, reason || 'No reason provided', jobId]
+      );
+
+      await loggerService.info('Job rejected by admin', {
+        category: 'ADMIN_JOB',
+        adminId: adminId,
+        jobId: jobId,
+        reason: reason
+      });
+
+      res.json({
+        success: true,
+        message: 'Job rejected successfully',
+        data: {
+          jobId: jobId,
+          status: 'rejected',
+          rejectedAt: new Date().toISOString()
+        }
+      });
+
+    } catch (error) {
+      await loggerService.error('Failed to reject job', error, {
+        category: 'ADMIN_JOB',
+        adminId: req.user?.userId,
+        jobId: req.params.jobId
+      });
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to reject job'
+      });
+    }
+  }
+
   // Get dashboard statistics
   async getDashboardStats(req, res) {
     try {

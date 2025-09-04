@@ -7,7 +7,9 @@ import {
   EyeIcon,
   PencilIcon,
   TrashIcon,
-  FunnelIcon
+  FunnelIcon,
+  CheckCircleIcon,
+  XCircleIcon
 } from '@heroicons/react/24/outline';
 
 const JobManagement = ({ setCurrentView }) => {
@@ -47,7 +49,7 @@ const JobManagement = ({ setCurrentView }) => {
         ...(filter !== 'all' && { status: filter })
       });
       
-      const response = await fetch(`http://localhost:3002/api/admin/jobs?${params}`, {
+      const response = await fetch(`http://localhost:3001/api/admin/jobs?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -75,7 +77,7 @@ const JobManagement = ({ setCurrentView }) => {
   const loadStats = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('http://localhost:3002/api/admin/jobs/stats', {
+      const response = await fetch('http://localhost:3001/api/admin/jobs/stats', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -111,7 +113,7 @@ const JobManagement = ({ setCurrentView }) => {
     try {
       const token = localStorage.getItem('adminToken');
       
-      const response = await fetch(`http://localhost:3002/api/admin/jobs/${jobId}`, {
+      const response = await fetch(`http://localhost:3001/api/admin/jobs/${jobId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -132,6 +134,72 @@ const JobManagement = ({ setCurrentView }) => {
     } catch (error) {
       console.error('Error deleting job:', error);
       alert('Failed to delete job');
+    }
+  };
+
+  const handleApproveJob = async (jobId) => {
+    if (!window.confirm('Are you sure you want to approve this appointment? It will be made available to interpreters.')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      
+      const response = await fetch(`http://localhost:3001/api/admin/jobs/${jobId}/authorize`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        // Reload jobs and stats
+        loadJobs();
+        loadStats();
+        alert('Appointment approved successfully and sent to interpreters');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to approve appointment');
+      }
+    } catch (error) {
+      console.error('Error approving appointment:', error);
+      alert('Failed to approve appointment');
+    }
+  };
+
+  const handleRejectJob = async (jobId) => {
+    const reason = window.prompt('Please provide a reason for rejecting this appointment:');
+    if (reason === null) {
+      return; // User cancelled
+    }
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      
+      const response = await fetch(`http://localhost:3001/api/admin/jobs/${jobId}/reject`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          reason: reason || 'No reason provided'
+        })
+      });
+      
+      if (response.ok) {
+        // Reload jobs and stats
+        loadJobs();
+        loadStats();
+        alert('Appointment rejected successfully');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to reject appointment');
+      }
+    } catch (error) {
+      console.error('Error rejecting appointment:', error);
+      alert('Failed to reject appointment');
     }
   };
 
@@ -166,6 +234,8 @@ const JobManagement = ({ setCurrentView }) => {
       case 'in_progress': return 'text-yellow-600 bg-yellow-100';
       case 'completed': return 'text-purple-600 bg-purple-100';
       case 'cancelled': return 'text-red-600 bg-red-100';
+      case 'pending_authorization': return 'text-orange-600 bg-orange-100';
+      case 'rejected': return 'text-red-600 bg-red-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
@@ -466,27 +536,50 @@ const JobManagement = ({ setCurrentView }) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
-                        <button 
-                          onClick={() => setCurrentView('job-details', { jobId: job.id })}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="View Details"
-                        >
-                          <EyeIcon className="h-4 w-4" />
-                        </button>
-                        <button 
-                          onClick={() => setCurrentView('edit-job', { jobId: job.id })}
-                          className="text-gray-600 hover:text-gray-900"
-                          title="Edit Job"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteJob(job.id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Delete Job"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
+                        {job.status === 'pending_authorization' ? (
+                          <>
+                            <button 
+                              onClick={() => handleApproveJob(job.id)}
+                              className="bg-green-600 text-white px-2 py-1 rounded-md hover:bg-green-700 text-xs"
+                              title="Approve and Send to Interpreters"
+                            >
+                              <CheckCircleIcon className="h-4 w-4 inline mr-1" />
+                              Approve
+                            </button>
+                            <button 
+                              onClick={() => handleRejectJob(job.id)}
+                              className="bg-red-600 text-white px-2 py-1 rounded-md hover:bg-red-700 text-xs"
+                              title="Reject Appointment"
+                            >
+                              <XCircleIcon className="h-4 w-4 inline mr-1" />
+                              Reject
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button 
+                              onClick={() => setCurrentView('job-details', { jobId: job.id })}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="View Details"
+                            >
+                              <EyeIcon className="h-4 w-4" />
+                            </button>
+                            <button 
+                              onClick={() => setCurrentView('edit-job', { jobId: job.id })}
+                              className="text-gray-600 hover:text-gray-900"
+                              title="Edit Job"
+                            >
+                              <PencilIcon className="h-4 w-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteJob(job.id)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Delete Job"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

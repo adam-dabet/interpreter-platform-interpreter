@@ -7,7 +7,9 @@ import {
   MapPinIcon,
   UserIcon,
   LanguageIcon,
-  BuildingOfficeIcon
+  BuildingOfficeIcon,
+  CheckCircleIcon,
+  XCircleIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import JobWorkflow from '../components/JobWorkflow';
@@ -81,6 +83,68 @@ const JobDetails = ({ jobId, setCurrentView }) => {
     }
   };
 
+  const handleApproveJob = async () => {
+    if (!window.confirm('Are you sure you want to approve this appointment? It will be made available to interpreters.')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      
+      const response = await fetch(`${API_BASE}/admin/jobs/${jobId}/authorize`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        toast.success('Appointment approved successfully and sent to interpreters');
+        loadJobDetails(); // Reload to show updated status
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to approve appointment');
+      }
+    } catch (error) {
+      console.error('Error approving appointment:', error);
+      toast.error('Failed to approve appointment');
+    }
+  };
+
+  const handleRejectJob = async () => {
+    const reason = window.prompt('Please provide a reason for rejecting this appointment:');
+    if (reason === null) {
+      return; // User cancelled
+    }
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      
+      const response = await fetch(`${API_BASE}/admin/jobs/${jobId}/reject`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          reason: reason || 'No reason provided'
+        })
+      });
+      
+      if (response.ok) {
+        toast.success('Appointment rejected successfully');
+        loadJobDetails(); // Reload to show updated status
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to reject appointment');
+      }
+    } catch (error) {
+      console.error('Error rejecting appointment:', error);
+      toast.error('Failed to reject appointment');
+    }
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -112,6 +176,8 @@ const JobDetails = ({ jobId, setCurrentView }) => {
       case 'in_progress': return 'text-yellow-600 bg-yellow-100';
       case 'completed': return 'text-purple-600 bg-purple-100';
       case 'cancelled': return 'text-red-600 bg-red-100';
+      case 'pending_authorization': return 'text-orange-600 bg-orange-100';
+      case 'rejected': return 'text-red-600 bg-red-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
@@ -164,19 +230,40 @@ const JobDetails = ({ jobId, setCurrentView }) => {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setCurrentView('edit-job', { jobId })}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-              >
-                Edit Job
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 disabled:opacity-50"
-              >
-                {deleting ? 'Deleting...' : 'Delete Job'}
-              </button>
+              {job.status === 'pending_authorization' ? (
+                <>
+                  <button
+                    onClick={handleApproveJob}
+                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center"
+                  >
+                    <CheckCircleIcon className="h-5 w-5 mr-2" />
+                    Approve & Send to Interpreters
+                  </button>
+                  <button
+                    onClick={handleRejectJob}
+                    className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 flex items-center"
+                  >
+                    <XCircleIcon className="h-5 w-5 mr-2" />
+                    Reject
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setCurrentView('edit-job', { jobId })}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                  >
+                    Edit Job
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {deleting ? 'Deleting...' : 'Delete Job'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </motion.div>

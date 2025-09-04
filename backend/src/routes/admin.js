@@ -23,6 +23,16 @@ router.get('/profile', authenticateToken, authController.getProfile);
 // Dashboard routes (protected)
 router.get('/dashboard/stats', authenticateToken, adminController.getDashboardStats);
 
+// Job authorization routes (protected)
+router.post('/jobs/:jobId/authorize', authenticateToken, adminController.authorizeJob);
+router.post('/jobs/:jobId/reject', 
+  authenticateToken,
+  [
+    body('reason').optional().isString().withMessage('Reason must be a string')
+  ],
+  adminController.rejectJob
+);
+
 // Interpreter profile management routes (protected)
 router.get('/profiles/pending', authenticateToken, adminController.getPendingProfiles);
 router.get('/profiles/:profileId', authenticateToken, adminController.getProfileDetails);
@@ -1302,7 +1312,6 @@ router.get('/jobs', authenticateToken, async (req, res) => {
             LEFT JOIN service_types st ON j.service_type_id = st.id
             LEFT JOIN languages sl ON j.source_language_id = sl.id
             LEFT JOIN languages tl ON j.target_language_id = tl.id
-            WHERE j.is_active = true
             ORDER BY j.scheduled_date DESC, j.scheduled_time DESC
         `);
         
@@ -1341,7 +1350,7 @@ router.get('/jobs/:id', authenticateToken, async (req, res) => {
             LEFT JOIN interpreters i ON j.assigned_interpreter_id = i.id
             LEFT JOIN customers req ON j.requested_by_id = req.id
             LEFT JOIN billing_accounts ba ON j.billing_account_id = ba.id
-            WHERE j.id = $1 AND j.is_active = true
+            WHERE j.id = $1
         `, [id]);
         
         if (result.rows.length === 0) {

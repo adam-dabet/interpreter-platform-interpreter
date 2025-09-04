@@ -285,14 +285,6 @@ const Appointments = () => {
                           </div>
                           
                           <div className="flex items-center space-x-4">
-                            {appointment.hourly_rate && (
-                              <div className="text-right">
-                                <div className="text-lg font-semibold text-green-600">
-                                  {formatCurrency(appointment.hourly_rate)}
-                                </div>
-                                <div className="text-xs text-gray-500">per hour</div>
-                              </div>
-                            )}
                             <button
                               onClick={() => navigate(`/appointments/${appointment.id}`)}
                               className="text-blue-600 hover:text-blue-500 flex items-center"

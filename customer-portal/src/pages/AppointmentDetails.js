@@ -285,12 +285,6 @@ const AppointmentDetails = () => {
                   <p className="text-sm text-gray-900">{appointment.interpreter_type_name || 'Not specified'}</p>
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rate</label>
-                  <p className="text-sm text-gray-900">
-                    {appointment.hourly_rate ? formatCurrency(appointment.hourly_rate) + '/hour' : 'Not specified'}
-                  </p>
-                </div>
               </div>
             </motion.div>
           </div>
@@ -458,7 +452,7 @@ const AppointmentDetails = () => {
             )}
 
             {/* Billing Information */}
-            {(appointment.hourly_rate || appointment.billing_account_name) && (
+            {appointment.billing_account_name && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -471,42 +465,10 @@ const AppointmentDetails = () => {
                 </h2>
                 
                 <div className="space-y-3">
-                  {appointment.hourly_rate && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Rate</label>
-                      <p className="text-sm text-gray-900">{formatCurrency(appointment.hourly_rate)}/hour</p>
-                    </div>
-                  )}
-                  
-                  {appointment.agreed_rate && appointment.agreed_rate !== appointment.hourly_rate && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Agreed Rate</label>
-                      <p className="text-sm text-gray-900">{formatCurrency(appointment.agreed_rate)}/hour</p>
-                    </div>
-                  )}
-                  
-                  {appointment.actual_hours && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Actual Hours</label>
-                      <p className="text-sm text-gray-900">{appointment.actual_hours} hours</p>
-                    </div>
-                  )}
-                  
-                  {appointment.total_payment && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Total Payment</label>
-                      <p className="text-sm text-gray-900 font-semibold text-green-600">
-                        {formatCurrency(appointment.total_payment)}
-                      </p>
-                    </div>
-                  )}
-                  
-                  {appointment.billing_account_name && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Billing Account</label>
-                      <p className="text-sm text-gray-900">{appointment.billing_account_name}</p>
-                    </div>
-                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Billing Account</label>
+                    <p className="text-sm text-gray-900">{appointment.billing_account_name}</p>
+                  </div>
                 </div>
               </motion.div>
             )}

@@ -64,3 +64,4 @@ ON CONFLICT (template_name) DO NOTHING;
 
 -- Add comment
 COMMENT ON TABLE email_templates IS 'Email templates for various system notifications';
+

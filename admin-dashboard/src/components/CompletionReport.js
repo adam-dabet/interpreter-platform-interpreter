@@ -134,11 +134,6 @@ const CompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => {
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            {jobData?.job_started_at && (
-              <p className="text-xs text-gray-500 mt-1">
-                Job started at: {formatTime(jobData.job_started_at)}
-              </p>
-            )}
           </div>
 
           <div>
@@ -248,9 +243,6 @@ const CompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => {
             <div className="grid grid-cols-2 gap-4 text-sm text-blue-800">
               <div>
                 <span className="font-medium">Job ID:</span> {jobData.id}
-              </div>
-              <div>
-                <span className="font-medium">Duration:</span> {jobData.actual_duration_minutes || 'N/A'} minutes
               </div>
               <div>
                 <span className="font-medium">Location:</span> {jobData.location_address || 'N/A'}

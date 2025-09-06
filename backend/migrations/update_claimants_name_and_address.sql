@@ -49,3 +49,4 @@ COMMENT ON COLUMN claimants.address_longitude IS 'Longitude coordinate of the ad
 -- Update the existing name index to include the new name fields
 DROP INDEX IF EXISTS idx_claimants_name;
 CREATE INDEX IF NOT EXISTS idx_claimants_full_name ON claimants(first_name, last_name);
+

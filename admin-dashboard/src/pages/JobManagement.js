@@ -11,6 +11,12 @@ import {
   CheckCircleIcon,
   XCircleIcon
 } from '@heroicons/react/24/outline';
+import { 
+  getJobStatusColor, 
+  getWorkflowStatusColor, 
+  getWorkflowStatusLabel,
+  JOB_STATUS_OPTIONS 
+} from '../utils/statusConstants';
 
 const JobManagement = ({ setCurrentView }) => {
   const [jobs, setJobs] = useState([]);
@@ -227,18 +233,6 @@ const JobManagement = ({ setCurrentView }) => {
     }).format(amount || 0);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'open': return 'text-green-600 bg-green-100';
-      case 'assigned': return 'text-blue-600 bg-blue-100';
-      case 'in_progress': return 'text-yellow-600 bg-yellow-100';
-      case 'completed': return 'text-purple-600 bg-purple-100';
-      case 'cancelled': return 'text-red-600 bg-red-100';
-      case 'pending_authorization': return 'text-orange-600 bg-orange-100';
-      case 'rejected': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
@@ -250,40 +244,8 @@ const JobManagement = ({ setCurrentView }) => {
     }
   };
 
-  const getWorkflowStatusColor = (workflowStatus) => {
-    switch (workflowStatus) {
-      case 'assigned': return 'text-blue-600 bg-blue-100';
-      case 'started': return 'text-green-600 bg-green-100';
-      case 'completed': return 'text-orange-600 bg-orange-100';
-      case 'reported': return 'text-purple-600 bg-purple-100';
-      case 'authorized': return 'text-indigo-600 bg-indigo-100';
-      case 'billed': return 'text-yellow-600 bg-yellow-100';
-      case 'paid': return 'text-emerald-600 bg-emerald-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
 
-  const getWorkflowStatusLabel = (workflowStatus) => {
-    switch (workflowStatus) {
-      case 'assigned': return 'Assigned';
-      case 'started': return 'Started';
-      case 'completed': return 'Completed';
-      case 'reported': return 'Reported';
-      case 'authorized': return 'Authorized';
-      case 'billed': return 'Billed';
-      case 'paid': return 'Paid';
-      default: return 'Unknown';
-    }
-  };
-
-  const filters = [
-    { value: 'all', label: 'All Jobs' },
-    { value: 'open', label: 'Open' },
-    { value: 'assigned', label: 'Assigned' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'cancelled', label: 'Cancelled' }
-  ];
+  const filters = JOB_STATUS_OPTIONS;
 
   const workflowFilters = [
     { value: 'all', label: 'All Workflows' },
@@ -438,6 +400,9 @@ const JobManagement = ({ setCurrentView }) => {
                     Requested By
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Assigned Interpreter
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Location
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -453,7 +418,11 @@ const JobManagement = ({ setCurrentView }) => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {(jobs || []).map((job) => (
-                  <tr key={job.id} className="hover:bg-gray-50">
+                  <tr 
+                    key={job.id} 
+                    className="hover:bg-gray-50 cursor-pointer transition-colors duration-200"
+                    onClick={() => setCurrentView('job-details', { jobId: job.id })}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">{job.title}</div>
@@ -503,6 +472,28 @@ const JobManagement = ({ setCurrentView }) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
+                        {job.assigned_interpreter_name || (
+                          <span className="text-gray-400 italic">Not assigned</span>
+                        )}
+                      </div>
+                      {job.assigned_interpreter_name && (
+                        <>
+                          <div className="text-xs text-blue-600">
+                            {job.assigned_interpreter_email}
+                          </div>
+                          {job.assigned_interpreter_phone && (
+                            <div className="text-xs text-gray-500">
+                              {job.assigned_interpreter_phone}
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-400">
+                            ID: {job.assigned_interpreter_id}
+                          </div>
+                        </>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
                         {job.is_remote ? 'Remote' : job.location_address}
                       </div>
                       {!job.is_remote && job.location_city && job.location_state && (
@@ -513,7 +504,7 @@ const JobManagement = ({ setCurrentView }) => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(job.status)}`}>
                         {job.status.replace('_', ' ')}
                       </span>
                     </td>
@@ -522,20 +513,10 @@ const JobManagement = ({ setCurrentView }) => {
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getWorkflowStatusColor(job.workflow_status)}`}>
                           {getWorkflowStatusLabel(job.workflow_status)}
                         </span>
-                        {job.workflow_status === 'started' && job.job_started_at && (
-                          <div className="text-xs text-gray-500">
-                            Started: {formatTime(job.job_started_at)}
-                          </div>
-                        )}
-                        {job.workflow_status === 'completed' && job.actual_duration_minutes && (
-                          <div className="text-xs text-gray-500">
-                            Duration: {job.actual_duration_minutes} min
-                          </div>
-                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                         {job.status === 'pending_authorization' ? (
                           <>
                             <button 

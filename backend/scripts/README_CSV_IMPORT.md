@@ -136,3 +136,4 @@ If you encounter issues:
 - All imported customers will be assigned to the specified billing account
 - The script is safe to run multiple times (duplicates will be skipped)
 - Empty fields in the CSV will be stored as NULL in the database
+

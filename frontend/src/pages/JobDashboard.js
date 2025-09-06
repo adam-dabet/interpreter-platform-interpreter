@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
   CalendarIcon, 
   ClockIcon, 
@@ -17,8 +18,17 @@ import jobAPI from '../services/jobAPI';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import InterpreterCompletionReport from '../components/InterpreterCompletionReport';
+import { 
+  getJobStatusColor, 
+  getWorkflowStatusColor, 
+  getAssignmentStatusColor,
+  getJobStatusLabel,
+  getWorkflowStatusLabel,
+  getAssignmentStatusLabel
+} from '../utils/statusConstants';
 
 const JobDashboard = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('upcoming');
   const [jobs, setJobs] = useState([]);
   const [earnings, setEarnings] = useState(null);
@@ -90,15 +100,6 @@ const JobDashboard = () => {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'accepted': return 'text-green-600 bg-green-100';
-      case 'declined': return 'text-red-600 bg-red-100';
-      case 'completed': return 'text-blue-600 bg-blue-100';
-      case 'pending': return 'text-yellow-600 bg-yellow-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -327,16 +328,29 @@ const JobDashboard = () => {
                   key={job.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition-shadow duration-200"
+                  onClick={() => navigate(`/jobs/${job.id}`)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(job.assignment_status)}`}>
-                          {getStatusIcon(job.assignment_status)}
-                          <span className="ml-1 capitalize">{job.assignment_status}</span>
-                        </span>
+                        <div className="flex flex-col space-y-1">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAssignmentStatusColor(job.assignment_status)}`}>
+                            {getStatusIcon(job.assignment_status)}
+                            <span className="ml-1">{getAssignmentStatusLabel(job.assignment_status)}</span>
+                          </span>
+                          {job.status && (
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(job.status)}`}>
+                              Job: {getJobStatusLabel(job.status)}
+                            </span>
+                          )}
+                          {job.workflow_status && (
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getWorkflowStatusColor(job.workflow_status)}`}>
+                              Workflow: {getWorkflowStatusLabel(job.workflow_status)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       
                       <p className="text-gray-600 mb-4">{job.description}</p>
@@ -376,11 +390,11 @@ const JobDashboard = () => {
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="mt-6 flex items-center justify-end space-x-3">
+                  <div className="mt-6 flex items-center justify-end space-x-3" onClick={(e) => e.stopPropagation()}>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => window.open(`/job/${job.id}`, '_blank')}
+                      onClick={() => navigate(`/jobs/${job.id}`)}
                     >
                       <EyeIcon className="h-4 w-4 mr-1" />
                       View Details

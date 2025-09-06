@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { UserIcon, PlusIcon, PencilIcon, TrashIcon, EyeIcon, MagnifyingGlassIcon, ChevronDownIcon, ChevronRightIcon, DocumentTextIcon, CalendarIcon, MapPinIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
+import { useNavigate } from 'react-router-dom';
+import { UserIcon, PlusIcon, PencilIcon, TrashIcon, EyeIcon, MagnifyingGlassIcon, ChevronDownIcon, ChevronRightIcon, DocumentTextIcon, CalendarIcon, MapPinIcon, BuildingOfficeIcon, XMarkIcon, PhoneIcon, LanguageIcon, BriefcaseIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
@@ -103,6 +104,7 @@ const SearchableSelect = ({ value, onChange, options = [], placeholder, classNam
 
 const Claimants = () => {
   const { makeAuthenticatedRequest } = useAuth();
+  const navigate = useNavigate();
   const [claimants, setClaimants] = useState([]);
   const [billingAccounts, setBillingAccounts] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -116,6 +118,11 @@ const Claimants = () => {
   const [mapsInitialized, setMapsInitialized] = useState(false);
   const [autocomplete, setAutocomplete] = useState(null);
   const autocompleteRef = useRef(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredClaimants, setFilteredClaimants] = useState([]);
+  const [showClaimantDetailsModal, setShowClaimantDetailsModal] = useState(false);
+  const [selectedClaimantForDetails, setSelectedClaimantForDetails] = useState(null);
+  const [selectedClaimForJob, setSelectedClaimForJob] = useState(null);
   const [claimFormData, setClaimFormData] = useState({
     case_type: '',
     claim_number: '',
@@ -180,6 +187,31 @@ const Claimants = () => {
       setLoading(false);
     }
   }, [makeAuthenticatedRequest]);
+
+  // Filter claimants based on search term
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredClaimants(claimants);
+    } else {
+      const filtered = claimants.filter(claimant => {
+        const searchLower = searchTerm.toLowerCase();
+        const fullName = `${claimant.first_name || ''} ${claimant.last_name || ''}`.toLowerCase();
+        const name = claimant.name ? claimant.name.toLowerCase() : '';
+        const phone = claimant.phone ? claimant.phone.toLowerCase() : '';
+        const language = claimant.language ? claimant.language.toLowerCase() : '';
+        const address = claimant.address ? claimant.address.toLowerCase() : '';
+        const employer = claimant.employer_insured ? claimant.employer_insured.toLowerCase() : '';
+        
+        return fullName.includes(searchLower) ||
+               name.includes(searchLower) ||
+               phone.includes(searchLower) ||
+               language.includes(searchLower) ||
+               address.includes(searchLower) ||
+               employer.includes(searchLower);
+      });
+      setFilteredClaimants(filtered);
+    }
+  }, [claimants, searchTerm]);
 
   const loadBillingAccounts = useCallback(async () => {
     try {
@@ -312,6 +344,44 @@ const Claimants = () => {
       }
     }
   }, [expandedClaimant, loadClaimantWithClaims]);
+
+  const openClaimantDetailsModal = async (claimant) => {
+    setSelectedClaimantForDetails(claimant);
+    setShowClaimantDetailsModal(true);
+    
+    // Load claims if not already loaded
+    if (!claimant.claims) {
+      const claimantWithClaims = await loadClaimantWithClaims(claimant.id);
+      if (claimantWithClaims) {
+        // Update the claimant in the list with claims
+        setClaimants(prev => prev.map(c => 
+          c.id === claimant.id 
+            ? { ...c, claims: claimantWithClaims }
+            : c
+        ));
+        // Update the selected claimant for the modal
+        setSelectedClaimantForDetails(prev => ({ ...prev, claims: claimantWithClaims }));
+      }
+    }
+  };
+
+  const closeClaimantDetailsModal = () => {
+    setShowClaimantDetailsModal(false);
+    setSelectedClaimantForDetails(null);
+    setSelectedClaimForJob(null);
+  };
+
+  const requestJobForClaimant = (claimant, claim = null) => {
+    // Navigate to the new appointment page with the claimant and claim pre-selected
+    const url = claim 
+      ? `/appointments/new?claimantId=${claimant.id}&claimId=${claim.id}`
+      : `/appointments/new?claimantId=${claimant.id}`;
+    navigate(url);
+  };
+
+  const selectClaimForJob = (claim) => {
+    setSelectedClaimForJob(claim);
+  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -597,25 +667,70 @@ const Claimants = () => {
           </button>
         </div>
 
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search claimants by name, phone, language, address, or employer..."
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                <span className="text-gray-400 hover:text-gray-600 text-xl">&times;</span>
+              </button>
+            )}
+          </div>
+          {searchTerm && (
+            <p className="mt-2 text-sm text-gray-600">
+              Showing {filteredClaimants.length} of {claimants.length} claimants
+            </p>
+          )}
+        </div>
+
         {/* Claimants List */}
-        {claimants.length === 0 ? (
+        {filteredClaimants.length === 0 ? (
           <div className="text-center py-12">
             <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No claimants</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              {searchTerm ? 'No claimants found' : 'No claimants'}
+            </h3>
             <p className="mt-1 text-sm text-gray-500">
-              Get started by creating a new claimant.
+              {searchTerm 
+                ? `No claimants match your search for "${searchTerm}". Try adjusting your search terms.`
+                : 'Get started by creating a new claimant.'
+              }
             </p>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="mt-4 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Clear search
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
-            {claimants.map((claimant) => (
-              <div key={claimant.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            {filteredClaimants.map((claimant) => (
+              <div key={claimant.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => openClaimantDetailsModal(claimant)}>
                 {/* Claimant Header */}
                 <div className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <button
-                        onClick={() => toggleClaimantExpansion(claimant)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleClaimantExpansion(claimant);
+                        }}
                         className="text-gray-600 hover:text-gray-900"
                       >
                         {expandedClaimant && expandedClaimant.id === claimant.id ? (
@@ -652,21 +767,30 @@ const Claimants = () => {
                     
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => openCreateClaimModal(claimant)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openCreateClaimModal(claimant);
+                        }}
                         className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
                         <PlusIcon className="h-4 w-4 mr-1" />
                         Add Claim
                       </button>
                       <button
-                        onClick={() => openEditModal(claimant)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditModal(claimant);
+                        }}
                         className="text-gray-600 hover:text-gray-900"
                         title="Edit Claimant"
                       >
                         <PencilIcon className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => handleDelete(claimant.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(claimant.id);
+                        }}
                         className="text-red-600 hover:text-red-900"
                         title="Delete Claimant"
                       >
@@ -1036,6 +1160,205 @@ const Claimants = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Claimant Details Modal */}
+      {showClaimantDetailsModal && selectedClaimantForDetails && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Claimant Details
+                </h3>
+                <button
+                  onClick={closeClaimantDetailsModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div>
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center">
+                    <UserIcon className="h-5 w-5 mr-2 text-blue-600" />
+                    Basic Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Name</label>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {selectedClaimantForDetails.first_name && selectedClaimantForDetails.last_name 
+                          ? `${selectedClaimantForDetails.first_name} ${selectedClaimantForDetails.last_name}`
+                          : selectedClaimantForDetails.name || 'Unnamed Claimant'
+                        }
+                      </p>
+                    </div>
+                    
+                    {selectedClaimantForDetails.gender && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Gender</label>
+                        <p className="mt-1 text-sm text-gray-900">{selectedClaimantForDetails.gender}</p>
+                      </div>
+                    )}
+                    
+                    {selectedClaimantForDetails.date_of_birth && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Date of Birth</label>
+                        <p className="mt-1 text-sm text-gray-900 flex items-center">
+                          <CalendarIcon className="h-4 w-4 mr-1" />
+                          {formatDate(selectedClaimantForDetails.date_of_birth)}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {selectedClaimantForDetails.phone && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Phone</label>
+                        <p className="mt-1 text-sm text-gray-900 flex items-center">
+                          <PhoneIcon className="h-4 w-4 mr-1" />
+                          {selectedClaimantForDetails.phone}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {selectedClaimantForDetails.language && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Language</label>
+                        <p className="mt-1 text-sm text-gray-900 flex items-center">
+                          <LanguageIcon className="h-4 w-4 mr-1" />
+                          {selectedClaimantForDetails.language}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {selectedClaimantForDetails.employer_insured && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Employer/Insured</label>
+                        <p className="mt-1 text-sm text-gray-900 flex items-center">
+                          <BriefcaseIcon className="h-4 w-4 mr-1" />
+                          {selectedClaimantForDetails.employer_insured}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Address Information */}
+                {selectedClaimantForDetails.address && (
+                  <div>
+                    <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center">
+                      <MapPinIcon className="h-5 w-5 mr-2 text-blue-600" />
+                      Address
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700">Full Address</label>
+                        <p className="mt-1 text-sm text-gray-900">{selectedClaimantForDetails.address}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Claims Information */}
+                {selectedClaimantForDetails.claims && selectedClaimantForDetails.claims.length > 0 && (
+                  <div>
+                    <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center">
+                      <DocumentTextIcon className="h-5 w-5 mr-2 text-blue-600" />
+                      Claims ({selectedClaimantForDetails.claims.length})
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Click on a claim to select it for job request, or use the "Request Job" button to create a general job request.
+                    </p>
+                    <div className="space-y-2">
+                      {selectedClaimantForDetails.claims.map((claim) => (
+                        <div 
+                          key={claim.id} 
+                          className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                            selectedClaimForJob && selectedClaimForJob.id === claim.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100'
+                          }`}
+                          onClick={() => selectClaimForJob(claim)}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center">
+                                <p className="text-sm font-medium text-gray-900">
+                                  {claim.claim_number} - {claim.case_type}
+                                </p>
+                                {selectedClaimForJob && selectedClaimForJob.id === claim.id && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    Selected
+                                  </span>
+                                )}
+                              </div>
+                              {claim.date_of_injury && (
+                                <p className="text-xs text-gray-600 mt-1">
+                                  Date of Injury: {formatDate(claim.date_of_injury)}
+                                </p>
+                              )}
+                              {claim.diagnosis && (
+                                <p className="text-xs text-gray-600">
+                                  Diagnosis: {claim.diagnosis}
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                requestJobForClaimant(selectedClaimantForDetails, claim);
+                              }}
+                              className="ml-2 inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-blue-600 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            >
+                              <PlusIcon className="h-3 w-3 mr-1" />
+                              Request Job
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Billing Account */}
+                {selectedClaimantForDetails.billing_account_name && (
+                  <div>
+                    <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center">
+                      <BuildingOfficeIcon className="h-5 w-5 mr-2 text-blue-600" />
+                      Billing Account
+                    </h4>
+                    <p className="text-sm text-gray-900">{selectedClaimantForDetails.billing_account_name}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
+                <button
+                  type="button"
+                  onClick={closeClaimantDetailsModal}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => requestJobForClaimant(selectedClaimantForDetails, selectedClaimForJob)}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center"
+                >
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  {selectedClaimForJob 
+                    ? `Request Job for ${selectedClaimForJob.claim_number}` 
+                    : 'Request Job'
+                  }
+                </button>
+              </div>
             </div>
           </div>
         </div>

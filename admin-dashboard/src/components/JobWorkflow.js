@@ -195,69 +195,6 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
         </div>
       </div>
 
-      {/* Job Timer Status (Read-only for Admin) */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <ClockIcon className="h-5 w-5 mr-2 text-blue-600" />
-          Job Timer Status
-        </h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <div className="text-2xl font-bold text-gray-900">
-              {job.workflow_status === 'started' ? '⏱️' : 
-               job.workflow_status === 'completed' ? '✅' : '⏸️'}
-            </div>
-            <div className="text-sm font-medium text-gray-700 mt-2">
-              {job.workflow_status === 'started' ? 'Running' : 
-               job.workflow_status === 'completed' ? 'Completed' : 'Not Started'}
-            </div>
-          </div>
-          
-          {job.job_started_at && (
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-sm text-gray-600">Started At</div>
-              <div className="text-lg font-semibold text-blue-900">
-                {new Date(job.job_started_at).toLocaleTimeString()}
-              </div>
-              <div className="text-xs text-blue-600">
-                {new Date(job.job_started_at).toLocaleDateString()}
-              </div>
-            </div>
-          )}
-          
-          {job.actual_duration_minutes && (
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-sm text-gray-600">Duration</div>
-              <div className="text-lg font-semibold text-green-900">
-                {job.actual_duration_minutes} min
-              </div>
-              <div className="text-xs text-green-600">
-                Actual time
-              </div>
-            </div>
-          )}
-        </div>
-        
-        {job.workflow_status === 'assigned' && (
-          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div className="text-sm text-yellow-800">
-              <strong>Note:</strong> {needsBillingAuthorization() 
-                ? 'Billing authorization required before job can start. Please obtain authorization from the contact/claims handler or adjuster\'s assistant.'
-                : 'Interpreter needs to start the job from their portal to begin timing.'
-              }
-            </div>
-          </div>
-        )}
-        
-        {job.workflow_status === 'authorized' && (
-          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-            <div className="text-sm text-green-800">
-              <strong>Billing Authorized:</strong> Interpreter can now start the job from their portal.
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Action Buttons */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">

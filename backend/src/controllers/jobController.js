@@ -25,7 +25,11 @@ class JobController {
           l1.name as source_language_name,
           l2.name as target_language_name,
           st.name as service_type_name,
-          u.first_name || ' ' || u.last_name as created_by_name,
+          CASE 
+            WHEN u.first_name IS NOT NULL AND u.last_name IS NOT NULL 
+            THEN CONCAT(u.first_name, ' ', u.last_name) 
+            ELSE NULL 
+          END as created_by_name,
           cl.name as claimant_name,
           c.claim_number as claim_number,
           c.case_type as case_type,
@@ -253,8 +257,19 @@ class JobController {
           l1.name as source_language_name,
           l2.name as target_language_name,
           st.name as service_type_name,
-          u.first_name || ' ' || u.last_name as created_by_name,
-          i.first_name || ' ' || i.last_name as assigned_interpreter_name,
+          CASE 
+            WHEN u.first_name IS NOT NULL AND u.last_name IS NOT NULL 
+            THEN CONCAT(u.first_name, ' ', u.last_name) 
+            ELSE NULL 
+          END as created_by_name,
+          j.assigned_interpreter_id,
+          CASE 
+            WHEN i.first_name IS NOT NULL AND i.last_name IS NOT NULL 
+            THEN CONCAT(i.first_name, ' ', i.last_name) 
+            ELSE NULL 
+          END as assigned_interpreter_name,
+          i.email as assigned_interpreter_email,
+          i.phone as assigned_interpreter_phone,
           COUNT(*) OVER() as total_count
         FROM jobs j
         LEFT JOIN languages l1 ON j.source_language_id = l1.id
@@ -722,8 +737,16 @@ class JobController {
           l2.name as target_language_name,
           st.name as service_type_name,
           it.name as interpreter_type_name,
-          u.first_name || ' ' || u.last_name as created_by_name,
-          i.first_name || ' ' || i.last_name as assigned_interpreter_name,
+          CASE 
+            WHEN u.first_name IS NOT NULL AND u.last_name IS NOT NULL 
+            THEN CONCAT(u.first_name, ' ', u.last_name) 
+            ELSE NULL 
+          END as created_by_name,
+          CASE 
+            WHEN i.first_name IS NOT NULL AND i.last_name IS NOT NULL 
+            THEN CONCAT(i.first_name, ' ', i.last_name) 
+            ELSE NULL 
+          END as assigned_interpreter_name,
           cl.name as claimant_name,
           c.claim_number as claim_number,
           c.case_type as case_type

@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import JobWorkflow from '../components/JobWorkflow';
+import { getJobStatusColor } from '../utils/statusConstants';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -169,18 +170,6 @@ const JobDetails = ({ jobId, setCurrentView }) => {
     }).format(amount || 0);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'open': return 'text-green-600 bg-green-100';
-      case 'assigned': return 'text-blue-600 bg-blue-100';
-      case 'in_progress': return 'text-yellow-600 bg-yellow-100';
-      case 'completed': return 'text-purple-600 bg-purple-100';
-      case 'cancelled': return 'text-red-600 bg-red-100';
-      case 'pending_authorization': return 'text-orange-600 bg-orange-100';
-      case 'rejected': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
 
   if (loading) {
     return (
@@ -293,7 +282,7 @@ const JobDetails = ({ jobId, setCurrentView }) => {
               <div>
                 <label className="text-sm font-medium text-gray-700">Status</label>
                 <div className="mt-1">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(job.status)}`}>
                     {job.status.replace('_', ' ')}
                   </span>
                 </div>

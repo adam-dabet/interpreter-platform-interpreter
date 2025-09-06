@@ -8,10 +8,17 @@ import {
   EyeIcon,
   PlusIcon,
   FunnelIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { 
+  getJobStatusColor, 
+  getWorkflowStatusColor, 
+  JOB_STATUS_OPTIONS,
+  canReRequestJob 
+} from '../utils/statusConstants';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -85,38 +92,6 @@ const Appointments = () => {
     }).format(amount || 0);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'open': return 'text-green-600 bg-green-100';
-      case 'assigned': return 'text-blue-600 bg-blue-100';
-      case 'in_progress': return 'text-yellow-600 bg-yellow-100';
-      case 'completed': return 'text-purple-600 bg-purple-100';
-      case 'cancelled': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getWorkflowStatusColor = (workflowStatus) => {
-    switch (workflowStatus) {
-      case 'assigned': return 'text-blue-600 bg-blue-100';
-      case 'started': return 'text-green-600 bg-green-100';
-      case 'completed': return 'text-orange-600 bg-orange-100';
-      case 'reported': return 'text-purple-600 bg-purple-100';
-      case 'authorized': return 'text-indigo-600 bg-indigo-100';
-      case 'billed': return 'text-yellow-600 bg-yellow-100';
-      case 'paid': return 'text-emerald-600 bg-emerald-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const statusOptions = [
-    { value: 'all', label: 'All Appointments' },
-    { value: 'open', label: 'Open' },
-    { value: 'assigned', label: 'Assigned' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'cancelled', label: 'Cancelled' }
-  ];
 
   return (
     <div className="p-6">
@@ -157,7 +132,7 @@ const Appointments = () => {
                 onChange={(e) => setFilters({ ...filters, status: e.target.value })}
                 className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {statusOptions.map((option) => (
+                {JOB_STATUS_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -217,7 +192,11 @@ const Appointments = () => {
               
               <div className="divide-y divide-gray-200">
                 {appointments.map((appointment) => (
-                  <div key={appointment.id} className="p-6 hover:bg-gray-50">
+                  <div 
+                    key={appointment.id} 
+                    className="p-6 hover:bg-gray-50 cursor-pointer transition-colors duration-200"
+                    onClick={() => navigate(`/appointments/${appointment.id}`)}
+                  >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-start justify-between mb-2">
@@ -225,7 +204,7 @@ const Appointments = () => {
                             {appointment.title}
                           </h3>
                           <div className="flex items-center space-x-2">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(appointment.status)}`}>
                               {appointment.status.replace('_', ' ')}
                             </span>
                             {appointment.workflow_status && (
@@ -284,7 +263,7 @@ const Appointments = () => {
                             )}
                           </div>
                           
-                          <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-4" onClick={(e) => e.stopPropagation()}>
                             <button
                               onClick={() => navigate(`/appointments/${appointment.id}`)}
                               className="text-blue-600 hover:text-blue-500 flex items-center"
@@ -292,6 +271,15 @@ const Appointments = () => {
                               <EyeIcon className="h-4 w-4 mr-1" />
                               View Details
                             </button>
+                            {canReRequestJob(appointment.status) && (
+                              <button
+                                onClick={() => navigate(`/appointments/new?reRequest=${appointment.id}`)}
+                                className="text-green-600 hover:text-green-500 flex items-center"
+                              >
+                                <ArrowPathIcon className="h-4 w-4 mr-1" />
+                                Re-request
+                              </button>
+                            )}
                           </div>
                         </div>
                         

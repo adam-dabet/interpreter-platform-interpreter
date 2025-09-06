@@ -17,3 +17,4 @@ CREATE INDEX IF NOT EXISTS idx_claims_adjusters_assistant ON claims(adjusters_as
 COMMENT ON COLUMN claimants.employer_insured IS 'Employer or insured party name (optional field)';
 COMMENT ON COLUMN claims.contact_claims_handler_id IS 'Reference to customer who is the contact/claims handler';
 COMMENT ON COLUMN claims.adjusters_assistant_id IS 'Reference to customer who is the adjuster''s assistant (optional field)';
+

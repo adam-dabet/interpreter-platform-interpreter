@@ -12,10 +12,16 @@ import {
   EnvelopeIcon,
   ArrowLeftIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { 
+  getJobStatusColor, 
+  getWorkflowStatusColor, 
+  canReRequestJob 
+} from '../utils/statusConstants';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -79,29 +85,6 @@ const AppointmentDetails = () => {
     }).format(amount || 0);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'open': return 'text-green-600 bg-green-100';
-      case 'assigned': return 'text-blue-600 bg-blue-100';
-      case 'in_progress': return 'text-yellow-600 bg-yellow-100';
-      case 'completed': return 'text-purple-600 bg-purple-100';
-      case 'cancelled': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getWorkflowStatusColor = (workflowStatus) => {
-    switch (workflowStatus) {
-      case 'assigned': return 'text-blue-600 bg-blue-100';
-      case 'started': return 'text-green-600 bg-green-100';
-      case 'completed': return 'text-orange-600 bg-orange-100';
-      case 'reported': return 'text-purple-600 bg-purple-100';
-      case 'authorized': return 'text-indigo-600 bg-indigo-100';
-      case 'billed': return 'text-yellow-600 bg-yellow-100';
-      case 'paid': return 'text-emerald-600 bg-emerald-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
 
   if (loading) {
     return (
@@ -152,13 +135,22 @@ const AppointmentDetails = () => {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(appointment.status)}`}>
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getJobStatusColor(appointment.status)}`}>
                 {appointment.status.replace('_', ' ')}
               </span>
               {appointment.workflow_status && (
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getWorkflowStatusColor(appointment.workflow_status)}`}>
                   {appointment.workflow_status.replace('_', ' ')}
                 </span>
+              )}
+              {canReRequestJob(appointment.status) && (
+                <button
+                  onClick={() => navigate(`/appointments/new?reRequest=${appointment.id}`)}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center text-sm"
+                >
+                  <ArrowPathIcon className="h-4 w-4 mr-2" />
+                  Re-request Appointment
+                </button>
               )}
             </div>
           </div>

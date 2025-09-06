@@ -1296,7 +1296,14 @@ router.get('/jobs', authenticateToken, async (req, res) => {
                    j.created_at, j.updated_at,
                    c.first_name as claimant_first_name, c.last_name as claimant_last_name,
                    cl.claim_number, cl.case_type,
-                   i.first_name as interpreter_first_name, i.last_name as interpreter_last_name,
+                   j.assigned_interpreter_id,
+                   CASE 
+                     WHEN i.first_name IS NOT NULL AND i.last_name IS NOT NULL 
+                     THEN CONCAT(i.first_name, ' ', i.last_name) 
+                     ELSE NULL 
+                   END as assigned_interpreter_name,
+                   i.email as assigned_interpreter_email,
+                   i.phone as assigned_interpreter_phone,
                    req.name as requested_by_name,
                    ba.name as billing_account_name,
                    j.billing_account_id,
@@ -1341,7 +1348,14 @@ router.get('/jobs/:id', authenticateToken, async (req, res) => {
             SELECT j.*, 
                    c.first_name as claimant_first_name, c.last_name as claimant_last_name,
                    cl.claim_number, cl.case_type,
-                   i.first_name as interpreter_first_name, i.last_name as interpreter_last_name,
+                   j.assigned_interpreter_id,
+                   CASE 
+                     WHEN i.first_name IS NOT NULL AND i.last_name IS NOT NULL 
+                     THEN CONCAT(i.first_name, ' ', i.last_name) 
+                     ELSE NULL 
+                   END as assigned_interpreter_name,
+                   i.email as assigned_interpreter_email,
+                   i.phone as assigned_interpreter_phone,
                    req.name as requested_by_name,
                    ba.name as billing_account_name
             FROM jobs j

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   PlusIcon, 
   CalendarIcon, 
@@ -8,9 +8,11 @@ import {
   UserIcon,
   LanguageIcon,
   ArrowLeftIcon,
+  ArrowRightIcon,
   InformationCircleIcon,
   XMarkIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -103,6 +105,7 @@ const Input = ({ value, onChange, placeholder, type = 'text', className = '', la
       value={value}
       onChange={onChange}
       placeholder={placeholder}
+      required={required}
       disabled={disabled}
       readOnly={readOnly}
       className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${disabled || readOnly ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''}`}
@@ -110,39 +113,38 @@ const Input = ({ value, onChange, placeholder, type = 'text', className = '', la
   </div>
 );
 
-
-const SearchableSelect = ({ value, onChange, options = [], placeholder, className = '', label, required = false, disabled = false }) => {
+const SearchableSelect = ({ 
+  label, 
+  value, 
+  onChange, 
+  options = [], 
+  placeholder = "Search...", 
+  className = '', 
+  required = false, 
+  disabled = false 
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredOptions, setFilteredOptions] = useState(options || []);
   const dropdownRef = useRef(null);
 
-  // Initialize searchTerm with the selected option's label
+  // Filter options based on search term
+  const filteredOptions = options.filter(option =>
+    option.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Set search term when value changes (for external updates)
   useEffect(() => {
-    if (value && options && Array.isArray(options)) {
+    if (value) {
       const selectedOption = options.find(option => option.value === value);
       if (selectedOption) {
-        setSearchTerm(selectedOption.label || '');
+        setSearchTerm(selectedOption.label);
       }
-    } else if (!value) {
+    } else {
       setSearchTerm('');
     }
   }, [value, options]);
 
-  useEffect(() => {
-    if (!options || !Array.isArray(options)) {
-      setFilteredOptions([]);
-      return;
-    }
-    
-    const filtered = options.filter(option => 
-      (option.label && option.label.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (option.value && String(option.value).toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-    setFilteredOptions(filtered);
-  }, [searchTerm, options]);
-
-  // Handle click outside to close dropdown
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -169,7 +171,6 @@ const SearchableSelect = ({ value, onChange, options = [], placeholder, classNam
     setIsOpen(true);
   };
 
-
   return (
     <div className={`relative searchable-select ${className}`} ref={dropdownRef}>
       {label && (
@@ -192,11 +193,11 @@ const SearchableSelect = ({ value, onChange, options = [], placeholder, classNam
         </div>
         {isOpen && filteredOptions.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-            {filteredOptions.map((option) => (
+            {filteredOptions.map((option, index) => (
               <div
-                key={option.value}
-                className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                key={index}
                 onClick={() => handleSelect(option)}
+                className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
               >
                 {option.label}
               </div>
@@ -208,10 +209,342 @@ const SearchableSelect = ({ value, onChange, options = [], placeholder, classNam
   );
 };
 
+// Step Components
+const StepIndicator = ({ currentStep, totalSteps, completedSteps, onStepClick }) => {
+  const steps = [
+    { number: 1, title: 'Claim Info', icon: UserIcon },
+    { number: 2, title: 'Appointment Details', icon: CalendarIcon },
+    { number: 3, title: 'Interpreter Requirements', icon: LanguageIcon },
+    { number: 4, title: 'Location', icon: MapPinIcon }
+  ];
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center justify-between">
+        {steps.map((step, index) => {
+          const isCompleted = completedSteps.has(step.number);
+          const isCurrent = currentStep === step.number;
+          const isClickable = step.number <= currentStep || completedSteps.has(step.number - 1);
+          
+          return (
+            <div key={step.number} className="flex items-center">
+              <div className="flex flex-col items-center">
+                <button
+                  onClick={() => isClickable && onStepClick(step.number)}
+                  disabled={!isClickable}
+                  className={`
+                    w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-colors
+                    ${isCompleted 
+                      ? 'bg-green-600 text-white' 
+                      : isCurrent 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-gray-200 text-gray-600'
+                    }
+                    ${isClickable ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed'}
+                  `}
+                >
+                  {isCompleted ? (
+                    <CheckCircleIcon className="h-5 w-5" />
+                  ) : (
+                    <step.icon className="h-5 w-5" />
+                  )}
+                </button>
+                <span className={`mt-2 text-xs font-medium ${
+                  isCurrent ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-500'
+                }`}>
+                  {step.title}
+                </span>
+              </div>
+              {index < steps.length - 1 && (
+                <div className={`flex-1 h-0.5 mx-4 ${
+                  completedSteps.has(step.number) ? 'bg-green-600' : 'bg-gray-200'
+                }`} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const Step1ClaimInfo = ({ formData, formOptions, handleInputChange, handleClaimantChange, handleClaimChange, clearClaimantSelection }) => (
+  <div className="space-y-6">
+    <div className="text-center mb-8">
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Select Claimant & Claim</h2>
+      <p className="text-gray-600">Choose the claimant and specific claim for this appointment</p>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <SearchableSelect
+          label="Select Claimant"
+          value={formData.claimantId}
+          onChange={(e) => handleClaimantChange(e.target.value)}
+          options={(formOptions.claimants || []).map(claimant => ({
+            value: claimant.id.toString(),
+            label: claimant.first_name && claimant.last_name 
+              ? `${claimant.first_name} ${claimant.last_name}`
+              : claimant.name || `Claimant ${claimant.id}`
+          }))}
+          placeholder="Search for a claimant..."
+          required
+        />
+        {formData.claimantId && (
+          <button
+            type="button"
+            onClick={clearClaimantSelection}
+            className="mt-2 text-sm text-red-600 hover:text-red-800 flex items-center"
+          >
+            <XMarkIcon className="h-4 w-4 mr-1" />
+            Clear selection
+          </button>
+        )}
+      </div>
+      
+      <div>
+        <SearchableSelect
+          label="Select Claim"
+          value={formData.claimId}
+          onChange={(e) => handleClaimChange(e.target.value)}
+          options={(formOptions.claims || []).map(claim => ({
+            value: claim.id.toString(),
+            label: `${claim.claim_number} - ${claim.case_type}`
+          }))}
+          placeholder={formData.claimantId ? "Select claim" : "Select claimant first"}
+          required
+          disabled={!formData.claimantId}
+        />
+      </div>
+    </div>
+    
+    {formData.claimantId && (
+      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-center mb-2">
+          <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-2" />
+          <span className="text-sm font-medium text-blue-800">
+            Claimant Information Auto-filled
+          </span>
+        </div>
+        <p className="text-xs text-blue-600">
+          The claimant's information has been automatically populated and will be used for the appointment.
+        </p>
+      </div>
+    )}
+  </div>
+);
+
+const Step2AppointmentDetails = ({ formData, handleInputChange }) => (
+  <div className="space-y-6">
+    <div className="text-center mb-8">
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Appointment Details</h2>
+      <p className="text-gray-600">Set the date, time, and type of appointment</p>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <Input
+        label="Date"
+        type="date"
+        value={formData.appointmentDate}
+        onChange={(e) => handleInputChange('appointmentDate', e.target.value)}
+        required
+      />
+      
+      <Input
+        label="Start Time"
+        type="time"
+        value={formData.startTime}
+        onChange={(e) => handleInputChange('startTime', e.target.value)}
+        required
+      />
+      
+      <Input
+        label="End Time"
+        type="time"
+        value={formData.endTime}
+        onChange={(e) => handleInputChange('endTime', e.target.value)}
+        required
+      />
+      
+      <Input
+        label="Arrival Time"
+        type="time"
+        value={formData.arrivalTime}
+        onChange={(e) => handleInputChange('arrivalTime', e.target.value)}
+        placeholder="When should interpreter arrive?"
+      />
+      
+      <SearchableSelect
+        label="Appointment Type"
+        value={formData.appointmentType}
+        onChange={(e) => handleInputChange('appointmentType', e.target.value)}
+        options={appointmentTypeOptions}
+        placeholder="Select appointment type"
+        required
+      />
+      
+      <Input
+        label="Doctor Name"
+        value={formData.doctorName}
+        onChange={(e) => handleInputChange('doctorName', e.target.value)}
+        placeholder="e.g., Dr. La Pilusa"
+      />
+    </div>
+
+    <div>
+      <Input
+        label="Appointment Notes"
+        value={formData.appointmentNotes || ''}
+        onChange={(e) => handleInputChange('appointmentNotes', e.target.value)}
+        placeholder="Additional details about the appointment..."
+      />
+    </div>
+  </div>
+);
+
+const Step3InterpreterRequirements = ({ formData, formOptions, handleInputChange }) => (
+  <div className="space-y-6">
+    <div className="text-center mb-8">
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Interpreter Requirements</h2>
+      <p className="text-gray-600">Specify the language and interpreter type needed</p>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <SearchableSelect
+        label="Language"
+        value={formData.language}
+        onChange={(e) => handleInputChange('language', e.target.value)}
+        options={(formOptions.languages || []).map(lang => ({ value: lang.id, label: lang.name }))}
+        placeholder="Select language"
+        required
+      />
+      
+      <SearchableSelect
+        label="Service Type"
+        value={formData.serviceType}
+        onChange={(e) => handleInputChange('serviceType', e.target.value)}
+        options={(formOptions.serviceTypes || []).map(type => ({
+          value: type.id.toString(),
+          label: type.name
+        }))}
+        placeholder="Select service type"
+        required
+      />
+      
+      <SearchableSelect
+        label="Interpreter Type"
+        value={formData.interpreterType}
+        onChange={(e) => handleInputChange('interpreterType', e.target.value)}
+        options={(formOptions.interpreterTypes || []).map(type => ({
+          value: type.id.toString(),
+          label: type.name
+        }))}
+        placeholder="Select interpreter type"
+        required
+      />
+    </div>
+
+    <div>
+      <Input
+        label="Special Requirements"
+        value={formData.specialRequirements}
+        onChange={(e) => handleInputChange('specialRequirements', e.target.value)}
+        placeholder="Any special requirements or notes"
+      />
+    </div>
+  </div>
+);
+
+const Step4Location = ({ formData, formOptions, handleInputChange, locationAutocompleteRef, mapsInitialized }) => (
+  <div className="space-y-6">
+    <div className="text-center mb-8">
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Location Details</h2>
+      <p className="text-gray-600">Specify whether this is a remote or in-person appointment</p>
+    </div>
+
+    <div className="space-y-4">
+      <div className="flex items-center p-4 border border-gray-200 rounded-lg">
+        <input
+          type="checkbox"
+          id="isRemote"
+          checked={formData.isRemote}
+          onChange={(e) => handleInputChange('isRemote', e.target.checked)}
+          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+        />
+        <label htmlFor="isRemote" className="ml-3 block text-sm text-gray-900">
+          This is a remote appointment (video/phone)
+        </label>
+      </div>
+      
+      {!formData.isRemote && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="md:col-span-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Address <span className="text-red-500">*</span>
+              </label>
+              <input
+                ref={locationAutocompleteRef}
+                type="text"
+                value={formData.locationAddress}
+                onChange={(e) => handleInputChange('locationAddress', e.target.value)}
+                placeholder={mapsInitialized ? "Start typing a business address..." : "Enter business address"}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {mapsInitialized && (
+                <p className="mt-1 text-xs text-gray-500">
+                  💡 Start typing to see business address suggestions
+                </p>
+              )}
+            </div>
+          </div>
+          
+          <Input
+            label="City"
+            value={formData.locationCity}
+            onChange={(e) => handleInputChange('locationCity', e.target.value)}
+            placeholder="City"
+            required
+          />
+          
+          <Input
+            label="State"
+            value={formData.locationState}
+            onChange={(e) => handleInputChange('locationState', e.target.value)}
+            placeholder="State"
+            required
+          />
+          
+          <Input
+            label="ZIP Code"
+            value={formData.locationZipCode}
+            onChange={(e) => handleInputChange('locationZipCode', e.target.value)}
+            placeholder="ZIP Code"
+            required
+          />
+          
+          <Input
+            label="Phone"
+            type="tel"
+            value={formData.phone}
+            onChange={(e) => handleInputChange('phone', e.target.value)}
+            placeholder="e.g., 619.281.6414"
+            required
+          />
+        </div>
+      )}
+    </div>
+  </div>
+);
+
 const NewAppointment = () => {
   const { makeAuthenticatedRequest } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [isReRequest, setIsReRequest] = useState(false);
+  const [originalAppointment, setOriginalAppointment] = useState(null);
   const [mapsInitialized, setMapsInitialized] = useState(false);
   const locationAutocompleteRef = useRef(null);
   const [formOptions, setFormOptions] = useState({
@@ -260,6 +593,33 @@ const NewAppointment = () => {
     specialRequirements: ''
   });
 
+  // Multi-step form state
+  const [currentStep, setCurrentStep] = useState(1);
+  const [completedSteps, setCompletedSteps] = useState(new Set());
+  const totalSteps = 4;
+
+  const loadOriginalAppointment = useCallback(async (appointmentId) => {
+    try {
+      const response = await makeAuthenticatedRequest(
+        `${API_BASE}/customer/appointments/${appointmentId}`
+      );
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setOriginalAppointment(data.data);
+        return data.data;
+      } else {
+        toast.error(data.message || 'Failed to load original appointment');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error loading original appointment:', error);
+      toast.error('Failed to load original appointment');
+      return null;
+    }
+  }, [makeAuthenticatedRequest]);
+
   const loadFormOptions = useCallback(async () => {
     try {
       const [claimantsResponse, interpreterTypesResponse, serviceTypesResponse, languagesResponse] = await Promise.all([
@@ -273,13 +633,12 @@ const NewAppointment = () => {
       const interpreterTypesData = await interpreterTypesResponse.json();
       const serviceTypesData = await serviceTypesResponse.json();
       const languagesData = await languagesResponse.json();
-
+      
       setFormOptions({
-        claimants: claimantsData.data || [],
-        claims: [],
-        interpreterTypes: interpreterTypesData.data || [],
-        serviceTypes: serviceTypesData.data || [],
-        languages: languagesData.data || []
+        claimants: claimantsData.success ? claimantsData.data : [],
+        interpreterTypes: interpreterTypesData.success ? interpreterTypesData.data : [],
+        serviceTypes: serviceTypesData.success ? serviceTypesData.data : [],
+        languages: languagesData.success ? languagesData.data : []
       });
     } catch (error) {
       console.error('Error loading form options:', error);
@@ -287,149 +646,88 @@ const NewAppointment = () => {
     }
   }, [makeAuthenticatedRequest]);
 
-  // Setup location autocomplete (must be defined before initializeGoogleMaps)
-  const setupLocationAutocomplete = useCallback(() => {
-    try {
-      if (!window.google || !window.google.maps || !window.google.maps.places) {
-        console.warn('Google Maps Places API not available');
-        return;
-      }
-
-      if (!locationAutocompleteRef.current) {
-        console.warn('Location autocomplete ref not available');
-        return;
-      }
-
-      const autocomplete = new window.google.maps.places.Autocomplete(
-        locationAutocompleteRef.current,
-        {
-          types: ['establishment', 'geocode'],
-          componentRestrictions: { country: 'us' }
-        }
-      );
-
-      autocomplete.addListener('place_changed', () => {
-        try {
-          const place = autocomplete.getPlace();
-          if (place.geometry && place.geometry.location) {
-            const addressComponents = place.address_components || [];
-            let city = '';
-            let state = '';
-            let zipCode = '';
-
-            addressComponents.forEach(component => {
-              const types = component.types;
-              if (types.includes('locality')) {
-                city = component.long_name;
-              } else if (types.includes('administrative_area_level_1')) {
-                state = component.short_name;
-              } else if (types.includes('postal_code')) {
-                zipCode = component.long_name;
-              }
-            });
-
-            setFormData(prev => ({
-              ...prev,
-              locationAddress: place.formatted_address || place.name || '',
-              locationCity: city,
-              locationState: state,
-              locationZipCode: zipCode
-            }));
-          }
-        } catch (error) {
-          console.error('Error handling place selection:', error);
-        }
-      });
-    } catch (error) {
-      console.error('Error setting up location autocomplete:', error);
-      setMapsInitialized(false);
-    }
-  }, []);
-
-  // Google Maps initialization
-  const initializeGoogleMaps = useCallback(() => {
-    // Check if Google Maps is already loaded
-    if (window.google && window.google.maps && window.google.maps.places) {
-      setMapsInitialized(true);
-      setupLocationAutocomplete();
-      return;
-    }
-
-    // Check if API key exists
-    const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-    if (!apiKey || apiKey === 'your_actual_api_key_here') {
-      console.warn('Google Maps API key not configured. Address autocomplete will be disabled.');
-      setMapsInitialized(false);
-      return;
-    }
-
-    // Check if script is already being loaded
-    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-    if (existingScript) {
-      console.log('Google Maps script already exists, waiting for load...');
-      return;
-    }
-
-    // Create and load the script
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    
-    script.onload = () => {
-      try {
-        if (window.google && window.google.maps && window.google.maps.places) {
-          console.log('Google Maps API loaded successfully');
-          setMapsInitialized(true);
-          setupLocationAutocomplete();
-        } else {
-          console.error('Google Maps API loaded but objects not available');
-          setMapsInitialized(false);
-        }
-      } catch (error) {
-        console.error('Error initializing Google Maps:', error);
-        setMapsInitialized(false);
-      }
-    };
-    
-    script.onerror = (error) => {
-      console.error('Failed to load Google Maps API:', error);
-      setMapsInitialized(false);
-    };
-    
-    document.head.appendChild(script);
-  }, [setupLocationAutocomplete]);
-
   const loadClaimsForClaimant = useCallback(async (claimantId) => {
     try {
-      const response = await makeAuthenticatedRequest(
-        `${API_BASE}/customer/claimants/${claimantId}/claims`
-      );
-      
+      const response = await makeAuthenticatedRequest(`${API_BASE}/customer/claimants/${claimantId}/claims`);
       const data = await response.json();
       
       if (data.success) {
-        setFormOptions(prev => ({ ...prev, claims: data.data }));
+        setFormOptions(prev => ({
+          ...prev,
+          claims: data.data
+        }));
+        return data.data;
+      } else {
+        console.error('Failed to load claims:', data.message);
+        setFormOptions(prev => ({ ...prev, claims: [] }));
+        return [];
       }
     } catch (error) {
       console.error('Error loading claims:', error);
+      setFormOptions(prev => ({ ...prev, claims: [] }));
+      return [];
     }
   }, [makeAuthenticatedRequest]);
 
+  const populateFormFromOriginalAppointment = useCallback((originalAppointment) => {
+    setFormData(prev => ({
+      ...prev,
+      // Don't copy date/time fields for re-request
+      appointmentType: originalAppointment.appointment_type || '',
+      appointmentNotes: originalAppointment.appointment_notes || '',
+      doctorName: originalAppointment.doctor_name || '',
+      isRemote: originalAppointment.is_remote || false,
+      locationAddress: originalAppointment.location_address || '',
+      locationCity: originalAppointment.location_city || '',
+      locationState: originalAppointment.location_state || '',
+      locationZipCode: originalAppointment.location_zip_code || '',
+      phone: originalAppointment.phone || '',
+      claimantId: originalAppointment.claimant_id ? originalAppointment.claimant_id.toString() : '',
+      claimId: originalAppointment.claim_id ? originalAppointment.claim_id.toString() : '',
+      language: originalAppointment.source_language_id ? originalAppointment.source_language_id.toString() : '',
+      interpreterType: originalAppointment.interpreter_type_id ? originalAppointment.interpreter_type_id.toString() : '',
+      serviceType: originalAppointment.service_type_id ? originalAppointment.service_type_id.toString() : '',
+      specialRequirements: originalAppointment.special_requirements || ''
+    }));
+  }, []);
+
+  // Load form options on component mount
   useEffect(() => {
     loadFormOptions();
-    
-    // Initialize Google Maps with error handling
-    try {
-      initializeGoogleMaps();
-    } catch (error) {
-      console.error('Error initializing Google Maps:', error);
-      setMapsInitialized(false);
-    }
-  }, [loadFormOptions, initializeGoogleMaps]);
+  }, [loadFormOptions]);
 
+  // Handle re-request functionality
   useEffect(() => {
-    // Load claims when claimant is selected
+    const reRequestId = searchParams.get('reRequest');
+    const claimantId = searchParams.get('claimantId');
+    const claimId = searchParams.get('claimId');
+    
+    if (reRequestId) {
+      setIsReRequest(true);
+      loadOriginalAppointment(reRequestId).then((appointment) => {
+        if (appointment) {
+          populateFormFromOriginalAppointment(appointment);
+        }
+      });
+    }
+  }, [searchParams, loadOriginalAppointment, populateFormFromOriginalAppointment]);
+
+  // Handle claimant and claim selection from URL parameters
+  useEffect(() => {
+    const claimantId = searchParams.get('claimantId');
+    const claimId = searchParams.get('claimId');
+    
+    if ((formOptions.claimants || []).length > 0 && claimantId && !isReRequest) {
+      handleClaimantChange(claimantId).then(() => {
+        if (claimId) {
+          setFormData(prev => ({ ...prev, claimId: claimId }));
+        }
+      });
+    }
+  }, [formOptions.claimants, searchParams, isReRequest]);
+
+  // Load claims when claimant is selected
+  useEffect(() => {
     if (formData.claimantId) {
       loadClaimsForClaimant(formData.claimantId);
     } else {
@@ -438,13 +736,6 @@ const NewAppointment = () => {
     }
   }, [formData.claimantId, loadClaimsForClaimant]);
 
-  // Setup autocomplete when maps are initialized and ref is available
-  useEffect(() => {
-    if (mapsInitialized && locationAutocompleteRef.current) {
-      setupLocationAutocomplete();
-    }
-  }, [mapsInitialized, setupLocationAutocomplete]);
-
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -452,74 +743,54 @@ const NewAppointment = () => {
     }));
   };
 
-  const handleClaimantChange = (claimantId) => {
-    if (!claimantId) {
-      // Clear all claimant data if no claimant selected
-      setFormData(prev => ({
-        ...prev,
-        claimantId: '',
-        claimId: '',
-        claimantFirstName: '',
-        claimantLastName: '',
-        claimantGender: '',
-        claimantDateOfBirth: '',
-        claimantPhone: '',
-        claimantLanguage: '',
-        claimantAddress: '',
-        claimantAddressLatitude: '',
-        claimantAddressLongitude: '',
-        claimantEmployerInsured: '',
-        appointmentType: '',
-        appointmentNotes: '' // Clear appointment notes when clearing claimant
-      }));
-      return;
-    }
+  const handleClaimantChange = useCallback((claimantId) => {
+    return new Promise((resolve) => {
+      if (!claimantId) {
+        setFormData(prev => ({
+          ...prev,
+          claimantId: '',
+          claimId: '',
+          claimantFirstName: '',
+          claimantLastName: '',
+          claimantGender: '',
+          claimantDateOfBirth: '',
+          claimantPhone: '',
+          claimantLanguage: '',
+          claimantAddress: '',
+          claimantAddressLatitude: '',
+          claimantAddressLongitude: '',
+          claimantEmployerInsured: ''
+        }));
+        resolve();
+        return;
+      }
 
-    // Find the selected claimant
-    const selectedClaimant = formOptions.claimants.find(c => c.id === parseInt(claimantId));
-    
-    if (selectedClaimant) {
-      // Helper function to format dates for HTML date inputs
-      const formatDateForInput = (dateValue) => {
-        if (!dateValue) return '';
-        // If it's already a string in YYYY-MM-DD format, return as is
-        if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
-          return dateValue;
-        }
-        // If it's a Date object or other format, convert to YYYY-MM-DD
-        try {
-          const date = new Date(dateValue);
-          if (isNaN(date.getTime())) return '';
-          return date.toISOString().split('T')[0];
-        } catch (error) {
-          console.error('Error formatting date:', error);
-          return '';
-        }
-      };
-
-      setFormData(prev => ({
-        ...prev,
-        claimantId: claimantId,
-        claimId: '',
-        // Updated claimant fields to match new structure
-        claimantFirstName: selectedClaimant.first_name || '',
-        claimantLastName: selectedClaimant.last_name || '',
-        claimantGender: selectedClaimant.gender || '',
-        claimantDateOfBirth: formatDateForInput(selectedClaimant.date_of_birth),
-        claimantPhone: selectedClaimant.phone || '',
-        claimantLanguage: selectedClaimant.language || '',
-        claimantAddress: selectedClaimant.address || '',
-        claimantAddressLatitude: selectedClaimant.address_latitude || '',
-        claimantAddressLongitude: selectedClaimant.address_longitude || '',
-        claimantEmployerInsured: selectedClaimant.employer_insured || '',
-        appointmentType: '', // Reset appointment type when a new claimant is selected
-        appointmentNotes: '' // Clear appointment notes when a new claimant is selected
-      }));
-
-      // Load claims for this claimant
-      loadClaimsForClaimant(claimantId);
-    }
-  };
+      const selectedClaimant = (formOptions.claimants || []).find(c => c.id === parseInt(claimantId));
+      if (selectedClaimant) {
+        setFormData(prev => ({
+          ...prev,
+          claimantId: claimantId,
+          claimId: '',
+          claimantFirstName: selectedClaimant.first_name || '',
+          claimantLastName: selectedClaimant.last_name || '',
+          claimantGender: selectedClaimant.gender || '',
+          claimantDateOfBirth: selectedClaimant.date_of_birth || '',
+          claimantPhone: selectedClaimant.phone || '',
+          claimantLanguage: selectedClaimant.language || '',
+          claimantAddress: selectedClaimant.address || '',
+          claimantAddressLatitude: selectedClaimant.address_latitude || '',
+          claimantAddressLongitude: selectedClaimant.address_longitude || '',
+          claimantEmployerInsured: selectedClaimant.employer_insured || ''
+        }));
+        
+        loadClaimsForClaimant(claimantId).then(() => {
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+    });
+  }, [formOptions.claimants, loadClaimsForClaimant]);
 
   const handleClaimChange = (claimId) => {
     if (!claimId) {
@@ -531,7 +802,7 @@ const NewAppointment = () => {
     }
 
     // Find the selected claim
-    const selectedClaim = formOptions.claims.find(c => c.id === parseInt(claimId));
+    const selectedClaim = (formOptions.claims || []).find(c => c.id === parseInt(claimId));
     
     if (selectedClaim) {
       // Helper function to format dates for HTML date inputs
@@ -562,6 +833,15 @@ const NewAppointment = () => {
     }
   };
 
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   const clearClaimantSelection = () => {
     setFormData(prev => ({
       ...prev,
@@ -583,6 +863,53 @@ const NewAppointment = () => {
     setFormOptions(prev => ({ ...prev, claims: [] }));
   };
 
+  // Step validation functions
+  const validateStep = (step) => {
+    switch (step) {
+      case 1: // Claim Info
+        return formData.claimantId && formData.claimId;
+      case 2: // Appointment Details
+        return formData.appointmentDate && formData.startTime && formData.endTime && formData.appointmentType;
+      case 3: // Interpreter Requirements
+        return formData.language && formData.interpreterType && formData.serviceType;
+      case 4: // Location
+        if (formData.isRemote) {
+          return true; // Remote appointments don't need location details
+        }
+        return formData.locationAddress && formData.locationCity && formData.locationState && formData.locationZipCode;
+      default:
+        return false;
+    }
+  };
+
+  const markStepCompleted = (step) => {
+    setCompletedSteps(prev => new Set([...prev, step]));
+  };
+
+  const goToNextStep = () => {
+    if (validateStep(currentStep)) {
+      markStepCompleted(currentStep);
+      if (currentStep < totalSteps) {
+        setCurrentStep(currentStep + 1);
+      }
+    } else {
+      toast.error('Please fill in all required fields before proceeding');
+    }
+  };
+
+  const goToPreviousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const goToStep = (step) => {
+    // Allow going to any completed step or the next step
+    if (step <= currentStep || completedSteps.has(step - 1)) {
+      setCurrentStep(step);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -593,7 +920,6 @@ const NewAppointment = () => {
           !formData.appointmentType || !formData.claimantId || 
           !formData.claimId || !formData.interpreterType || !formData.serviceType) {
         toast.error('Please fill in all required fields');
-        setLoading(false);
         return;
       }
 
@@ -601,14 +927,12 @@ const NewAppointment = () => {
       if (!formData.isRemote && (!formData.locationAddress || !formData.locationCity || 
           !formData.locationState || !formData.locationZipCode)) {
         toast.error('Please fill in all location fields for in-person appointments');
-        setLoading(false);
         return;
       }
 
       // Validate time range
       if (formData.startTime >= formData.endTime) {
         toast.error('End time must be after start time');
-        setLoading(false);
         return;
       }
 
@@ -628,30 +952,19 @@ const NewAppointment = () => {
         claimantId: parseInt(formData.claimantId),
         claimId: formData.claimId ? parseInt(formData.claimId) : null,
         serviceTypeId: formData.serviceType ? parseInt(formData.serviceType) : undefined,
-        // Include all claimant details for reference
-        claimantName: formData.claimantName,
-        claimantAddress: formData.claimantAddress,
-        claimantCity: formData.claimantCity,
-        claimantState: formData.claimantState,
-        claimantZipCode: formData.claimantZipCode,
-        dateOfBirth: formData.dateOfBirth,
-        dateOfInjury: formData.dateOfInjury,
-        claimantPhone: formData.claimantPhone,
-        employer: formData.employer,
-        examiner: formData.examiner,
         language: formData.language,
         interpreterType: formData.interpreterType,
         specialRequirements: formData.specialRequirements,
-        appointmentNotes: formData.appointmentNotes // Include appointment notes
+        appointmentNotes: formData.appointmentNotes
       };
 
-      const response = await makeAuthenticatedRequest(
-        `${API_BASE}/customer/appointments/simple`,
-        {
-          method: 'POST',
-          body: JSON.stringify(appointmentData)
-        }
-      );
+      const response = await makeAuthenticatedRequest(`${API_BASE}/customer/appointments/simple`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(appointmentData)
+      });
 
       const data = await response.json();
 
@@ -659,11 +972,11 @@ const NewAppointment = () => {
         toast.success('Appointment request submitted successfully!');
         navigate('/appointments');
       } else {
-        toast.error(data.message || 'Failed to create appointment');
+        toast.error(data.message || 'Failed to submit appointment request');
       }
     } catch (error) {
-      console.error('Error creating appointment:', error);
-      toast.error('Failed to create appointment');
+      console.error('Error submitting appointment:', error);
+      toast.error('Failed to submit appointment request');
     } finally {
       setLoading(false);
     }
@@ -688,413 +1001,148 @@ const NewAppointment = () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 flex items-center">
                 <PlusIcon className="h-8 w-8 mr-3 text-blue-600" />
-                Schedule New Appointment
+                {isReRequest ? 'Re-request Appointment' : 'Schedule New Appointment'}
               </h1>
-              <p className="mt-2 text-gray-600">Request an interpreter for a new appointment</p>
+              <p className="mt-2 text-gray-600">
+                {isReRequest 
+                  ? 'Create a new appointment request with the same details as the original appointment'
+                  : 'Request an interpreter for a new appointment'
+                }
+              </p>
             </div>
           </div>
         </motion.div>
 
-        {/* Form */}
+        {/* Multi-Step Form */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="bg-white rounded-lg shadow"
         >
-          <form onSubmit={handleSubmit} className="space-y-8">
-
-            {/* Appointment Details */}
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-                <CalendarIcon className="h-5 w-5 mr-2 text-blue-600" />
-                Appointment Details
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input
-                  label="Date"
-                  type="date"
-                  value={formData.appointmentDate}
-                  onChange={(e) => handleInputChange('appointmentDate', e.target.value)}
-                  required
-                />
-                
-                <Input
-                  label="Start Time"
-                  type="time"
-                  value={formData.startTime}
-                  onChange={(e) => handleInputChange('startTime', e.target.value)}
-                  required
-                />
-                
-                <Input
-                  label="End Time"
-                  type="time"
-                  value={formData.endTime}
-                  onChange={(e) => handleInputChange('endTime', e.target.value)}
-                  required
-                />
-                
-                <Input
-                  label="Arrival Time"
-                  type="time"
-                  value={formData.arrivalTime}
-                  onChange={(e) => handleInputChange('arrivalTime', e.target.value)}
-                  placeholder="When should interpreter arrive?"
-                />
-                
-                <SearchableSelect
-                  label="Appointment Type"
-                  value={formData.appointmentType}
-                  onChange={(e) => handleInputChange('appointmentType', e.target.value)}
-                  options={appointmentTypeOptions}
-                  placeholder="Select appointment type"
-                  required
-                />
-                
-                <Input
-                  label="Appointment Notes"
-                  value={formData.appointmentNotes || ''}
-                  onChange={(e) => handleInputChange('appointmentNotes', e.target.value)}
-                  placeholder="Additional details about the appointment..."
-                />
-                
-                <Input
-                  label="Doctor Name"
-                  value={formData.doctorName}
-                  onChange={(e) => handleInputChange('doctorName', e.target.value)}
-                  placeholder="e.g., Dr. La Pilusa"
-                />
-              </div>
-            </div>
-
-            {/* Location */}
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-                <MapPinIcon className="h-5 w-5 mr-2 text-blue-600" />
-                Location
-              </h3>
-              
-              <div className="space-y-4">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="isRemote"
-                    checked={formData.isRemote}
-                    onChange={(e) => handleInputChange('isRemote', e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="isRemote" className="ml-2 block text-sm text-gray-900">
-                    This is a remote appointment (video/phone)
-                  </label>
-                </div>
-                
-                {!formData.isRemote && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="md:col-span-2">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Address <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          ref={locationAutocompleteRef}
-                          type="text"
-                          value={formData.locationAddress}
-                          onChange={(e) => handleInputChange('locationAddress', e.target.value)}
-                          placeholder={mapsInitialized ? "Start typing a business address..." : "Enter business address"}
-                          required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        {mapsInitialized && (
-                          <p className="mt-1 text-xs text-gray-500">
-                            💡 Start typing to see business address suggestions
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <Input
-                      label="City"
-                      value={formData.locationCity}
-                      onChange={(e) => handleInputChange('locationCity', e.target.value)}
-                      placeholder="City"
-                      required
-                    />
-                    
-                    <Input
-                      label="State"
-                      value={formData.locationState}
-                      onChange={(e) => handleInputChange('locationState', e.target.value)}
-                      placeholder="State"
-                      required
-                    />
-                    
-                    <div>
-                      <Input
-                        label="ZIP Code"
-                        value={formData.locationZipCode}
-                        onChange={(e) => handleInputChange('locationZipCode', e.target.value)}
-                        placeholder="ZIP Code"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <Input
-                        label="Phone"
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
-                        placeholder="e.g., 619.281.6414"
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Interpreter Requirements */}
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-                <LanguageIcon className="h-5 w-5 mr-2 text-blue-600" />
-                Interpreter Requirements
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <SearchableSelect
-                  label="Language"
-                  value={formData.language}
-                  onChange={(e) => handleInputChange('language', e.target.value)}
-                  options={formOptions.languages.map(lang => ({ value: lang.id, label: lang.name }))}
-                  placeholder="Select language"
-                  required
-                />
-                
-                <SearchableSelect
-                  label="Service Type"
-                  value={formData.serviceType}
-                  onChange={(e) => handleInputChange('serviceType', e.target.value)}
-                  options={formOptions.serviceTypes.map(type => ({
-                    value: type.id.toString(),
-                    label: type.name
-                  }))}
-                  placeholder="Select service type"
-                  required
-                />
-                
-                <SearchableSelect
-                  label="Interpreter Type"
-                  value={formData.interpreterType}
-                  onChange={(e) => handleInputChange('interpreterType', e.target.value)}
-                  options={formOptions.interpreterTypes.map(type => ({
-                    value: type.id.toString(),
-                    label: type.name
-                  }))}
-                  placeholder="Select interpreter type"
-                  required
-                />
-                
-                <div className="md:col-span-2">
-                  <Input
-                    label="Special Requirements"
-                    value={formData.specialRequirements}
-                    onChange={(e) => handleInputChange('specialRequirements', e.target.value)}
-                    placeholder="Any special requirements or notes"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Claimant Information */}
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-                <UserIcon className="h-5 w-5 mr-2 text-blue-600" />
-                Claimant Information
-              </h3>
-              
-              {/* Claimant & Claim Selection */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {isReRequest && originalAppointment && (
+            <div className="p-6 border-b border-gray-200 bg-green-50">
+              <div className="flex items-center">
+                <InformationCircleIcon className="h-5 w-5 text-green-600 mr-2" />
                 <div>
-                  <SearchableSelect
-                    label="Select Claimant"
-                    value={formData.claimantId}
-                    onChange={(e) => handleClaimantChange(e.target.value)}
-                    options={formOptions.claimants.map(claimant => ({
-                      value: claimant.id.toString(),
-                      label: claimant.first_name && claimant.last_name 
-                        ? `${claimant.first_name} ${claimant.last_name}`
-                        : claimant.name || `Claimant ${claimant.id}`
-                    }))}
-                    placeholder="Search for a claimant..."
-                    required
-                  />
-                  {formData.claimantId && (
-                    <button
-                      type="button"
-                      onClick={clearClaimantSelection}
-                      className="mt-2 text-sm text-red-600 hover:text-red-800 flex items-center"
-                    >
-                      <XMarkIcon className="h-4 w-4 mr-1" />
-                      Clear selection
-                    </button>
-                  )}
-                </div>
-                
-                <div>
-                  <SearchableSelect
-                    label="Select Claim"
-                    value={formData.claimId}
-                    onChange={(e) => handleClaimChange(e.target.value)}
-                    options={formOptions.claims.map(claim => ({
-                      value: claim.id.toString(),
-                      label: `${claim.claim_number} - ${claim.case_type}`
-                    }))}
-                    placeholder={formData.claimantId ? "Select claim" : "Select claimant first"}
-                    required
-                    disabled={!formData.claimantId}
-                  />
-                </div>
-              </div>
-              
-              {formData.claimantId && (
-                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center mb-2">
-                    <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-2" />
-                    <span className="text-sm font-medium text-blue-800">
-                      Claimant Information Auto-filled
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-600">
-                    The claimant's information has been automatically populated below. You can review and modify if needed.
+                  <h3 className="text-sm font-medium text-green-800">
+                    Re-requesting appointment from {formatDate(originalAppointment.scheduled_date)}
+                  </h3>
+                  <p className="text-sm text-green-600 mt-1">
+                    The form has been pre-filled with the original appointment details. Please update the date and time for the new appointment.
                   </p>
                 </div>
-              )}
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input
-                  label="First Name"
-                  value={formData.claimantFirstName}
-                  onChange={(e) => handleInputChange('claimantFirstName', e.target.value)}
-                  placeholder="e.g., Stephanie"
-                  required
-                  readOnly={!!formData.claimantId}
-                />
-                
-                <Input
-                  label="Last Name"
-                  value={formData.claimantLastName}
-                  onChange={(e) => handleInputChange('claimantLastName', e.target.value)}
-                  placeholder="e.g., Duffy"
-                  required
-                  readOnly={!!formData.claimantId}
-                />
-                
-                <SearchableSelect
-                  label="Gender"
-                  value={formData.claimantGender}
-                  onChange={(e) => handleInputChange('claimantGender', e.target.value)}
-                  options={[
-                    { value: 'Male', label: 'Male' },
-                    { value: 'Female', label: 'Female' },
-                    { value: 'Other', label: 'Other' },
-                    { value: 'Prefer not to say', label: 'Prefer not to say' }
-                  ]}
-                  placeholder="Select gender"
-                  required
-                  disabled={!!formData.claimantId}
-                />
-                
-                <Input
-                  label="Date of Birth"
-                  type="date"
-                  value={formData.claimantDateOfBirth}
-                  onChange={(e) => handleInputChange('claimantDateOfBirth', e.target.value)}
-                  required
-                  readOnly={!!formData.claimantId}
-                />
-                
-                <Input
-                  label="Phone"
-                  type="tel"
-                  value={formData.claimantPhone}
-                  onChange={(e) => handleInputChange('claimantPhone', e.target.value)}
-                  placeholder="e.g., (619)221-3162"
-                  required
-                  readOnly={!!formData.claimantId}
-                />
-                
-                <Input
-                  label="Language"
-                  value={formData.claimantLanguage}
-                  onChange={(e) => handleInputChange('claimantLanguage', e.target.value)}
-                  placeholder="e.g., Spanish"
-                  required
-                  readOnly={!!formData.claimantId}
-                />
-                
-                <div className="md:col-span-2">
-                  <Input
-                    label="Address"
-                    value={formData.claimantAddress}
-                    onChange={(e) => handleInputChange('claimantAddress', e.target.value)}
-                    placeholder="e.g., 950 Park Blvd"
-                    required
-                    readOnly={!!formData.claimantId}
-                  />
-                </div>
-                
-                <Input
-                  label="Employer/Insured"
-                  value={formData.claimantEmployerInsured}
-                  onChange={(e) => handleInputChange('claimantEmployerInsured', e.target.value)}
-                  placeholder="e.g., Episcopal Community Services"
-                  required
-                  readOnly={!!formData.claimantId}
-                />
-                
-                {/* Show coordinates if available */}
-                {(formData.claimantAddressLatitude || formData.claimantAddressLongitude) && (
-                  <div className="md:col-span-2">
-                    <div className="text-sm text-gray-600">
-                      <strong>Coordinates:</strong> {formData.claimantAddressLatitude}, {formData.claimantAddressLongitude}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
+          )}
 
+          {/* Step Indicator */}
+          <div className="p-6 border-b border-gray-200">
+            <StepIndicator 
+              currentStep={currentStep}
+              totalSteps={totalSteps}
+              completedSteps={completedSteps}
+              onStepClick={goToStep}
+            />
+          </div>
 
-            {/* Submit Buttons */}
-            <div className="flex justify-end space-x-4 p-6 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={() => navigate('/appointments')}
-                disabled={loading}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Schedule Appointment
-                  </>
-                )}
-              </button>
+          {/* Step Content */}
+          <div className="p-6">
+            <form onSubmit={handleSubmit}>
+              {currentStep === 1 && (
+                <Step1ClaimInfo
+                  formData={formData}
+                  formOptions={formOptions}
+                  handleInputChange={handleInputChange}
+                  handleClaimantChange={handleClaimantChange}
+                  handleClaimChange={handleClaimChange}
+                  clearClaimantSelection={clearClaimantSelection}
+                />
+              )}
+              
+              {currentStep === 2 && (
+                <Step2AppointmentDetails
+                  formData={formData}
+                  handleInputChange={handleInputChange}
+                />
+              )}
+              
+              {currentStep === 3 && (
+                <Step3InterpreterRequirements
+                  formData={formData}
+                  formOptions={formOptions}
+                  handleInputChange={handleInputChange}
+                />
+              )}
+              
+              {currentStep === 4 && (
+                <Step4Location
+                  formData={formData}
+                  formOptions={formOptions}
+                  handleInputChange={handleInputChange}
+                  locationAutocompleteRef={locationAutocompleteRef}
+                  mapsInitialized={mapsInitialized}
+                />
+              )}
+            </form>
+          </div>
+
+          {/* Navigation Buttons */}
+          <div className="flex justify-between items-center p-6 border-t border-gray-200 bg-gray-50">
+            <button
+              type="button"
+              onClick={() => navigate('/appointments')}
+              disabled={loading}
+              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            
+            <div className="flex space-x-4">
+              {currentStep > 1 && (
+                <button
+                  type="button"
+                  onClick={goToPreviousStep}
+                  disabled={loading}
+                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 flex items-center"
+                >
+                  <ArrowLeftIcon className="h-4 w-4 mr-2" />
+                  Previous
+                </button>
+              )}
+              
+              {currentStep < totalSteps ? (
+                <button
+                  type="button"
+                  onClick={goToNextStep}
+                  disabled={loading}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
+                >
+                  Next
+                  <ArrowRightIcon className="h-4 w-4 ml-2" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircleIcon className="h-4 w-4 mr-2" />
+                      {isReRequest ? 'Re-request Appointment' : 'Submit Request'}
+                    </>
+                  )}
+                </button>
+              )}
             </div>
-          </form>
+          </div>
         </motion.div>
       </div>
     </div>

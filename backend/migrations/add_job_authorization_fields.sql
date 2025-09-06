@@ -21,3 +21,4 @@ COMMENT ON COLUMN jobs.rejection_reason IS 'Reason for job rejection if applicab
 UPDATE jobs 
 SET authorized_at = created_at 
 WHERE status = 'open' AND authorized_at IS NULL;
+

@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const adminController = require('../controllers/adminController');
-const { authenticateToken } = require('../middleware/auth');
+const reminderController = require('../controllers/reminderController');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { body } = require('express-validator');
 const db = require('../config/database');
 const loggerService = require('../services/loggerService');
@@ -398,21 +399,24 @@ router.post('/billing-accounts', authenticateToken, async (req, res) => {
         
         // Insert default rates for the new account
         const defaultRates = [
-            // General Rates
-            { service_category: 'general', rate_type: 'A', rate_amount: 140.00, time_minutes: 120 },
-            { service_category: 'general', rate_type: 'B', rate_amount: 70.00, time_minutes: 60 },
-            // Legal Rates
-            { service_category: 'legal', rate_type: 'A', rate_amount: 330.00, time_minutes: 180 },
-            { service_category: 'legal', rate_type: 'B', rate_amount: 330.00, time_minutes: 180 },
-            // Medical Certified Rates
-            { service_category: 'medical_certified', rate_type: 'A', rate_amount: 200.00, time_minutes: 120 },
-            { service_category: 'medical_certified', rate_type: 'B', rate_amount: 100.00, time_minutes: 60 },
-            // Psychological Rates
-            { service_category: 'psychological', rate_type: 'A', rate_amount: 200.00, time_minutes: 120 },
-            { service_category: 'psychological', rate_type: 'B', rate_amount: 100.00, time_minutes: 60 },
-            // Routine Visits Rates
-            { service_category: 'routine_visits', rate_type: 'A', rate_amount: 140.00, time_minutes: 120 },
-            { service_category: 'routine_visits', rate_type: 'B', rate_amount: 70.00, time_minutes: 60 }
+            // General Rates - Spanish
+            { service_category: 'general_spanish', rate_type: 'A', rate_amount: 140.00, time_minutes: 120 },
+            { service_category: 'general_spanish', rate_type: 'B', rate_amount: 70.00, time_minutes: 60 },
+            // General Rates - Non-Spanish
+            { service_category: 'general_non_spanish', rate_type: 'A', rate_amount: 140.00, time_minutes: 120 },
+            { service_category: 'general_non_spanish', rate_type: 'B', rate_amount: 70.00, time_minutes: 60 },
+            // Legal Rates - Spanish
+            { service_category: 'legal_spanish', rate_type: 'A', rate_amount: 330.00, time_minutes: 180 },
+            { service_category: 'legal_spanish', rate_type: 'B', rate_amount: 330.00, time_minutes: 180 },
+            // Legal Rates - Non-Spanish
+            { service_category: 'legal_non_spanish', rate_type: 'A', rate_amount: 330.00, time_minutes: 180 },
+            { service_category: 'legal_non_spanish', rate_type: 'B', rate_amount: 330.00, time_minutes: 180 },
+            // Medical Certified Rates - Spanish
+            { service_category: 'medical_certified_spanish', rate_type: 'A', rate_amount: 200.00, time_minutes: 120 },
+            { service_category: 'medical_certified_spanish', rate_type: 'B', rate_amount: 100.00, time_minutes: 60 },
+            // Medical Certified Rates - Non-Spanish
+            { service_category: 'medical_certified_non_spanish', rate_type: 'A', rate_amount: 200.00, time_minutes: 120 },
+            { service_category: 'medical_certified_non_spanish', rate_type: 'B', rate_amount: 100.00, time_minutes: 60 }
         ];
         
         // Insert default rates
@@ -506,22 +510,41 @@ router.put('/billing-accounts/:accountId/rates/:rateId', authenticateToken, asyn
         const { accountId, rateId } = req.params;
         const { rate_amount, time_minutes } = req.body;
         
-        // Validate required fields
-        if (rate_amount === undefined || time_minutes === undefined) {
+        // Validate that at least one field is provided
+        if (rate_amount === undefined && time_minutes === undefined) {
             return res.status(400).json({
                 success: false,
-                message: 'Rate amount and time minutes are required'
+                message: 'At least one field (rate_amount or time_minutes) is required'
             });
         }
         
+        // Build dynamic update query based on provided fields
+        let updateFields = [];
+        let values = [];
+        let paramCount = 1;
+        
+        if (rate_amount !== undefined) {
+            updateFields.push(`rate_amount = $${paramCount}`);
+            values.push(rate_amount);
+            paramCount++;
+        }
+        
+        if (time_minutes !== undefined) {
+            updateFields.push(`time_minutes = $${paramCount}`);
+            values.push(time_minutes);
+            paramCount++;
+        }
+        
+        // Add updated_at and WHERE clause parameters
+        updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+        values.push(rateId, accountId);
+        
         const result = await db.query(`
             UPDATE billing_account_rates SET
-                rate_amount = $1,
-                time_minutes = $2,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = $3 AND billing_account_id = $4
+                ${updateFields.join(', ')}
+            WHERE id = $${paramCount} AND billing_account_id = $${paramCount + 1}
             RETURNING id, service_category, rate_type, rate_amount, time_minutes
-        `, [rate_amount, time_minutes, rateId, accountId]);
+        `, values);
         
         if (result.rows.length === 0) {
             return res.status(404).json({
@@ -1256,7 +1279,7 @@ router.get('/jobs/stats', authenticateToken, async (req, res) => {
         const result = await db.query(`
             SELECT 
                 COUNT(*) as total_jobs,
-                COUNT(CASE WHEN status = 'open' THEN 1 END) as open_jobs,
+                COUNT(CASE WHEN status = 'finding_interpreter' THEN 1 END) as finding_interpreter_jobs,
                 COUNT(CASE WHEN status = 'assigned' THEN 1 END) as assigned_jobs,
                 COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress_jobs,
                 COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_jobs,
@@ -1319,6 +1342,7 @@ router.get('/jobs', authenticateToken, async (req, res) => {
             LEFT JOIN service_types st ON j.service_type_id = st.id
             LEFT JOIN languages sl ON j.source_language_id = sl.id
             LEFT JOIN languages tl ON j.target_language_id = tl.id
+            WHERE j.is_active = true
             ORDER BY j.scheduled_date DESC, j.scheduled_time DESC
         `);
         
@@ -1364,7 +1388,7 @@ router.get('/jobs/:id', authenticateToken, async (req, res) => {
             LEFT JOIN interpreters i ON j.assigned_interpreter_id = i.id
             LEFT JOIN customers req ON j.requested_by_id = req.id
             LEFT JOIN billing_accounts ba ON j.billing_account_id = ba.id
-            WHERE j.id = $1
+            WHERE j.id = $1 AND j.is_active = true
         `, [id]);
         
         if (result.rows.length === 0) {
@@ -1400,7 +1424,7 @@ router.post('/jobs', authenticateToken, async (req, res) => {
             estimated_duration_minutes, hourly_rate, total_amount, payment_status,
             client_name, client_email, client_phone, client_notes, special_requirements,
             admin_notes, appointment_type, is_remote, claimant_id, claim_id,
-            requested_by_id, billing_account_id, interpreter_type_id, workflow_status
+            requested_by_id, billing_account_id, interpreter_type_id
         } = req.body;
         
         // Validate required fields
@@ -1418,7 +1442,7 @@ router.post('/jobs', authenticateToken, async (req, res) => {
                 estimated_duration_minutes, hourly_rate, total_amount, payment_status,
                 client_name, client_email, client_phone, client_notes, special_requirements,
                 admin_notes, appointment_type, is_remote, claimant_id, claim_id,
-                requested_by_id, billing_account_id, interpreter_type_id, workflow_status, created_by
+                requested_by_id, billing_account_id, interpreter_type_id, created_by
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
                 $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
@@ -1430,7 +1454,7 @@ router.post('/jobs', authenticateToken, async (req, res) => {
             estimated_duration_minutes, hourly_rate, total_amount, payment_status,
             client_name, client_email, client_phone, client_notes, special_requirements,
             admin_notes, appointment_type, is_remote, claimant_id, claim_id,
-            requested_by_id, billing_account_id, interpreter_type_id, workflow_status || 'assigned', req.user.id
+            requested_by_id, billing_account_id, interpreter_type_id || 'assigned', req.user.id
         ]);
         
         res.json({
@@ -1512,7 +1536,7 @@ router.put('/jobs/:id', authenticateToken, async (req, res) => {
 });
 
 // Delete a job (soft delete)
-router.delete('/jobs/:id', authenticateToken, async (req, res) => {
+router.delete('/jobs/:id', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -1559,10 +1583,10 @@ router.post('/jobs/:id/start', authenticateToken, async (req, res) => {
         const result = await db.query(`
             UPDATE jobs SET
                 job_started_at = CURRENT_TIMESTAMP,
-                workflow_status = 'started',
+                status = 'in_progress',
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $1 AND is_active = true
-            RETURNING id, job_started_at, workflow_status
+            RETURNING id, job_started_at, status
         `, [id]);
         
         if (result.rows.length === 0) {
@@ -1600,10 +1624,10 @@ router.post('/jobs/:id/end', authenticateToken, async (req, res) => {
             UPDATE jobs SET
                 job_ended_at = CURRENT_TIMESTAMP,
                 actual_duration_minutes = $1,
-                workflow_status = 'completed',
+                status = 'completed',
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $2 AND is_active = true AND job_started_at IS NOT NULL
-            RETURNING id, job_ended_at, actual_duration_minutes, workflow_status
+            RETURNING id, job_ended_at, actual_duration_minutes, status
         `, [actual_duration_minutes, id]);
         
         if (result.rows.length === 0) {
@@ -1654,10 +1678,10 @@ router.post('/jobs/:id/completion-report', authenticateToken, async (req, res) =
                 completion_report_submitted = true,
                 completion_report_submitted_at = CURRENT_TIMESTAMP,
                 completion_report_data = $1,
-                workflow_status = 'reported',
+                status = 'completion_report',
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $2 AND is_active = true AND job_ended_at IS NOT NULL
-            RETURNING id, completion_report_submitted, workflow_status
+            RETURNING id, completion_report_submitted, status
         `, [JSON.stringify(completionData), id]);
         
         if (result_query.rows.length === 0) {
@@ -1808,10 +1832,10 @@ router.put('/jobs/:id/billing-authorization', authenticateToken, async (req, res
                 billing_authorization_obtained = $1,
                 billing_authorization_obtained_at = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE NULL END,
                 billing_authorization_notes = $2,
-                workflow_status = CASE WHEN $1 = true THEN 'authorized' ELSE 'assigned' END,
+                status = CASE WHEN $1 = true THEN 'approved' ELSE 'assigned' END,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $3 AND is_active = true
-            RETURNING id, billing_authorization_obtained, workflow_status
+            RETURNING id, billing_authorization_obtained, status
         `, [authorization_obtained, notes, id]);
         
         if (result.rows.length === 0) {
@@ -1838,5 +1862,172 @@ router.put('/jobs/:id/billing-authorization', authenticateToken, async (req, res
         });
     }
 });
+
+// Reminder management routes
+router.post('/reminders/process', 
+  authenticateToken,
+  reminderController.processReminders
+);
+
+router.get('/reminders/upcoming', 
+  authenticateToken,
+  reminderController.getUpcomingReminders
+);
+
+router.get('/reminders/job/:jobId', 
+  authenticateToken,
+  reminderController.getJobReminderStatus
+);
+
+// Individual reminder routes
+router.post('/reminders/job/:jobId/claimant', 
+  authenticateToken,
+  reminderController.sendClaimantReminder
+);
+
+router.post('/reminders/job/:jobId/interpreter-2day', 
+  authenticateToken,
+  reminderController.sendInterpreter2DayReminder
+);
+
+router.post('/reminders/job/:jobId/interpreter-1day', 
+  authenticateToken,
+  reminderController.sendInterpreter1DayReminder
+);
+
+router.post('/reminders/job/:jobId/interpreter-2hour', 
+  authenticateToken,
+  reminderController.sendInterpreter2HourReminder
+);
+
+router.post('/reminders/job/:jobId/interpreter-5minute', 
+  authenticateToken,
+  reminderController.sendInterpreter5MinuteReminder
+);
+
+// Get completion reports
+router.get('/completion-reports', 
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const query = `
+        SELECT 
+          j.id,
+          j.title,
+          j.status,
+          j.completion_report_submitted,
+          j.completion_report_submitted_at,
+          j.completion_report_data,
+          j.actual_duration_minutes,
+          j.estimated_duration_minutes,
+          j.hourly_rate,
+          j.scheduled_date,
+          j.scheduled_time,
+          i.first_name as interpreter_first_name,
+          i.last_name as interpreter_last_name,
+          i.email as interpreter_email,
+          cl.name as claimant_name,
+          c.claim_number,
+          st.name as service_type_name,
+          l1.name as source_language_name,
+          l2.name as target_language_name
+        FROM jobs j
+        LEFT JOIN interpreters i ON j.assigned_interpreter_id = i.id
+        LEFT JOIN claimants cl ON j.claimant_id = cl.id
+        LEFT JOIN claims c ON j.claim_id = c.id
+        LEFT JOIN service_types st ON j.service_type_id = st.id
+        LEFT JOIN languages l1 ON j.source_language_id = l1.id
+        LEFT JOIN languages l2 ON j.target_language_id = l2.id
+        WHERE j.completion_report_submitted = true
+        ORDER BY j.completion_report_submitted_at DESC
+      `;
+
+      const result = await db.query(query);
+      
+      res.json({
+        success: true,
+        data: result.rows
+      });
+    } catch (error) {
+      await loggerService.error('Failed to get completion reports', error, {
+        category: 'API',
+        req
+      });
+      
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get completion reports'
+      });
+    }
+  }
+);
+
+// Get specific completion report
+router.get('/completion-reports/:jobId', 
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      
+      const query = `
+        SELECT 
+          j.id,
+          j.title,
+          j.status,
+          j.completion_report_submitted,
+          j.completion_report_submitted_at,
+          j.completion_report_data,
+          j.actual_duration_minutes,
+          j.estimated_duration_minutes,
+          j.hourly_rate,
+          j.scheduled_date,
+          j.scheduled_time,
+          j.location_address,
+          j.location_city,
+          j.location_state,
+          i.first_name as interpreter_first_name,
+          i.last_name as interpreter_last_name,
+          i.email as interpreter_email,
+          cl.name as claimant_name,
+          c.claim_number,
+          st.name as service_type_name,
+          l1.name as source_language_name,
+          l2.name as target_language_name
+        FROM jobs j
+        LEFT JOIN interpreters i ON j.assigned_interpreter_id = i.id
+        LEFT JOIN claimants cl ON j.claimant_id = cl.id
+        LEFT JOIN claims c ON j.claim_id = c.id
+        LEFT JOIN service_types st ON j.service_type_id = st.id
+        LEFT JOIN languages l1 ON j.source_language_id = l1.id
+        LEFT JOIN languages l2 ON j.target_language_id = l2.id
+        WHERE j.id = $1
+      `;
+
+      const result = await db.query(query, [jobId]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Job not found'
+        });
+      }
+      
+      res.json({
+        success: true,
+        data: result.rows[0]
+      });
+    } catch (error) {
+      await loggerService.error('Failed to get completion report', error, {
+        category: 'API',
+        req
+      });
+      
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get completion report'
+      });
+    }
+  }
+);
 
 module.exports = router;

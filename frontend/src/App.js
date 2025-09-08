@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import JobDashboard from './pages/JobDashboard';
 import JobSearch from './pages/JobSearch';
 import JobDetails from './pages/JobDetails';
+import JobTimer from './pages/JobTimer';
 import Profile from './pages/Profile';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -28,6 +29,7 @@ function App() {
             <Route path="/apply" element={<Layout><InterpreterProfile /></Layout>} />
             <Route path="/status" element={<Layout><ApplicationStatus /></Layout>} />
             <Route path="/login" element={<Login />} />
+            <Route path="/job-timer/:token" element={<JobTimer />} />
             <Route path="/dashboard" element={<ProtectedRoute><AuthenticatedLayout><Dashboard /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/jobs" element={<ProtectedRoute><AuthenticatedLayout><JobDashboard /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/jobs/search" element={<ProtectedRoute><AuthenticatedLayout><JobSearch /></AuthenticatedLayout></ProtectedRoute>} />

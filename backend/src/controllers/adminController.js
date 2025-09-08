@@ -5,29 +5,29 @@ const loggerService = require('../services/loggerService');
 const userService = require('../services/userService');
 
 class AdminController {
-  // Authorize a job request (change status from pending_authorization to open)
+  // Authorize a job request (change status from requested to finding_interpreter)
   async authorizeJob(req, res) {
     try {
       const { jobId } = req.params;
       const adminId = req.user.userId;
 
-      // Verify job exists and is pending authorization
+      // Verify job exists and is requested
       const jobResult = await db.query(
         'SELECT id, title, status FROM jobs WHERE id = $1 AND status = $2',
-        [jobId, 'pending_authorization']
+        [jobId, 'requested']
       );
 
       if (jobResult.rows.length === 0) {
         return res.status(404).json({
           success: false,
-          message: 'Job not found or not pending authorization'
+          message: 'Job not found or not in requested status'
         });
       }
 
-      // Update job status to open (available for interpreters)
+      // Update job status to finding_interpreter (available for interpreters)
       await db.query(
         'UPDATE jobs SET status = $1, authorized_by = $2, authorized_at = CURRENT_TIMESTAMP WHERE id = $3',
-        ['open', adminId, jobId]
+        ['finding_interpreter', adminId, jobId]
       );
 
       await loggerService.info('Job authorized by admin', {
@@ -41,7 +41,7 @@ class AdminController {
         message: 'Job authorized successfully and made available to interpreters',
         data: {
           jobId: jobId,
-          status: 'open',
+          status: 'finding_interpreter',
           authorizedAt: new Date().toISOString()
         }
       });
@@ -70,13 +70,13 @@ class AdminController {
       // Verify job exists and is pending authorization
       const jobResult = await db.query(
         'SELECT id, title, status FROM jobs WHERE id = $1 AND status = $2',
-        [jobId, 'pending_authorization']
+        [jobId, 'requested']
       );
 
       if (jobResult.rows.length === 0) {
         return res.status(404).json({
           success: false,
-          message: 'Job not found or not pending authorization'
+          message: 'Job not found or not in requested status'
         });
       }
 

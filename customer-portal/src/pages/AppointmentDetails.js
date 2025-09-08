@@ -19,7 +19,8 @@ import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { 
   getJobStatusColor, 
-  getWorkflowStatusColor, 
+  getJobStatusLabel,
+  mapStatusForCustomer,
   canReRequestJob 
 } from '../utils/statusConstants';
 
@@ -135,15 +136,10 @@ const AppointmentDetails = () => {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getJobStatusColor(appointment.status)}`}>
-                {appointment.status.replace('_', ' ')}
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getJobStatusColor(mapStatusForCustomer(appointment.status))}`}>
+                {getJobStatusLabel(appointment.status)}
               </span>
-              {appointment.workflow_status && (
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getWorkflowStatusColor(appointment.workflow_status)}`}>
-                  {appointment.workflow_status.replace('_', ' ')}
-                </span>
-              )}
-              {canReRequestJob(appointment.status) && (
+              {canReRequestJob(mapStatusForCustomer(appointment.status)) && (
                 <button
                   onClick={() => navigate(`/appointments/new?reRequest=${appointment.id}`)}
                   className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center text-sm"

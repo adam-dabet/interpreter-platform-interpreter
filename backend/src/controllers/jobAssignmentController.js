@@ -19,7 +19,7 @@ class JobAssignmentController {
       const { agreed_rate } = req.body;
 
       // Check if job exists and is open
-      const jobCheck = await db.query('SELECT * FROM jobs WHERE id = $1 AND status = $2', [jobId, 'open']);
+      const jobCheck = await db.query('SELECT * FROM jobs WHERE id = $1 AND status = $2', [jobId, 'finding_interpreter']);
       if (jobCheck.rows.length === 0) {
         return res.status(404).json({ success: false, message: 'Job not found or not available' });
       }
@@ -131,7 +131,7 @@ class JobAssignmentController {
       const { declined_reason } = req.body;
 
       // Check if job exists and is open
-      const jobCheck = await db.query('SELECT * FROM jobs WHERE id = $1 AND status = $2', [jobId, 'open']);
+      const jobCheck = await db.query('SELECT * FROM jobs WHERE id = $1 AND status = $2', [jobId, 'finding_interpreter']);
       if (jobCheck.rows.length === 0) {
         return res.status(404).json({ success: false, message: 'Job not found or not available' });
       }
@@ -366,7 +366,7 @@ class JobAssignmentController {
       const { interpreter_id, agreed_rate } = req.body;
 
       // Check if job exists and is open
-      const jobCheck = await db.query('SELECT * FROM jobs WHERE id = $1 AND status = $2', [jobId, 'open']);
+      const jobCheck = await db.query('SELECT * FROM jobs WHERE id = $1 AND status = $2', [jobId, 'finding_interpreter']);
       if (jobCheck.rows.length === 0) {
         return res.status(404).json({ success: false, message: 'Job not found or not available' });
       }

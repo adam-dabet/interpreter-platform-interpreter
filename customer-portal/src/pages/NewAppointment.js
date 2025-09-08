@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import InterpreterSearchAnimation from '../components/InterpreterSearchAnimation';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -545,6 +546,10 @@ const NewAppointment = () => {
   const [loading, setLoading] = useState(false);
   const [isReRequest, setIsReRequest] = useState(false);
   const [originalAppointment, setOriginalAppointment] = useState(null);
+  const [showSearchAnimation, setShowSearchAnimation] = useState(false);
+  const [appointmentId, setAppointmentId] = useState(null);
+  const [searchInterval, setSearchInterval] = useState(null);
+  const [searchStartTime, setSearchStartTime] = useState(null);
   const [mapsInitialized, setMapsInitialized] = useState(false);
   const locationAutocompleteRef = useRef(null);
   const [formOptions, setFormOptions] = useState({
@@ -597,6 +602,31 @@ const NewAppointment = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState(new Set());
   const totalSteps = 4;
+
+  // Cleanup interval on component unmount
+  useEffect(() => {
+    return () => {
+      if (searchInterval) {
+        clearInterval(searchInterval);
+      }
+    };
+  }, [searchInterval]);
+
+  // Update search duration for animation
+  useEffect(() => {
+    let durationInterval;
+    if (showSearchAnimation && searchStartTime) {
+      durationInterval = setInterval(() => {
+        // Force re-render to update search duration
+        setSearchStartTime(prev => prev);
+      }, 1000);
+    }
+    return () => {
+      if (durationInterval) {
+        clearInterval(durationInterval);
+      }
+    };
+  }, [showSearchAnimation, searchStartTime]);
 
   const loadOriginalAppointment = useCallback(async (appointmentId) => {
     try {
@@ -910,6 +940,52 @@ const NewAppointment = () => {
     }
   };
 
+  const handleCancelSearch = () => {
+    // Clear the interval
+    if (searchInterval) {
+      clearInterval(searchInterval);
+      setSearchInterval(null);
+    }
+    
+    // Hide animation and navigate
+    setShowSearchAnimation(false);
+    toast.info('Search cancelled. You can check your appointments page for updates.');
+    navigate('/appointments');
+  };
+
+  const checkAppointmentStatus = async (appointmentId) => {
+    try {
+      const response = await makeAuthenticatedRequest(`${API_BASE}/customer/appointments/${appointmentId}`, {
+        method: 'GET'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const appointment = data.data;
+        
+        // If interpreter is assigned, hide animation and navigate
+        if (appointment.status === 'assigned' || appointment.status === 'reminders_sent' || 
+            appointment.status === 'in_progress' || appointment.status === 'completed' ||
+            appointment.status === 'completion_report' || appointment.status === 'billed' ||
+            appointment.status === 'closed' || appointment.status === 'interpreter_paid') {
+          
+          // Clear the interval
+          if (searchInterval) {
+            clearInterval(searchInterval);
+            setSearchInterval(null);
+          }
+          
+          // Hide animation and navigate
+          setShowSearchAnimation(false);
+          toast.success('Interpreter found! Your appointment has been assigned.');
+          navigate('/appointments');
+        }
+      }
+    } catch (error) {
+      console.error('Error checking appointment status:', error);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -970,7 +1046,26 @@ const NewAppointment = () => {
 
       if (data.success) {
         toast.success('Appointment request submitted successfully!');
-        navigate('/appointments');
+        setShowSearchAnimation(true);
+        setAppointmentId(data.data.id);
+        setSearchStartTime(Date.now());
+        
+        // Start polling for appointment status every 2 seconds
+        const interval = setInterval(() => {
+          checkAppointmentStatus(data.data.id);
+        }, 2000);
+        setSearchInterval(interval);
+        
+        // Set a maximum timeout of 5 minutes to prevent infinite polling
+        setTimeout(() => {
+          if (searchInterval) {
+            clearInterval(searchInterval);
+            setSearchInterval(null);
+          }
+          setShowSearchAnimation(false);
+          toast.info('Search is taking longer than expected. You can check your appointments page for updates.');
+          navigate('/appointments');
+        }, 300000); // 5 minutes
       } else {
         toast.error(data.message || 'Failed to submit appointment request');
       }
@@ -1145,6 +1240,13 @@ const NewAppointment = () => {
           </div>
         </motion.div>
       </div>
+      
+      {/* Interpreter Search Animation */}
+      <InterpreterSearchAnimation 
+        isVisible={showSearchAnimation} 
+        searchDuration={searchStartTime ? Date.now() - searchStartTime : 0}
+        onCancel={handleCancelSearch}
+      />
     </div>
   );
 };

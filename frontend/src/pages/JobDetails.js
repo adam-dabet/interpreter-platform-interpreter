@@ -19,6 +19,7 @@ import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import InterpreterJobWorkflow from '../components/InterpreterJobWorkflow';
 import { useAuth } from '../contexts/AuthContext';
 
 const JobDetails = () => {
@@ -340,7 +341,7 @@ const JobDetails = () => {
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
               <div className="space-y-3">
-                {job.status === 'open' ? (
+                {job.status === 'finding_interpreter' ? (
                   <>
                     <Button
                       className="w-full"
@@ -383,6 +384,19 @@ const JobDetails = () => {
             </motion.div>
           </div>
         </div>
+
+        {/* Job Workflow - Only show for assigned jobs */}
+        {job.assigned_interpreter_id && (
+          <div className="mt-8">
+            <InterpreterJobWorkflow 
+              job={job} 
+              onJobUpdate={(updatedJob) => {
+                setJob(updatedJob);
+                loadJobDetails(); // Refresh the job data
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

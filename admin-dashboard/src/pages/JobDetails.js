@@ -61,7 +61,7 @@ const JobDetails = ({ jobId, setCurrentView }) => {
       setDeleting(true);
       const token = localStorage.getItem('adminToken');
       
-      const response = await fetch(`${API_BASE}/jobs/${jobId}`, {
+      const response = await fetch(`${API_BASE}/admin/jobs/${jobId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -41,7 +41,7 @@ class JobController {
         LEFT JOIN users u ON j.created_by = u.id
         LEFT JOIN claimants cl ON j.claimant_id = cl.id
         LEFT JOIN claims c ON j.claim_id = c.id
-        WHERE j.status = 'open' 
+        WHERE j.status = 'finding_interpreter' 
         AND j.scheduled_date >= CURRENT_DATE
       `;
 
@@ -87,39 +87,28 @@ class JobController {
       if (interpreter_id) {
         console.log('Filtering jobs for interpreter:', interpreter_id);
         
+        // Simplified matching logic to avoid complex geolocation queries
         query += `
           AND EXISTS (
             SELECT 1 FROM interpreters i 
             WHERE i.id = $${paramCount + 1}
-            AND (
-              -- Check if job is within interpreter's service radius OR is remote
-              (j.latitude IS NOT NULL AND j.longitude IS NOT NULL 
-               AND i.latitude IS NOT NULL AND i.longitude IS NOT NULL
-               AND (
-                 6371 * acos(
-                   cos(radians(i.latitude)) * cos(radians(j.latitude)) * 
-                   cos(radians(j.longitude) - radians(i.longitude)) + 
-                   sin(radians(i.latitude)) * sin(radians(j.latitude))
-                 )
-               ) <= (i.service_radius_miles * 1.60934) -- Convert miles to km
-              )
-              OR j.is_remote = true -- Include remote jobs
-            )
-            AND EXISTS (
-              -- Check if interpreter has the required service type
-              SELECT 1 FROM interpreter_service_types ist
-              WHERE ist.interpreter_id = i.id 
-              AND ist.service_type_id = j.service_type_id
-            )
-            AND EXISTS (
-              -- Check if interpreter has the required language (either source or target)
-              SELECT 1 FROM interpreter_languages il
-              WHERE il.interpreter_id = i.id 
-              AND (il.language_id = j.source_language_id OR il.language_id = j.target_language_id)
-            )
-            -- Ensure interpreter is active and approved
             AND i.is_active = true
             AND i.profile_status = 'approved'
+            AND (
+              -- Include remote jobs for all interpreters
+              j.is_remote = true
+              OR
+              -- For non-remote jobs, check if interpreter has the required service type and language
+              (j.is_remote = false AND EXISTS (
+                SELECT 1 FROM interpreter_service_types ist
+                WHERE ist.interpreter_id = i.id 
+                AND ist.service_type_id = j.service_type_id
+              ) AND EXISTS (
+                SELECT 1 FROM interpreter_languages il
+                WHERE il.interpreter_id = i.id 
+                AND (il.language_id = j.source_language_id OR il.language_id = j.target_language_id)
+              ))
+            )
           )
           -- Exclude jobs that the interpreter has already responded to
           AND NOT EXISTS (
@@ -136,6 +125,7 @@ class JobController {
       
       queryParams.push(parseInt(limit), offset);
 
+      console.log('Executing query with params:', { queryParams, interpreter_id });
       const result = await db.query(query, queryParams);
       
       const totalCount = result.rows.length > 0 ? result.rows[0].total_count : 0;
@@ -167,7 +157,19 @@ class JobController {
       });
     } catch (error) {
       console.error('Error fetching available jobs:', error);
-      res.status(500).json({ success: false, message: 'Internal server error' });
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        detail: error.detail,
+        hint: error.hint,
+        position: error.position,
+        where: error.where
+      });
+      res.status(500).json({ 
+        success: false, 
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   }
 
@@ -747,6 +749,7 @@ class JobController {
             THEN CONCAT(i.first_name, ' ', i.last_name) 
             ELSE NULL 
           END as assigned_interpreter_name,
+          i.email as interpreter_email,
           cl.name as claimant_name,
           c.claim_number as claim_number,
           c.case_type as case_type
@@ -1096,7 +1099,7 @@ class JobController {
       const statsQuery = `
         SELECT 
           COUNT(*) as total_jobs,
-          COUNT(CASE WHEN status = 'open' THEN 1 END) as open_jobs,
+          COUNT(CASE WHEN status = 'finding_interpreter' THEN 1 END) as finding_interpreter_jobs,
           COUNT(CASE WHEN status = 'assigned' THEN 1 END) as assigned_jobs,
           COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress_jobs,
           COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_jobs,

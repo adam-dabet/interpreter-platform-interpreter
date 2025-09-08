@@ -8,13 +8,14 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
-import InterpreterJobTimer from './InterpreterJobTimer';
 import InterpreterCompletionReport from './InterpreterCompletionReport';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
   const [showCompletionReport, setShowCompletionReport] = useState(false);
+  const [isEndingJob, setIsEndingJob] = useState(false);
+  const [actualDurationMinutes, setActualDurationMinutes] = useState(job.actual_duration_minutes || '');
 
   const workflowSteps = [
     { 
@@ -25,14 +26,7 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
       bgColor: 'bg-gray-100'
     },
     { 
-      key: 'authorized', 
-      label: 'Authorized', 
-      icon: CheckCircleIcon, 
-      color: 'text-green-600',
-      bgColor: 'bg-green-100'
-    },
-    { 
-      key: 'started', 
+      key: 'in_progress', 
       label: 'Started', 
       icon: PlayIcon, 
       color: 'text-blue-600',
@@ -46,7 +40,7 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
       bgColor: 'bg-orange-100'
     },
     { 
-      key: 'reported', 
+      key: 'completion_report', 
       label: 'Reported', 
       icon: DocumentTextIcon, 
       color: 'text-purple-600',
@@ -54,7 +48,7 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
     }
   ];
 
-  const currentStepIndex = workflowSteps.findIndex(step => step.key === job.workflow_status) || 0;
+  const currentStepIndex = workflowSteps.findIndex(step => step.key === job.status) || 0;
 
   const getWorkflowStatusLabel = (status) => {
     const step = workflowSteps.find(s => s.key === status);
@@ -62,19 +56,100 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
   };
 
   const canSubmitCompletionReport = () => {
-    return job.workflow_status === 'completed' && !job.completion_report_submitted;
+    return job.status === 'completed' && !job.completion_report_submitted;
+  };
+
+  const canEndJob = () => {
+    return job.status === 'in_progress' && job.job_started_at;
+  };
+
+  const handleEndJob = async () => {
+    setIsEndingJob(true);
+    try {
+      const token = localStorage.getItem('interpreterToken');
+      const response = await fetch(`${API_BASE}/interpreters/jobs/${job.id}/end`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          actual_duration_minutes: actualDurationMinutes || 60 // Use input value or default to 1 hour
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.success('Job completed successfully!');
+        if (onJobUpdate) {
+          onJobUpdate(result.data);
+        }
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to end job');
+      }
+    } catch (error) {
+      console.error('Error ending job:', error);
+      toast.error('Failed to end job');
+    } finally {
+      setIsEndingJob(false);
+    }
+  };
+
+  const handleUpdateActualDuration = async () => {
+    if (!actualDurationMinutes || actualDurationMinutes <= 0) {
+      toast.error('Please enter a valid actual duration');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('interpreterToken');
+      console.log('Job ID:', job.id);
+      console.log('Job assigned_interpreter_id:', job.assigned_interpreter_id);
+      console.log('Token exists:', !!token);
+      
+      const response = await fetch(`${API_BASE}/interpreters/jobs/${job.id}/update-duration`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          actual_duration_minutes: parseInt(actualDurationMinutes)
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.success('Actual duration updated successfully!');
+        if (onJobUpdate) {
+          onJobUpdate(result.data);
+        }
+      } else {
+        const error = await response.json();
+        console.error('Update duration error:', error);
+        toast.error(error.message || 'Failed to update duration');
+      }
+    } catch (error) {
+      console.error('Error updating duration:', error);
+      toast.error('Failed to update duration');
+    }
   };
 
   const getPaymentInfo = () => {
-    if (job.workflow_status === 'completed' || job.workflow_status === 'reported') {
-      const actualHours = job.actual_duration_minutes / 60;
-      const minimumHours = Math.max(1, actualHours); // Minimum 1 hour
+    if (job.status === 'completed' || job.status === 'completion_report') {
+      const actualMinutes = actualDurationMinutes || job.actual_duration_minutes || 0;
+      const actualHours = actualMinutes / 60;
+      const bookedHours = job.estimated_duration_minutes / 60; // Use booked time as minimum
+      const minimumHours = Math.max(bookedHours, actualHours); // Pay for booked time or actual time, whichever is higher
       const paymentAmount = minimumHours * (job.hourly_rate || 0);
       
       return {
         actualHours: actualHours.toFixed(2),
         minimumHours: minimumHours.toFixed(2),
-        paymentAmount: paymentAmount.toFixed(2)
+        bookedHours: bookedHours.toFixed(2),
+        paymentAmount: paymentAmount.toFixed(2),
+        actualMinutes: actualMinutes
       };
     }
     return null;
@@ -114,17 +189,11 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
             workflowSteps[currentStepIndex]?.bgColor || 'bg-gray-100'
           } ${workflowSteps[currentStepIndex]?.color || 'text-gray-800'}`}>
             <ClockIcon className="h-4 w-4 mr-2" />
-            Current: {getWorkflowStatusLabel(job.workflow_status)}
+            Current: {getWorkflowStatusLabel(job.status)}
           </div>
         </div>
       </div>
 
-      {/* Job Timer */}
-      <InterpreterJobTimer 
-        jobId={job.id} 
-        jobStatus={job.workflow_status}
-        onJobUpdate={onJobUpdate}
-      />
 
       {/* Payment Information */}
       {getPaymentInfo() && (
@@ -132,9 +201,63 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <CheckCircleIcon className="h-5 w-5 mr-2 text-green-600" />
             Payment Information
+            {job.completion_report_submitted && (
+              <span className="ml-2 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                Locked
+              </span>
+            )}
           </h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Actual Time Input */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Actual Time for Appointment (minutes)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={actualDurationMinutes}
+                onChange={(e) => setActualDurationMinutes(e.target.value)}
+                placeholder="Enter actual time in minutes"
+                min="0"
+                disabled={job.completion_report_submitted}
+                className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${
+                  job.completion_report_submitted 
+                    ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' 
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
+              />
+              <button
+                type="button"
+                onClick={handleUpdateActualDuration}
+                disabled={job.completion_report_submitted}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  job.completion_report_submitted
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                Update
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {job.completion_report_submitted 
+                ? 'Payment information is locked after completion report submission.'
+                : 'Enter the actual time you spent on this assignment in minutes.'
+              }
+            </p>
+          </div>
+          
+          <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${job.completion_report_submitted ? 'relative' : ''}`}>
+            {job.completion_report_submitted && (
+              <div className="absolute inset-0 bg-gray-100 bg-opacity-75 rounded-lg flex items-center justify-center z-10">
+                <div className="text-center">
+                  <div className="text-sm font-medium text-gray-600 mb-1">Payment Information Locked</div>
+                  <div className="text-xs text-gray-500">Cannot be modified after completion report submission</div>
+                </div>
+              </div>
+            )}
+            
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <div className="text-sm text-blue-600">Actual Time</div>
               <div className="text-lg font-semibold text-blue-900">
@@ -143,9 +266,9 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
             </div>
             
             <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-sm text-green-600">Minimum Guarantee</div>
+              <div className="text-sm text-green-600">Booked Time</div>
               <div className="text-lg font-semibold text-green-900">
-                {getPaymentInfo().minimumHours} hours
+                {getPaymentInfo().bookedHours} hours
               </div>
             </div>
             
@@ -159,7 +282,7 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
           
           <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <div className="text-sm text-yellow-800">
-              <strong>Payment Guarantee:</strong> You will be paid for at least 1 hour of work, even if the job takes less time.
+              <strong>Payment Guarantee:</strong> You will be paid for the booked time ({getPaymentInfo().bookedHours} hours) or actual time, whichever is higher.
             </div>
           </div>
         </div>
@@ -170,6 +293,18 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Next Steps</h3>
         
         <div className="space-y-4">
+          {/* End Job Button */}
+          {canEndJob() && (
+            <button
+              onClick={handleEndJob}
+              disabled={isEndingJob}
+              className="w-full flex items-center justify-center px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors"
+            >
+              <StopIcon className="h-5 w-5 mr-2" />
+              {isEndingJob ? 'Ending Job...' : 'End Job'}
+            </button>
+          )}
+
           {/* Completion Report */}
           {canSubmitCompletionReport() && (
             <button
@@ -181,16 +316,24 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
             </button>
           )}
 
-                  {/* Status Messages */}
-        {job.workflow_status === 'assigned' && (
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="text-sm text-blue-800">
-              <strong>Next Step:</strong> Complete the job and submit your completion report.
+          {/* Status Messages */}
+          {job.status === 'assigned' && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="text-sm text-blue-800">
+                <strong>Next Step:</strong> Start the job and then end it when complete.
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-          {job.workflow_status === 'completed' && !job.completion_report_submitted && (
+          {job.status === 'in_progress' && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="text-sm text-blue-800">
+                <strong>Job In Progress:</strong> Click "End Job" when the assignment is complete.
+              </div>
+            </div>
+          )}
+
+          {job.status === 'completed' && !job.completion_report_submitted && (
             <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
               <div className="text-sm text-orange-800">
                 <strong>Job Completed:</strong> Please submit your completion report above to finalize the assignment.
@@ -198,7 +341,7 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
             </div>
           )}
 
-          {job.workflow_status === 'reported' && (
+          {job.status === 'completion_report' && (
             <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="text-sm text-green-800">
                 <strong>Report Submitted:</strong> Your completion report has been submitted. Payment will be processed shortly.

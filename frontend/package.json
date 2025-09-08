@@ -4,6 +4,7 @@
   "private": true,
   "proxy": "http://localhost:3001",
   "dependencies": {
+    "@googlemaps/js-api-loader": "^1.16.2",
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.0.18",
     "@hookform/resolvers": "^3.3.2",
@@ -12,13 +13,14 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.2.3",
+    "react-feather": "^2.0.10",
     "react-hook-form": "^7.47.0",
     "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.18.0",
     "react-scripts": "5.0.1",
+    "react-select": "^5.10.2",
     "web-vitals": "^5.1.0",
-    "yup": "^1.3.3",
-    "@googlemaps/js-api-loader": "^1.16.2"
+    "yup": "^1.3.3"
   },
   "scripts": {
     "start": "react-scripts start",

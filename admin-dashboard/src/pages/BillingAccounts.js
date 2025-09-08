@@ -66,18 +66,28 @@ const BillingAccounts = ({ setCurrentView }) => {
     phone: '',
     email: ''
   });
+  const [localRates, setLocalRates] = useState({});
+  const [updateTimeouts, setUpdateTimeouts] = useState({});
 
   // Service categories and their display names
   const serviceCategories = {
-    general: 'General',
-    legal: 'Legal',
-    medical_certified: 'Medical Certified',
-    psychological: 'Psychological',
-    routine_visits: 'Routine Visits'
+    general_spanish: 'General - Spanish',
+    general_non_spanish: 'General - Non-Spanish',
+    legal_spanish: 'Legal - Spanish',
+    legal_non_spanish: 'Legal - Non-Spanish',
+    medical_certified_spanish: 'Medical Certified - Spanish',
+    medical_certified_non_spanish: 'Medical Certified - Non-Spanish'
   };
 
   useEffect(() => {
     loadAccounts();
+    
+    // Cleanup timeouts on unmount
+    return () => {
+      Object.values(updateTimeouts).forEach(timeout => {
+        if (timeout) clearTimeout(timeout);
+      });
+    };
   }, []);
 
   const loadAccounts = async () => {
@@ -226,6 +236,44 @@ const BillingAccounts = ({ setCurrentView }) => {
     });
   };
 
+  // Handle immediate local state update for input responsiveness
+  const handleRateInputChange = (accountId, rateId, field, value) => {
+    const key = `${accountId}-${rateId}-${field}`;
+    
+    // Update local state immediately for responsive UI
+    setLocalRates(prev => ({
+      ...prev,
+      [key]: value
+    }));
+    
+    // Clear existing timeout for this field
+    if (updateTimeouts[key]) {
+      clearTimeout(updateTimeouts[key]);
+    }
+    
+    // Set new timeout for debounced API call
+    const timeout = setTimeout(() => {
+      handleRateUpdate(accountId, rateId, field, value);
+    }, 1000); // 1 second debounce
+    
+    setUpdateTimeouts(prev => ({
+      ...prev,
+      [key]: timeout
+    }));
+  };
+
+  // Get the current value (local state or original value)
+  const getCurrentValue = (accountId, rateId, field, originalValue) => {
+    const key = `${accountId}-${rateId}-${field}`;
+    return localRates[key] !== undefined ? localRates[key] : originalValue;
+  };
+
+  // Check if a field has unsaved changes
+  const hasUnsavedChanges = (accountId, rateId, field) => {
+    const key = `${accountId}-${rateId}-${field}`;
+    return localRates[key] !== undefined;
+  };
+
   const handleRateUpdate = async (accountId, rateId, field, value) => {
     try {
       const token = localStorage.getItem('adminToken');
@@ -242,7 +290,14 @@ const BillingAccounts = ({ setCurrentView }) => {
       });
 
       if (response.ok) {
-        toast.success('Rate updated successfully');
+        // Clear local state since API update was successful
+        const key = `${accountId}-${rateId}-${field}`;
+        setLocalRates(prev => {
+          const newState = { ...prev };
+          delete newState[key];
+          return newState;
+        });
+        
         // Reload the expanded account to show updated rates
         if (expandedAccount === accountId) {
           const updatedAccount = await loadAccountWithRates(accountId);
@@ -255,10 +310,26 @@ const BillingAccounts = ({ setCurrentView }) => {
       } else {
         const error = await response.json();
         toast.error(error.message || 'Failed to update rate');
+        
+        // Clear local state on error to revert to original value
+        const key = `${accountId}-${rateId}-${field}`;
+        setLocalRates(prev => {
+          const newState = { ...prev };
+          delete newState[key];
+          return newState;
+        });
       }
     } catch (error) {
       console.error('Error updating rate:', error);
       toast.error('Failed to update rate');
+      
+      // Clear local state on error to revert to original value
+      const key = `${accountId}-${rateId}-${field}`;
+      setLocalRates(prev => {
+        const newState = { ...prev };
+        delete newState[key];
+        return newState;
+      });
     }
   };
 
@@ -412,7 +483,13 @@ const BillingAccounts = ({ setCurrentView }) => {
                 {/* Rates Section */}
                 {expandedAccount === account.id && (
                   <div className="border-t border-gray-200 bg-gray-50 p-6">
-                    <h4 className="text-lg font-medium text-gray-900 mb-4">Rate Structure</h4>
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-medium text-gray-900">Rate Structure</h4>
+                      <div className="flex items-center text-sm text-gray-600">
+                        <PencilIcon className="h-4 w-4 mr-1 text-blue-500" />
+                        <span>Click on any rate or time to edit</span>
+                      </div>
+                    </div>
                     
                     {!account.rates ? (
                       <div className="text-center py-8">
@@ -437,15 +514,25 @@ const BillingAccounts = ({ setCurrentView }) => {
                                           {displayName} Rate {rate.rate_type}:
                                         </span>
                                         <div className="flex items-center space-x-2">
+                                          <span className="text-sm text-gray-500">$</span>
                                           <input
                                             type="number"
                                             step="0.01"
                                             min="0"
-                                            value={rate.rate_amount}
-                                            onChange={(e) => handleRateUpdate(account.id, rate.id, 'rate_amount', parseFloat(e.target.value))}
-                                            className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            value={getCurrentValue(account.id, rate.id, 'rate_amount', rate.rate_amount)}
+                                            onChange={(e) => handleRateInputChange(account.id, rate.id, 'rate_amount', parseFloat(e.target.value) || 0)}
+                                            className={`w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                                              hasUnsavedChanges(account.id, rate.id, 'rate_amount') 
+                                                ? 'border-orange-400 bg-orange-50' 
+                                                : 'border-gray-300'
+                                            }`}
+                                            title="Click to edit rate amount"
                                           />
-                                          <PencilIcon className="h-3 w-3 text-gray-400" />
+                                          {hasUnsavedChanges(account.id, rate.id, 'rate_amount') ? (
+                                            <div className="h-2 w-2 bg-orange-400 rounded-full" title="Unsaved changes" />
+                                          ) : (
+                                            <PencilIcon className="h-3 w-3 text-blue-500" title="Editable" />
+                                          )}
                                         </div>
                                       </div>
                                     ))}
@@ -475,11 +562,21 @@ const BillingAccounts = ({ setCurrentView }) => {
                                           <input
                                             type="number"
                                             min="0"
-                                            value={rate.time_minutes}
-                                            onChange={(e) => handleRateUpdate(account.id, rate.id, 'time_minutes', parseInt(e.target.value))}
-                                            className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            value={getCurrentValue(account.id, rate.id, 'time_minutes', rate.time_minutes)}
+                                            onChange={(e) => handleRateInputChange(account.id, rate.id, 'time_minutes', parseInt(e.target.value) || 0)}
+                                            className={`w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                                              hasUnsavedChanges(account.id, rate.id, 'time_minutes') 
+                                                ? 'border-orange-400 bg-orange-50' 
+                                                : 'border-gray-300'
+                                            }`}
+                                            title="Click to edit time in minutes"
                                           />
-                                          <PencilIcon className="h-3 w-3 text-gray-400" />
+                                          <span className="text-xs text-gray-500">min</span>
+                                          {hasUnsavedChanges(account.id, rate.id, 'time_minutes') ? (
+                                            <div className="h-2 w-2 bg-orange-400 rounded-full" title="Unsaved changes" />
+                                          ) : (
+                                            <PencilIcon className="h-3 w-3 text-blue-500" title="Editable" />
+                                          )}
                                         </div>
                                       </div>
                                     ))}

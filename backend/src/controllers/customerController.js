@@ -125,7 +125,7 @@ class CustomerController {
         SELECT 
           j.id, j.title, j.description, j.scheduled_date, j.scheduled_time,
           j.arrival_time, j.estimated_duration_minutes, j.actual_duration_minutes,
-          j.appointment_type, j.status, j.workflow_status, j.location_address,
+          j.appointment_type, j.status, j.location_address,
           j.location_city, j.location_state, j.is_remote, j.hourly_rate,
           j.created_at, j.completed_at,
           
@@ -634,7 +634,7 @@ class CustomerController {
         description,
         'medical', // Default job type
         'normal', // Default priority
-        'pending_authorization', // Status for admin approval
+        'finding_interpreter', // Status - automatically sent to interpreters
         scheduledDateTime,
         startTime,
         arrivalTime || null,
@@ -711,16 +711,16 @@ class CustomerController {
         category: 'CUSTOMER_JOB',
         customerId: customerId,
         jobId: jobId,
-        status: 'pending_authorization'
+        status: 'finding_interpreter'
       });
 
       res.status(201).json({
         success: true,
-        message: 'Appointment request submitted successfully. It will be reviewed by our team.',
+        message: 'Appointment request submitted successfully. We are now searching for an available interpreter.',
         data: {
           id: jobResult.rows[0].id,
           createdAt: jobResult.rows[0].created_at,
-          status: 'pending_authorization'
+          status: 'finding_interpreter'
         }
       });
 

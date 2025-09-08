@@ -458,7 +458,7 @@ const JobSearch = () => {
                       >
                         View Details
                       </Button>
-                      {job.status === 'open' && (
+                      {job.status === 'finding_interpreter' && (
                         <Button
                           size="sm"
                           onClick={() => handleJobAction(job.id, 'accept')}

@@ -20,10 +20,8 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import InterpreterCompletionReport from '../components/InterpreterCompletionReport';
 import { 
   getJobStatusColor, 
-  getWorkflowStatusColor, 
   getAssignmentStatusColor,
   getJobStatusLabel,
-  getWorkflowStatusLabel,
   getAssignmentStatusLabel
 } from '../utils/statusConstants';
 
@@ -140,7 +138,7 @@ const JobDashboard = () => {
     if (activeTab === 'upcoming') {
       return jobs.filter(job => 
         job.assignment_status === 'accepted' || 
-        (job.assignment_status === 'pending' && job.status === 'open')
+        (job.assignment_status === 'pending' && job.status === 'finding_interpreter')
       );
     } else if (activeTab === 'past') {
       return jobs.filter(job => 
@@ -329,7 +327,7 @@ const JobDashboard = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition-shadow duration-200"
-                  onClick={() => navigate(`/jobs/${job.id}`)}
+                  onClick={() => navigate(`/job/${job.id}`)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -343,11 +341,6 @@ const JobDashboard = () => {
                           {job.status && (
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(job.status)}`}>
                               Job: {getJobStatusLabel(job.status)}
-                            </span>
-                          )}
-                          {job.workflow_status && (
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getWorkflowStatusColor(job.workflow_status)}`}>
-                              Workflow: {getWorkflowStatusLabel(job.workflow_status)}
                             </span>
                           )}
                         </div>
@@ -394,7 +387,7 @@ const JobDashboard = () => {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => navigate(`/jobs/${job.id}`)}
+                      onClick={() => navigate(`/job/${job.id}`)}
                     >
                       <EyeIcon className="h-4 w-4 mr-1" />
                       View Details

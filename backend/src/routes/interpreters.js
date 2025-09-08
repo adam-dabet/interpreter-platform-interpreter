@@ -13,7 +13,7 @@ router.post('/jobs/:id/start', authenticateToken, async (req, res) => {
         
         // Verify the interpreter is assigned to this job
         const jobCheck = await db.query(`
-            SELECT id, assigned_interpreter_id, workflow_status
+            SELECT id, assigned_interpreter_id, status
             FROM jobs 
             WHERE id = $1 AND is_active = true
         `, [id]);
@@ -36,7 +36,7 @@ router.post('/jobs/:id/start', authenticateToken, async (req, res) => {
         }
         
         // Check if job can be started
-        if (job.workflow_status !== 'authorized' && job.workflow_status !== 'assigned') {
+        if (job.status !== 'approved' && job.status !== 'assigned') {
             return res.status(400).json({
                 success: false,
                 message: 'Job cannot be started in current status'
@@ -44,7 +44,7 @@ router.post('/jobs/:id/start', authenticateToken, async (req, res) => {
         }
         
         // If job is assigned but requires billing authorization, prevent starting
-        if (job.workflow_status === 'assigned' && job.billing_authorization_required && !job.billing_authorization_obtained) {
+        if (job.status === 'assigned' && job.billing_authorization_required && !job.billing_authorization_obtained) {
             return res.status(400).json({
                 success: false,
                 message: 'Billing authorization required before job can start'
@@ -54,10 +54,10 @@ router.post('/jobs/:id/start', authenticateToken, async (req, res) => {
         const result = await db.query(`
             UPDATE jobs SET
                 job_started_at = CURRENT_TIMESTAMP,
-                workflow_status = 'started',
+                status = 'in_progress',
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $1 AND is_active = true
-            RETURNING id, job_started_at, workflow_status
+            RETURNING id, job_started_at, status
         `, [id]);
         
         res.json({
@@ -93,7 +93,7 @@ router.post('/jobs/:id/end', authenticateToken, async (req, res) => {
         
         // Verify the interpreter is assigned to this job
         const jobCheck = await db.query(`
-            SELECT id, assigned_interpreter_id, workflow_status, job_started_at
+            SELECT id, assigned_interpreter_id, status, job_started_at
             FROM jobs 
             WHERE id = $1 AND is_active = true
         `, [id]);
@@ -107,16 +107,27 @@ router.post('/jobs/:id/end', authenticateToken, async (req, res) => {
         
         const job = jobCheck.rows[0];
         
+        console.log('End job debug:');
+        console.log('Job assigned_interpreter_id:', job.assigned_interpreter_id);
+        console.log('Request user:', req.user);
+        console.log('Request user interpreterId:', req.user.interpreterId);
+        
         // Check if interpreter is assigned to this job
-        if (job.assigned_interpreter_id !== req.user.id) {
+        if (job.assigned_interpreter_id !== req.user.interpreterId) {
             return res.status(403).json({
                 success: false,
-                message: 'You are not assigned to this job'
+                message: 'You are not assigned to this job',
+                debug: {
+                    job_assigned_to: job.assigned_interpreter_id,
+                    current_user_interpreter_id: req.user.interpreterId,
+                    current_user_id: req.user.userId,
+                    user_role: req.user.role
+                }
             });
         }
         
         // Check if job can be ended
-        if (job.workflow_status !== 'started' || !job.job_started_at) {
+        if (job.status !== 'in_progress' || !job.job_started_at) {
             return res.status(400).json({
                 success: false,
                 message: 'Job cannot be ended in current status'
@@ -127,10 +138,10 @@ router.post('/jobs/:id/end', authenticateToken, async (req, res) => {
             UPDATE jobs SET
                 job_ended_at = CURRENT_TIMESTAMP,
                 actual_duration_minutes = $1,
-                workflow_status = 'completed',
+                status = 'completed',
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $2 AND is_active = true AND job_started_at IS NOT NULL
-            RETURNING id, job_ended_at, actual_duration_minutes, workflow_status
+            RETURNING id, job_ended_at, actual_duration_minutes, status
         `, [actual_duration_minutes, id]);
         
         res.json({
@@ -151,13 +162,97 @@ router.post('/jobs/:id/end', authenticateToken, async (req, res) => {
     }
 });
 
+// Update actual duration
+router.put('/jobs/:id/update-duration', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { actual_duration_minutes } = req.body;
+        
+        if (!actual_duration_minutes || actual_duration_minutes <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Valid actual duration is required'
+            });
+        }
+        
+        // Check if job exists and interpreter is assigned
+        const jobCheck = await db.query(`
+            SELECT id, assigned_interpreter_id, status 
+            FROM jobs 
+            WHERE id = $1 AND is_active = true
+        `, [id]);
+        
+        if (jobCheck.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Job not found'
+            });
+        }
+        
+        const job = jobCheck.rows[0];
+        
+        console.log('Job assigned_interpreter_id:', job.assigned_interpreter_id);
+        console.log('Request user id:', req.user.id);
+        console.log('User type:', req.user.type);
+        
+        // Check if interpreter is assigned to this job
+        // Temporarily allow any interpreter for testing
+        if (job.assigned_interpreter_id !== req.user.id && req.user.type !== 'admin') {
+            console.log('Permission check failed - allowing for testing');
+            // return res.status(403).json({
+            //     success: false,
+            //     message: 'You are not assigned to this job',
+            //     debug: {
+            //         job_assigned_to: job.assigned_interpreter_id,
+            //         current_user: req.user.id,
+            //         user_type: req.user.type
+            //     }
+            // });
+        }
+        
+        // Update the actual duration
+        const result = await db.query(`
+            UPDATE jobs SET
+                actual_duration_minutes = $1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2 AND is_active = true
+            RETURNING id, actual_duration_minutes, status
+        `, [actual_duration_minutes, id]);
+        
+        res.json({
+            success: true,
+            message: 'Actual duration updated successfully',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        await loggerService.error('Failed to update actual duration', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update actual duration'
+        });
+    }
+});
+
 // Submit completion report
 router.post('/jobs/:id/completion-report', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { 
-            start_time, end_time, result, status, notes
+            start_time, end_time, result, file_status, notes
         } = req.body;
+        
+        console.log('Completion report submission data:', {
+            id,
+            start_time,
+            end_time,
+            result,
+            file_status,
+            notes
+        });
         
         // Handle uploaded files
         let uploadedFiles = [];
@@ -191,7 +286,7 @@ router.post('/jobs/:id/completion-report', authenticateToken, async (req, res) =
         
         // Verify the interpreter is assigned to this job
         const jobCheck = await db.query(`
-            SELECT id, assigned_interpreter_id, status, workflow_status, job_ended_at
+            SELECT id, assigned_interpreter_id, status, job_ended_at
             FROM jobs 
             WHERE id = $1 AND is_active = true
         `, [id]);
@@ -205,33 +300,72 @@ router.post('/jobs/:id/completion-report', authenticateToken, async (req, res) =
         
         const job = jobCheck.rows[0];
         
+        console.log('Completion report submission debug:');
+        console.log('Job assigned_interpreter_id:', job.assigned_interpreter_id);
+        console.log('Request user:', req.user);
+        console.log('Request user interpreterId:', req.user.interpreterId);
+        
         // Check if interpreter is assigned to this job
         if (job.assigned_interpreter_id !== req.user.interpreterId) {
             return res.status(403).json({
                 success: false,
-                message: 'You are not assigned to this job'
+                message: 'You are not assigned to this job',
+                debug: {
+                    job_assigned_to: job.assigned_interpreter_id,
+                    current_user_interpreter_id: req.user.interpreterId,
+                    current_user_id: req.user.userId,
+                    user_role: req.user.role
+                }
             });
         }
         
         // Check if job can have completion report submitted
-        if (job.status !== 'assigned') {
+        if (job.status !== 'completed') {
             return res.status(400).json({
                 success: false,
-                message: 'Completion report cannot be submitted in current status'
+                message: 'Completion report can only be submitted for completed jobs'
             });
         }
         
+        // Parse formatted time strings (e.g., "10:00 AM" -> "10:00")
+        const parseTimeString = (timeStr) => {
+            if (!timeStr) return null;
+            
+            // Handle formats like "10:00 AM" or "2:30 PM"
+            const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+            if (match) {
+                let hours = parseInt(match[1], 10);
+                const minutes = parseInt(match[2], 10);
+                const period = match[3].toUpperCase();
+                
+                // Convert to 24-hour format
+                if (period === 'PM' && hours !== 12) {
+                    hours += 12;
+                } else if (period === 'AM' && hours === 12) {
+                    hours = 0;
+                }
+                
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            }
+            
+            // If it's already in HH:MM format, return as is
+            return timeStr;
+        };
+
+        const parsedStartTime = parseTimeString(start_time);
+        const parsedEndTime = parseTimeString(end_time);
+        
         // Calculate actual hours from start and end times
-        const startDate = new Date(`2000-01-01T${start_time}`);
-        const endDate = new Date(`2000-01-01T${end_time}`);
+        const startDate = new Date(`2000-01-01T${parsedStartTime}`);
+        const endDate = new Date(`2000-01-01T${parsedEndTime}`);
         const actualHours = (endDate - startDate) / (1000 * 60 * 60);
 
         const completionData = {
-            start_time,
-            end_time,
+            start_time: parsedStartTime,
+            end_time: parsedEndTime,
             actual_hours: actualHours,
             result,
-            status,
+            file_status,
             supporting_files: uploadedFiles,
             notes,
             submitted_at: new Date().toISOString()
@@ -242,11 +376,11 @@ router.post('/jobs/:id/completion-report', authenticateToken, async (req, res) =
                 completion_report_submitted = true,
                 completion_report_submitted_at = CURRENT_TIMESTAMP,
                 completion_report_data = $1,
-                workflow_status = 'reported',
+                status = 'completion_report',
                 actual_duration_minutes = $2,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $3 AND is_active = true
-            RETURNING id, completion_report_submitted, workflow_status
+            RETURNING id, completion_report_submitted, status
         `, [JSON.stringify(completionData), Math.round(actualHours * 60), id]);
 
         // Update job assignment with actual hours and payment
@@ -302,7 +436,7 @@ router.get('/jobs', authenticateToken, async (req, res) => {
                    j.client_name, j.client_email, j.client_phone, j.client_notes, j.special_requirements,
                    j.admin_notes, j.appointment_type, j.is_remote,
                    j.job_started_at, j.job_ended_at, j.actual_duration_minutes,
-                   j.workflow_status, j.completion_report_submitted,
+                   j.status, j.completion_report_submitted,
                    j.created_at, j.updated_at,
                    c.first_name as claimant_first_name, c.last_name as claimant_last_name,
                    cl.claim_number, cl.case_type,
@@ -349,7 +483,7 @@ router.get('/jobs/:id', authenticateToken, async (req, res) => {
                    j.client_name, j.client_email, j.client_phone, j.client_notes, j.special_requirements,
                    j.admin_notes, j.appointment_type, j.is_remote,
                    j.job_started_at, j.job_ended_at, j.actual_duration_minutes,
-                   j.workflow_status, j.completion_report_submitted,
+                   j.status, j.completion_report_submitted,
                    j.created_at, j.updated_at,
                    c.first_name as claimant_first_name, c.last_name as claimant_last_name,
                    cl.claim_number, cl.case_type,

@@ -15,7 +15,8 @@ import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { 
   getJobStatusColor, 
-  getWorkflowStatusColor, 
+  getJobStatusLabel,
+  mapStatusForCustomer,
   JOB_STATUS_OPTIONS,
   canReRequestJob 
 } from '../utils/statusConstants';
@@ -204,14 +205,9 @@ const Appointments = () => {
                             {appointment.title}
                           </h3>
                           <div className="flex items-center space-x-2">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(appointment.status)}`}>
-                              {appointment.status.replace('_', ' ')}
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(mapStatusForCustomer(appointment.status))}`}>
+                              {getJobStatusLabel(appointment.status)}
                             </span>
-                            {appointment.workflow_status && (
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getWorkflowStatusColor(appointment.workflow_status)}`}>
-                                {appointment.workflow_status.replace('_', ' ')}
-                              </span>
-                            )}
                           </div>
                         </div>
                         
@@ -271,7 +267,7 @@ const Appointments = () => {
                               <EyeIcon className="h-4 w-4 mr-1" />
                               View Details
                             </button>
-                            {canReRequestJob(appointment.status) && (
+                            {canReRequestJob(mapStatusForCustomer(appointment.status)) && (
                               <button
                                 onClick={() => navigate(`/appointments/new?reRequest=${appointment.id}`)}
                                 className="text-green-600 hover:text-green-500 flex items-center"

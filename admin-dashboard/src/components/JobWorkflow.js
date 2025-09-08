@@ -337,6 +337,8 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
 
       const data = await response.json();
       
+      console.log('5-minute reminder response:', { status: response.status, data });
+      
       if (data.success) {
         if (data.data && data.data.sent) {
           toast.success('Interpreter 5-minute reminder with magic link sent successfully');

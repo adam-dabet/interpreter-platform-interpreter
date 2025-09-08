@@ -56,8 +56,6 @@ class ReminderService {
   // Get a specific job by ID (for admin-triggered reminders, includes deleted jobs)
   async getJobById(jobId) {
     try {
-      console.log('Looking for job with ID:', jobId, 'Type:', typeof jobId);
-      
       const jobQuery = `
         SELECT 
           j.id, j.title, j.description, j.scheduled_date, j.scheduled_time,
@@ -82,14 +80,6 @@ class ReminderService {
       `;
 
       const result = await db.query(jobQuery, [jobId]);
-      console.log('Query result:', result.rows.length, 'rows found');
-      if (result.rows.length > 0) {
-        console.log('Found job:', result.rows[0].id, result.rows[0].title);
-      } else {
-        // Let's also try a broader query to see if there are any jobs at all
-        const testResult = await db.query('SELECT id, title FROM jobs LIMIT 5');
-        console.log('Available jobs in database:', testResult.rows.map(r => ({ id: r.id, title: r.title })));
-      }
       return result.rows[0] || null;
     } catch (error) {
       console.error('Error getting job by ID:', error);

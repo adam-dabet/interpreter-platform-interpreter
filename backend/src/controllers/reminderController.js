@@ -56,12 +56,8 @@ class ReminderController {
     try {
       const { jobId } = req.params;
       
-      console.log('Received jobId for claimant reminder:', jobId, 'Type:', typeof jobId);
-      
       // Get the specific job directly (for admin-triggered reminders)
       const job = await this.reminderService.getJobById(jobId);
-      
-      console.log('Job found:', job ? 'Yes' : 'No', job ? `Title: ${job.title}` : '');
       
       if (!job) {
         return res.status(404).json({

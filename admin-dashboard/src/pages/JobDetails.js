@@ -31,7 +31,7 @@ const JobDetails = ({ jobId, setCurrentView }) => {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
       
-      const response = await fetch(`${API_BASE}/jobs/${jobId}`, {
+      const response = await fetch(`${API_BASE}/admin/jobs/${jobId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

@@ -71,12 +71,10 @@ const BillingAccounts = ({ setCurrentView }) => {
 
   // Service categories and their display names
   const serviceCategories = {
-    general_spanish: 'General - Spanish',
-    general_non_spanish: 'General - Non-Spanish',
+    general_non_spanish: 'General',
     legal_spanish: 'Legal - Spanish',
     legal_non_spanish: 'Legal - Non-Spanish',
-    medical_certified_spanish: 'Medical Certified - Spanish',
-    medical_certified_non_spanish: 'Medical Certified - Non-Spanish'
+    medical_certified_non_spanish: 'Medical Certified'
   };
 
   useEffect(() => {

@@ -102,7 +102,7 @@ const JobTimer = () => {
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
         // If job is already started, reload the data instead of showing error
-        if (result.message && result.message.includes('already been started')) {
+        if (result.message && (result.message.includes('already been started') || result.message.includes('already in progress'))) {
           setSuccessMessage('Job is already in progress!');
           setTimeout(() => setSuccessMessage(null), 3000);
           loadJobData(); // Reload to show current state
@@ -148,7 +148,7 @@ const JobTimer = () => {
         setTimeout(() => setSuccessMessage(null), 5000);
       } else {
         // If job is already ended, reload the data instead of showing error
-        if (result.message && result.message.includes('already been ended')) {
+        if (result.message && (result.message.includes('already been ended') || result.message.includes('already been completed'))) {
           setSuccessMessage('Job is already completed!');
           setTimeout(() => setSuccessMessage(null), 3000);
           loadJobData(); // Reload to show current state
@@ -212,14 +212,23 @@ const JobTimer = () => {
   }
 
   if (error) {
+    // Check if it's a link validation error or a job action error
+    const isLinkError = error.includes('Failed to validate magic link') || 
+                       error.includes('Invalid or expired magic link') ||
+                       error.includes('No token provided');
+    
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="max-w-md mx-auto">
           <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
             <div className="text-red-600 text-6xl mb-4">⚠️</div>
-            <h2 className="text-xl font-semibold text-red-800 mb-2">Invalid Link</h2>
+            <h2 className="text-xl font-semibold text-red-800 mb-2">
+              {isLinkError ? 'Invalid Link' : 'Error'}
+            </h2>
             <p className="text-red-600 mb-4">{error}</p>
-            <p className="text-sm text-red-500">This link may have expired or is invalid. Please contact support if you need assistance.</p>
+            {isLinkError && (
+              <p className="text-sm text-red-500">This link may have expired or is invalid. Please contact support if you need assistance.</p>
+            )}
           </div>
         </div>
       </div>

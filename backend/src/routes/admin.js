@@ -3,6 +3,7 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const adminController = require('../controllers/adminController');
 const reminderController = require('../controllers/reminderController');
+const Interpreter = require('../models/Interpreter');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { body } = require('express-validator');
 const db = require('../config/database');
@@ -1378,16 +1379,24 @@ router.get('/jobs/:id', authenticateToken, async (req, res) => {
                      THEN CONCAT(i.first_name, ' ', i.last_name) 
                      ELSE NULL 
                    END as assigned_interpreter_name,
+                   i.first_name as interpreter_first_name, i.last_name as interpreter_last_name,
                    i.email as assigned_interpreter_email,
                    i.phone as assigned_interpreter_phone,
                    req.name as requested_by_name,
-                   ba.name as billing_account_name
+                   ba.name as billing_account_name, ba.id as billing_account_id,
+                   it.code as interpreter_type_code, it.name as interpreter_type_name,
+                   st.name as service_type_name,
+                   sl.name as source_language_name, tl.name as target_language_name
             FROM jobs j
             LEFT JOIN claimants c ON j.claimant_id = c.id
             LEFT JOIN claims cl ON j.claim_id = cl.id
             LEFT JOIN interpreters i ON j.assigned_interpreter_id = i.id
             LEFT JOIN customers req ON j.requested_by_id = req.id
             LEFT JOIN billing_accounts ba ON j.billing_account_id = ba.id
+            LEFT JOIN interpreter_types it ON j.interpreter_type_id = it.id
+            LEFT JOIN service_types st ON j.service_type_id = st.id
+            LEFT JOIN languages sl ON j.source_language_id = sl.id
+            LEFT JOIN languages tl ON j.target_language_id = tl.id
             WHERE j.id = $1 AND j.is_active = true
         `, [id]);
         
@@ -1411,6 +1420,78 @@ router.get('/jobs/:id', authenticateToken, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to retrieve job'
+        });
+    }
+});
+
+// Get billing account rates for a job
+router.get('/jobs/:id/billing-rates', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // First get the job details to find the billing account and interpreter type
+        const jobResult = await db.query(`
+            SELECT j.billing_account_id, j.interpreter_type_id, it.code as interpreter_type_code,
+                   tl.name as target_language_name
+            FROM jobs j
+            LEFT JOIN interpreter_types it ON j.interpreter_type_id = it.id
+            LEFT JOIN languages tl ON j.target_language_id = tl.id
+            WHERE j.id = $1 AND j.is_active = true
+        `, [id]);
+        
+        if (jobResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Job not found'
+            });
+        }
+        
+        const job = jobResult.rows[0];
+        
+        // Map interpreter type and language to service category
+        let serviceCategory = null;
+        if (job.interpreter_type_code === 'qualified_standard') {
+            serviceCategory = 'general_non_spanish';
+        } else if (job.interpreter_type_code === 'court_certified') {
+            serviceCategory = job.target_language_name?.toLowerCase() === 'spanish' ? 'legal_spanish' : 'legal_non_spanish';
+        } else if (job.interpreter_type_code === 'medical_certified') {
+            serviceCategory = 'medical_certified_non_spanish';
+        }
+        
+        if (!serviceCategory) {
+            return res.json({
+                success: true,
+                data: {
+                    serviceCategory: null,
+                    rates: []
+                }
+            });
+        }
+        
+        // Get the billing account rates for this service category
+        const ratesResult = await db.query(`
+            SELECT service_category, rate_type, rate_amount, time_minutes
+            FROM billing_account_rates
+            WHERE billing_account_id = $1 AND service_category = $2 AND is_active = true
+            ORDER BY rate_type ASC
+        `, [job.billing_account_id, serviceCategory]);
+        
+        res.json({
+            success: true,
+            data: {
+                serviceCategory: serviceCategory,
+                rates: ratesResult.rows
+            }
+        });
+    } catch (error) {
+        await loggerService.error('Failed to retrieve billing rates', error, {
+            category: 'API',
+            req
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve billing rates'
         });
     }
 });
@@ -2025,6 +2106,193 @@ router.get('/completion-reports/:jobId',
       res.status(500).json({
         success: false,
         message: 'Failed to get completion report'
+      });
+    }
+  }
+);
+
+// Interpreter Management Routes
+// Get all interpreters
+router.get('/interpreters', 
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const query = `
+        SELECT 
+          i.id,
+          i.first_name,
+          i.last_name,
+          i.email,
+          i.phone,
+          i.profile_status,
+          i.is_active,
+          i.created_at,
+          i.updated_at,
+          s.name as state_name,
+          s.code as state_code
+        FROM interpreters i
+        LEFT JOIN us_states s ON i.state_id = s.id
+        WHERE i.is_active = true
+        ORDER BY i.created_at DESC
+      `;
+
+      const result = await db.query(query);
+      
+      res.json({
+        success: true,
+        data: result.rows
+      });
+    } catch (error) {
+      await loggerService.error('Failed to get interpreters', error, {
+        category: 'API',
+        req
+      });
+      
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get interpreters'
+      });
+    }
+  }
+);
+
+// Get interpreter by ID
+router.get('/interpreters/:id', 
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const interpreter = await Interpreter.findById(id);
+      
+      if (!interpreter) {
+        return res.status(404).json({
+          success: false,
+          message: 'Interpreter not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: interpreter
+      });
+    } catch (error) {
+      await loggerService.error('Failed to get interpreter', error, {
+        category: 'API',
+        req
+      });
+      
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get interpreter'
+      });
+    }
+  }
+);
+
+// Create new interpreter
+router.post('/interpreters', 
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const interpreterData = {
+        ...req.body,
+        created_by: req.user.id,
+        profile_status: 'approved' // Admin-created interpreters are auto-approved
+      };
+
+      const interpreter = await Interpreter.create(interpreterData);
+      
+      res.status(201).json({
+        success: true,
+        message: 'Interpreter created successfully',
+        data: interpreter
+      });
+    } catch (error) {
+      await loggerService.error('Failed to create interpreter', error, {
+        category: 'API',
+        req
+      });
+      
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create interpreter'
+      });
+    }
+  }
+);
+
+// Update interpreter
+router.put('/interpreters/:id', 
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = {
+        ...req.body,
+        updated_by: req.user.id
+      };
+
+      const interpreter = await Interpreter.update(id, updateData);
+      
+      if (!interpreter) {
+        return res.status(404).json({
+          success: false,
+          message: 'Interpreter not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Interpreter updated successfully',
+        data: interpreter
+      });
+    } catch (error) {
+      await loggerService.error('Failed to update interpreter', error, {
+        category: 'API',
+        req
+      });
+      
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update interpreter'
+      });
+    }
+  }
+);
+
+// Delete interpreter (soft delete)
+router.delete('/interpreters/:id', 
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const result = await db.query(
+        'UPDATE interpreters SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id',
+        [id]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Interpreter not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Interpreter deleted successfully'
+      });
+    } catch (error) {
+      await loggerService.error('Failed to delete interpreter', error, {
+        category: 'API',
+        req
+      });
+      
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete interpreter'
       });
     }
   }

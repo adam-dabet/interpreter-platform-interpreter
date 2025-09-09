@@ -11,7 +11,10 @@ import {
   PlayIcon,
   StopIcon,
   EyeIcon,
-  FunnelIcon
+  FunnelIcon,
+  DocumentTextIcon,
+  CheckBadgeIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
@@ -45,17 +48,27 @@ const JobDashboard = () => {
   const loadJobs = async () => {
     try {
       setLoading(true);
-      const params = {
-        page: currentPage,
-        limit: 10,
-        ...(filter !== 'all' && { status: filter })
-      };
       
+      // For upcoming, completion_reports, and past jobs, load all jobs without pagination to get complete list
+      // For other tabs, use pagination
+      const params = (activeTab === 'upcoming' || activeTab === 'completion_reports' || activeTab === 'past')
+        ? { limit: 100 } // Load more jobs for upcoming, completion_reports, and past tabs
+        : {
+            page: currentPage,
+            limit: 10,
+            ...(filter !== 'all' && { status: filter })
+          };
+      
+      console.log('🔍 Loading jobs with params:', params);
       const response = await jobAPI.getMyJobs(params);
+      console.log('📊 Jobs API response:', response);
+      console.log('📋 Jobs data:', response.data.data.jobs);
+      console.log('📊 Pagination info:', response.data.data.pagination);
+      console.log('📊 Total jobs in response:', response.data.data.jobs.length);
       setJobs(response.data.data.jobs);
       setTotalPages(response.data.data.pagination.total_pages);
     } catch (error) {
-      console.error('Error loading jobs:', error);
+      console.error('❌ Error loading jobs:', error);
       toast.error('Failed to load jobs');
     } finally {
       setLoading(false);
@@ -101,10 +114,14 @@ const JobDashboard = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'accepted': return <CheckCircleIcon className="h-4 w-4" />;
-      case 'declined': return <XCircleIcon className="h-4 w-4" />;
+      case 'assigned': return <CheckCircleIcon className="h-4 w-4" />;
+      case 'in_progress': return <PlayIcon className="h-4 w-4" />;
       case 'completed': return <CheckCircleIcon className="h-4 w-4" />;
-      case 'pending': return <ClockIcon className="h-4 w-4" />;
+      case 'completion_report': return <DocumentTextIcon className="h-4 w-4" />;
+      case 'billed': return <CurrencyDollarIcon className="h-4 w-4" />;
+      case 'closed': return <CheckBadgeIcon className="h-4 w-4" />;
+      case 'interpreter_paid': return <CurrencyDollarIcon className="h-4 w-4" />;
+      case 'finding_interpreter': return <MagnifyingGlassIcon className="h-4 w-4" />;
       default: return <ClockIcon className="h-4 w-4" />;
     }
   };
@@ -135,16 +152,61 @@ const JobDashboard = () => {
 
   // Filter jobs based on active tab
   const getFilteredJobs = () => {
+    console.log('🔍 Filtering jobs for tab:', activeTab);
+    console.log('📋 All jobs:', jobs);
+    
     if (activeTab === 'upcoming') {
-      return jobs.filter(job => 
-        job.assignment_status === 'accepted' || 
-        (job.assignment_status === 'pending' && job.status === 'finding_interpreter')
-      );
+      const upcomingJobs = jobs.filter(job => {
+        // Only show jobs that are assigned/in_progress but not completed
+        const isAssigned = job.status === 'assigned' || job.status === 'in_progress';
+        const isNotCompleted = !['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid'].includes(job.status);
+        
+        const shouldShow = isAssigned && isNotCompleted;
+        
+        if (shouldShow) {
+          console.log(`✅ Including job: ${job.title} (status: ${job.status})`);
+        } else {
+          console.log(`❌ Excluding job: ${job.title} (status: ${job.status})`);
+        }
+        
+        return shouldShow;
+      });
+      console.log('⏰ Upcoming jobs:', upcomingJobs);
+      return upcomingJobs;
+    } else if (activeTab === 'completion_reports') {
+      const completionReportJobs = jobs.filter(job => {
+        // Show jobs that need completion reports (completed but not submitted)
+        const needsReport = job.status === 'completed' && !job.completion_report_submitted;
+        
+        if (needsReport) {
+          console.log(`✅ Including completion report job: ${job.title} (status: ${job.status}, report submitted: ${job.completion_report_submitted})`);
+        } else {
+          console.log(`❌ Excluding job: ${job.title} (status: ${job.status}, report submitted: ${job.completion_report_submitted})`);
+        }
+        
+        return needsReport;
+      });
+      console.log('📋 Completion report jobs:', completionReportJobs);
+      return completionReportJobs;
     } else if (activeTab === 'past') {
-      return jobs.filter(job => 
-        ['completed', 'declined'].includes(job.assignment_status)
-      );
+      const pastJobs = jobs.filter(job => {
+        // Show completed jobs
+        const isJobCompleted = ['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid'].includes(job.status);
+        
+        const shouldShow = isJobCompleted;
+        
+        if (shouldShow) {
+          console.log(`✅ Including past job: ${job.title} (status: ${job.status})`);
+        } else {
+          console.log(`❌ Excluding past job: ${job.title} (status: ${job.status})`);
+        }
+        
+        return shouldShow;
+      });
+      console.log('📚 Past jobs:', pastJobs);
+      return pastJobs;
     }
+    console.log('📄 All jobs (no filter):', jobs);
     return jobs; // Return all jobs for other tabs
   };
 
@@ -155,10 +217,17 @@ const JobDashboard = () => {
       count: getFilteredJobs().length 
     },
     { 
+      id: 'completion_reports', 
+      name: 'Completion Reports', 
+      count: jobs.filter(job => 
+        job.status === 'completed' && !job.completion_report_submitted
+      ).length 
+    },
+    { 
       id: 'past', 
       name: 'Past Jobs', 
       count: jobs.filter(job => 
-        ['completed', 'declined'].includes(job.assignment_status)
+        ['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid'].includes(job.status)
       ).length 
     },
     { id: 'earnings', name: 'Earnings', count: null }
@@ -315,6 +384,8 @@ const JobDashboard = () => {
               <p className="mt-1 text-sm text-gray-500">
                 {activeTab === 'upcoming' 
                   ? "You don't have any upcoming jobs at the moment."
+                  : activeTab === 'completion_reports'
+                  ? "You don't have any jobs that need completion reports."
                   : "You don't have any past jobs yet."
                 }
               </p>
@@ -334,9 +405,9 @@ const JobDashboard = () => {
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
                         <div className="flex flex-col space-y-1">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAssignmentStatusColor(job.assignment_status)}`}>
-                            {getStatusIcon(job.assignment_status)}
-                            <span className="ml-1">{getAssignmentStatusLabel(job.assignment_status)}</span>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(job.status)}`}>
+                            {getStatusIcon(job.status)}
+                            <span className="ml-1">{getJobStatusLabel(job.status)}</span>
                           </span>
                           {job.status && (
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(job.status)}`}>
@@ -393,7 +464,7 @@ const JobDashboard = () => {
                       View Details
                     </Button>
                     
-                    {job.assignment_status === 'pending' && (
+                    {job.status === 'finding_interpreter' && (
                       <>
                         <Button
                           size="sm"
@@ -413,7 +484,7 @@ const JobDashboard = () => {
                       </>
                     )}
                     
-                    {job.assignment_status === 'accepted' && job.status === 'assigned' && (
+                    {job.status === 'assigned' && (
                       <Button
                         size="sm"
                         onClick={() => {
@@ -425,15 +496,47 @@ const JobDashboard = () => {
                         Complete Job
                       </Button>
                     )}
+                    
+                    {job.status === 'completed' && !job.completion_report_submitted && (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => {
+                          setSelectedJob(job);
+                          setShowCompletionReport(true);
+                        }}
+                      >
+                        <DocumentTextIcon className="h-4 w-4 mr-1" />
+                        Submit Completion Report
+                      </Button>
+                    )}
                   </div>
                 </motion.div>
               ))}
               
-              {/* Pagination */}
-              {getFilteredJobs().length > 0 && (
+              {/* Pagination - only show for non-upcoming tabs */}
+              {getFilteredJobs().length > 0 && activeTab !== 'upcoming' && (
                 <div className="flex items-center justify-center space-x-2 mt-8">
                   <div className="text-sm text-gray-600">
                     Showing {getFilteredJobs().length} of {jobs.length} total jobs
+                  </div>
+                </div>
+              )}
+              
+              {/* Upcoming jobs summary */}
+              {activeTab === 'upcoming' && getFilteredJobs().length > 0 && (
+                <div className="flex items-center justify-center space-x-2 mt-8">
+                  <div className="text-sm text-gray-600">
+                    Showing {getFilteredJobs().length} upcoming jobs
+                  </div>
+                </div>
+              )}
+              
+              {/* Completion reports summary */}
+              {activeTab === 'completion_reports' && getFilteredJobs().length > 0 && (
+                <div className="flex items-center justify-center space-x-2 mt-8">
+                  <div className="text-sm text-gray-600">
+                    Showing {getFilteredJobs().length} jobs that need completion reports
                   </div>
                 </div>
               )}

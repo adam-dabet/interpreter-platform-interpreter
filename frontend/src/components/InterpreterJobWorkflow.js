@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   PlayIcon, 
   StopIcon, 
@@ -15,7 +15,41 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
   const [showCompletionReport, setShowCompletionReport] = useState(false);
   const [isEndingJob, setIsEndingJob] = useState(false);
-  const [actualDurationMinutes, setActualDurationMinutes] = useState(job.actual_duration_minutes || '');
+  
+  // Calculate actual duration from magic link timestamps if available
+  const calculateActualDuration = () => {
+    console.log('Calculating actual duration for job:', job.title);
+    console.log('job.actual_duration_minutes:', job.actual_duration_minutes);
+    console.log('job.job_started_at:', job.job_started_at);
+    console.log('job.job_ended_at:', job.job_ended_at);
+    
+    if (job.actual_duration_minutes) {
+      console.log('Using existing actual_duration_minutes:', job.actual_duration_minutes);
+      return job.actual_duration_minutes;
+    }
+    
+    if (job.job_started_at && job.job_ended_at) {
+      const startTime = new Date(job.job_started_at);
+      const endTime = new Date(job.job_ended_at);
+      const durationMs = endTime.getTime() - startTime.getTime();
+      const durationMinutes = Math.round(durationMs / (1000 * 60));
+      console.log('Calculated duration from timestamps:', durationMinutes, 'minutes');
+      return durationMinutes > 0 ? durationMinutes : '';
+    }
+    
+    console.log('No duration data available, returning empty string');
+    return '';
+  };
+  
+  const [actualDurationMinutes, setActualDurationMinutes] = useState(calculateActualDuration());
+
+  // Recalculate duration when job data changes (e.g., after magic link completion)
+  useEffect(() => {
+    const newDuration = calculateActualDuration();
+    if (newDuration !== actualDurationMinutes) {
+      setActualDurationMinutes(newDuration);
+    }
+  }, [job.job_started_at, job.job_ended_at, job.actual_duration_minutes]);
 
   const workflowSteps = [
     { 
@@ -139,20 +173,62 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
   const getPaymentInfo = () => {
     if (job.status === 'completed' || job.status === 'completion_report') {
       const actualMinutes = actualDurationMinutes || job.actual_duration_minutes || 0;
-      const actualHours = actualMinutes / 60;
-      const bookedHours = job.estimated_duration_minutes / 60; // Use booked time as minimum
-      const minimumHours = Math.max(bookedHours, actualHours); // Pay for booked time or actual time, whichever is higher
-      const paymentAmount = minimumHours * (job.hourly_rate || 0);
+      const bookedMinutes = job.estimated_duration_minutes || 0;
+      const minimumMinutes = Math.max(bookedMinutes, actualMinutes); // Pay for booked time or actual time, whichever is higher
+      
+      // Determine if this is a legal appointment
+      // Only court certified interpreters OR explicitly legal services (not medical-legal or non-legal)
+      const isLegalAppointment = job.interpreter_type_code === 'court_certified' || 
+                                 (job.service_type_name?.toLowerCase().includes('legal') && 
+                                  !job.service_type_name?.toLowerCase().includes('non-legal') &&
+                                  !job.service_type_name?.toLowerCase().includes('medical'));
+      
+      // Set increment based on appointment type
+      const incrementMinutes = isLegalAppointment ? 180 : 15; // 3 hours for legal, 15 minutes for others
+      
+      console.log('Interpreter payment calculation:', {
+        title: job.title,
+        interpreter_type_code: job.interpreter_type_code,
+        service_type_name: job.service_type_name,
+        isLegalAppointment,
+        incrementMinutes,
+        minimumMinutes
+      });
+      
+      const paymentAmount = calculateIncrementalPayment(minimumMinutes, job.hourly_rate || 0, incrementMinutes);
       
       return {
-        actualHours: actualHours.toFixed(2),
-        minimumHours: minimumHours.toFixed(2),
-        bookedHours: bookedHours.toFixed(2),
+        actualMinutes: Math.round(actualMinutes),
+        minimumMinutes: Math.round(minimumMinutes),
+        bookedMinutes: Math.round(bookedMinutes),
         paymentAmount: paymentAmount.toFixed(2),
-        actualMinutes: actualMinutes
+        actualHours: (actualMinutes / 60).toFixed(2),
+        bookedHours: (bookedMinutes / 60).toFixed(2)
       };
     }
     return null;
+  };
+
+  const calculateIncrementalPayment = (totalMinutes, hourlyRate, incrementMinutes) => {
+    if (totalMinutes <= 0) return 0;
+    
+    // Calculate how many increments we need
+    const increments = Math.ceil(totalMinutes / incrementMinutes);
+    const totalIncrementalMinutes = increments * incrementMinutes;
+    const totalHours = totalIncrementalMinutes / 60;
+    const payment = hourlyRate * totalHours;
+    
+    console.log('Interpreter incremental payment calculation:', {
+      totalMinutes,
+      incrementMinutes,
+      increments,
+      totalIncrementalMinutes,
+      totalHours,
+      hourlyRate,
+      payment
+    });
+    
+    return payment;
   };
 
   return (
@@ -261,14 +337,14 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <div className="text-sm text-blue-600">Actual Time</div>
               <div className="text-lg font-semibold text-blue-900">
-                {getPaymentInfo().actualHours} hours
+                {getPaymentInfo().actualMinutes} minutes
               </div>
             </div>
             
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <div className="text-sm text-green-600">Booked Time</div>
               <div className="text-lg font-semibold text-green-900">
-                {getPaymentInfo().bookedHours} hours
+                {getPaymentInfo().bookedMinutes} minutes
               </div>
             </div>
             
@@ -282,7 +358,7 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
           
           <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <div className="text-sm text-yellow-800">
-              <strong>Payment Guarantee:</strong> You will be paid for the booked time ({getPaymentInfo().bookedHours} hours) or actual time, whichever is higher.
+              <strong>Payment Guarantee:</strong> You will be paid for the booked time ({getPaymentInfo().bookedMinutes} minutes) or actual time, whichever is higher.
             </div>
           </div>
         </div>

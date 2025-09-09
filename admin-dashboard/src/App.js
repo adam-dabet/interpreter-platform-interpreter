@@ -23,6 +23,7 @@ import ServiceLocations from './pages/ServiceLocations';
 import BillingAccounts from './pages/BillingAccounts';
 import Customers from './pages/Customers';
 import Claimants from './pages/Claimants';
+import Interpreters from './pages/Interpreters';
 import Sidebar from './components/Sidebar';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
@@ -618,6 +619,10 @@ const AdminDashboard = () => {
 
         {currentView === 'jobs' && (
           <JobManagement setCurrentView={handleViewChange} />
+        )}
+
+        {currentView === 'interpreters' && (
+          <Interpreters setCurrentView={handleViewChange} />
         )}
 
         {currentView === 'create-job' && (

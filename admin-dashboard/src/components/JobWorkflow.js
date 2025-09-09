@@ -231,7 +231,7 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
       
       if (data.success) {
         toast.success('Claimant reminder sent successfully');
-        onJobUpdate && onJobUpdate();
+        // Don't call onJobUpdate for reminders as they don't change job data
       } else {
         toast.error(data.message || 'Failed to send claimant reminder');
       }
@@ -258,7 +258,7 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
       
       if (data.success) {
         toast.success('Interpreter 2-day reminder sent successfully');
-        onJobUpdate && onJobUpdate();
+        // Don't call onJobUpdate for reminders as they don't change job data
       } else {
         toast.error(data.message || 'Failed to send interpreter 2-day reminder');
       }
@@ -285,7 +285,7 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
       
       if (data.success) {
         toast.success('Interpreter 1-day reminder sent successfully');
-        onJobUpdate && onJobUpdate();
+        // Don't call onJobUpdate for reminders as they don't change job data
       } else {
         toast.error(data.message || 'Failed to send interpreter 1-day reminder');
       }
@@ -312,7 +312,7 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
       
       if (data.success) {
         toast.success('Interpreter 2-hour reminder sent successfully');
-        onJobUpdate && onJobUpdate();
+        // Don't call onJobUpdate for reminders as they don't change job data
       } else {
         toast.error(data.message || 'Failed to send interpreter 2-hour reminder');
       }
@@ -337,14 +337,12 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
 
       const data = await response.json();
       
-      console.log('5-minute reminder response:', { status: response.status, data });
-      
       if (data.success) {
         if (data.data && data.data.sent) {
           toast.success('Interpreter 5-minute reminder with magic link sent successfully');
-          onJobUpdate && onJobUpdate();
+          // Don't call onJobUpdate for reminders as they don't change job data
         } else {
-          toast.info(data.message || 'Reminder was already sent');
+          toast(data.message || 'Reminder was already sent');
         }
       } else {
         toast.error(data.message || 'Failed to send interpreter 5-minute reminder');

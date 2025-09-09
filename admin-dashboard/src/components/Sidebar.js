@@ -19,6 +19,12 @@ const Sidebar = ({ currentView, setCurrentView, onLogout }) => {
       description: 'Review interpreter applications'
     },
     { 
+      name: 'Interpreters', 
+      view: 'interpreters', 
+      icon: UserIcon,
+      description: 'Manage interpreter profiles'
+    },
+    { 
       name: 'Job Management', 
       view: 'jobs', 
       icon: BriefcaseIcon,

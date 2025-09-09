@@ -93,9 +93,9 @@ router.post('/start/:token', async (req, res) => {
 
     // Create notification for admin
     await db.query(`
-      INSERT INTO job_notifications (job_id, user_id, message, type, created_at)
-      VALUES ($1, (SELECT id FROM users WHERE role = 'admin' LIMIT 1), $2, 'job_started', CURRENT_TIMESTAMP)
-    `, [magicLinkData.job_id, `Job "${magicLinkData.job_title}" has been started by interpreter ${magicLinkData.first_name} ${magicLinkData.last_name}.`]);
+      INSERT INTO job_notifications (job_id, interpreter_id, notification_type, message, status, sent_at)
+      VALUES ($1, $2, 'job_started', $3, 'sent', CURRENT_TIMESTAMP)
+    `, [magicLinkData.job_id, magicLinkData.interpreter_id, `Job "${magicLinkData.job_title}" has been started by interpreter ${magicLinkData.first_name} ${magicLinkData.last_name}.`]);
 
     await loggerService.info('Job started via magic link', {
       jobId: magicLinkData.job_id,
@@ -153,25 +153,32 @@ router.post('/end/:token', async (req, res) => {
       });
     }
 
+    // Calculate actual duration from start and end times
+    const startTime = new Date(magicLinkData.job_started_at);
+    const endTime = new Date();
+    const durationMs = endTime.getTime() - startTime.getTime();
+    const actualDurationMinutes = Math.round(durationMs / (1000 * 60));
+
     // End the job
     const result = await db.query(`
       UPDATE jobs 
       SET 
         status = 'completed',
         job_ended_at = CURRENT_TIMESTAMP,
+        actual_duration_minutes = $2,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $1
-      RETURNING id, status, job_ended_at
-    `, [magicLinkData.job_id]);
+      RETURNING id, status, job_ended_at, actual_duration_minutes
+    `, [magicLinkData.job_id, actualDurationMinutes]);
 
     // Mark magic link as used for end
     await magicLinkService.markUsedForEnd(magicLinkData.id);
 
     // Create notification for admin
     await db.query(`
-      INSERT INTO job_notifications (job_id, user_id, message, type, created_at)
-      VALUES ($1, (SELECT id FROM users WHERE role = 'admin' LIMIT 1), $2, 'job_completed', CURRENT_TIMESTAMP)
-    `, [magicLinkData.job_id, `Job "${magicLinkData.job_title}" has been completed by interpreter ${magicLinkData.first_name} ${magicLinkData.last_name}.`]);
+      INSERT INTO job_notifications (job_id, interpreter_id, notification_type, message, status, sent_at)
+      VALUES ($1, $2, 'job_completed', $3, 'sent', CURRENT_TIMESTAMP)
+    `, [magicLinkData.job_id, magicLinkData.interpreter_id, `Job "${magicLinkData.job_title}" has been completed by interpreter ${magicLinkData.first_name} ${magicLinkData.last_name}.`]);
 
     await loggerService.info('Job ended via magic link', {
       jobId: magicLinkData.job_id,
@@ -185,7 +192,8 @@ router.post('/end/:token', async (req, res) => {
       data: {
         jobId: result.rows[0].id,
         status: result.rows[0].status,
-        endedAt: result.rows[0].job_ended_at
+        endedAt: result.rows[0].job_ended_at,
+        actualDurationMinutes: result.rows[0].actual_duration_minutes
       }
     });
   } catch (error) {

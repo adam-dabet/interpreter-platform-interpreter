@@ -257,35 +257,59 @@ const JobDetails = () => {
               </div>
             </motion.div>
 
-            {/* Client Information */}
+            {/* Claimant Information */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
               className="bg-white rounded-lg shadow-sm border p-6"
             >
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Client Information</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Claimant Information</h2>
               <div className="space-y-4">
                 <div className="flex items-center">
                   <UserIcon className="h-5 w-5 text-gray-400 mr-3" />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Client Name</p>
-                    <p className="text-sm text-gray-600">{job.client_name}</p>
+                    <p className="text-sm font-medium text-gray-900">Claimant Name</p>
+                    <p className="text-sm text-gray-600">
+                      {job.claimant_first_name && job.claimant_last_name 
+                        ? `${job.claimant_first_name} ${job.claimant_last_name}`
+                        : job.client_name || 'N/A'
+                      }
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-center">
-                  <EnvelopeIcon className="h-5 w-5 text-gray-400 mr-3" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Email</p>
-                    <p className="text-sm text-gray-600">{job.client_email}</p>
-                  </div>
-                </div>
-                {job.client_phone && (
+                {job.claimant_phone && (
                   <div className="flex items-center">
                     <PhoneIcon className="h-5 w-5 text-gray-400 mr-3" />
                     <div>
                       <p className="text-sm font-medium text-gray-900">Phone</p>
-                      <p className="text-sm text-gray-600">{job.client_phone}</p>
+                      <p className="text-sm text-gray-600">{job.claimant_phone}</p>
+                    </div>
+                  </div>
+                )}
+                {job.claimant_address && (
+                  <div className="flex items-center">
+                    <MapPinIcon className="h-5 w-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Address</p>
+                      <p className="text-sm text-gray-600">
+                        {job.claimant_address}
+                        {job.claimant_city && job.claimant_state && (
+                          <span>, {job.claimant_city}, {job.claimant_state}</span>
+                        )}
+                        {job.claimant_zip_code && (
+                          <span> {job.claimant_zip_code}</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {job.client_email && (
+                  <div className="flex items-center">
+                    <EnvelopeIcon className="h-5 w-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Client Email</p>
+                      <p className="text-sm text-gray-600">{job.client_email}</p>
                     </div>
                   </div>
                 )}

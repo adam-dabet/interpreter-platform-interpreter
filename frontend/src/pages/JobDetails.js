@@ -174,7 +174,7 @@ const JobDetails = () => {
                 <ArrowLeftIcon className="h-4 w-4 mr-2" />
                 Back to Job Search
               </button>
-              <h1 className="text-3xl font-bold text-gray-900">{job.title}</h1>
+              <h1 className="text-3xl font-bold text-gray-900">{job.job_number || job.title}</h1>
               <div className="flex items-center mt-2 space-x-2">
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getPriorityColor(job.priority)}`}>
                   {job.priority} Priority
@@ -243,7 +243,7 @@ const JobDetails = () => {
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm font-medium text-gray-900">Languages</p>
-                    <p className="text-sm text-gray-600">{job.source_language_name} → {job.target_language_name}</p>
+                    <p className="text-sm text-gray-600">{job.source_language_name} → {job.target_language_name || 'English'}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">Service Type</p>

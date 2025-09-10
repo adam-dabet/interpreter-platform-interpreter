@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const { validationResult } = require('express-validator');
+const { generateJobNumberWithRetry } = require('../utils/jobNumberGenerator');
 
 class JobController {
   // Get all available jobs (for interpreters to browse)
@@ -367,8 +368,11 @@ class JobController {
 
       console.log('Creating job with data:', req.body);
       
+      // Generate unique job number
+      const generatedJobNumber = await generateJobNumberWithRetry();
+      
       // Map frontend fields to database fields
-      const title = jobNumber;
+      const title = jobNumber || generatedJobNumber;
       
       // Get claimant information if provided
       let claimantName = '';
@@ -672,17 +676,18 @@ class JobController {
 
       const query = `
         INSERT INTO jobs (
-          title, description, job_type, location_address, location_city,
+          job_number, title, description, job_type, location_address, location_city,
           location_state, location_zip_code, latitude, longitude, is_remote,
           scheduled_date, scheduled_time, estimated_duration_minutes,
           source_language_id, target_language_id, service_type_id, interpreter_type_id, appointment_type,
           hourly_rate, total_amount, client_name, client_email, client_phone,
           client_notes, special_requirements, claimant_id, claim_id, created_by
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
         RETURNING *
       `;
 
       const values = [
+        generatedJobNumber, // job_number
         title, description, job_type, location_address, location_city,
         location_state, location_zip_code, latitude, longitude, is_remote,
         scheduled_date, scheduled_time, estimated_duration_minutes,

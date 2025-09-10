@@ -742,22 +742,12 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
         </div>
 
         {/* Status Indicators */}
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
           <div className="flex items-center">
             <div className={`w-3 h-3 rounded-full mr-2 ${job.status === JOB_STATUSES.REMINDERS_SENT || job.status === JOB_STATUSES.IN_PROGRESS || job.status === JOB_STATUSES.COMPLETED || job.status === JOB_STATUSES.COMPLETION_REPORT || job.status === JOB_STATUSES.BILLED || job.status === JOB_STATUSES.CLOSED || job.status === JOB_STATUSES.INTERPRETER_PAID ? 'bg-green-500' : 'bg-gray-300'}`}></div>
             Reminders {job.status === JOB_STATUSES.REMINDERS_SENT || job.status === JOB_STATUSES.IN_PROGRESS || job.status === JOB_STATUSES.COMPLETED || job.status === JOB_STATUSES.COMPLETION_REPORT || job.status === JOB_STATUSES.BILLED || job.status === JOB_STATUSES.CLOSED || job.status === JOB_STATUSES.INTERPRETER_PAID ? 'Sent' : 'Pending'}
           </div>
           
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              checked={facilityConfirmationRequired}
-              onChange={(e) => handleFacilityConfirmationChange(e.target.checked)}
-              disabled={isLoading}
-              className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
-            />
-            <span className="text-sm text-gray-700">Confirm with Facility</span>
-          </div>
           
           <div className="flex items-center">
             <div className={`w-3 h-3 rounded-full mr-2 ${job.status === JOB_STATUSES.COMPLETION_REPORT || job.status === JOB_STATUSES.BILLED || job.status === JOB_STATUSES.CLOSED || job.status === JOB_STATUSES.INTERPRETER_PAID ? 'bg-green-500' : 'bg-gray-300'}`}></div>

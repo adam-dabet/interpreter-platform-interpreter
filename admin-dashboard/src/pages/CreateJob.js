@@ -188,7 +188,8 @@ const CreateJob = ({ setCurrentView }) => {
     requestedById: '',
     billingAccountId: '',
     serviceLocationId: '',
-    locationOfService: ''
+    locationOfService: '',
+    facilityPhone: ''
   });
 
   const [loading, setLoading] = useState(false);
@@ -491,6 +492,7 @@ const CreateJob = ({ setCurrentView }) => {
         location_city: formData.locationCity || null,
         location_state: formData.locationState || null,
         location_zip_code: formData.locationZipCode || null,
+        facility_phone: formData.facilityPhone || null,
         is_remote: false // Default to in-person, can be enhanced later
       };
       
@@ -908,6 +910,23 @@ const CreateJob = ({ setCurrentView }) => {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     💡 This field auto-fills when you select a service location above, or you can type the location manually.
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Facility Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.facilityPhone}
+                    onChange={(e) => handleInputChange('facilityPhone', e.target.value)}
+                    placeholder="Enter facility phone number"
+                    id="facilityPhone"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 Phone number of the facility where the appointment takes place.
                   </p>
                 </div>
               </div>

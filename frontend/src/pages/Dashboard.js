@@ -126,20 +126,6 @@ const Dashboard = () => {
         </motion.div>
 
 
-        {/* Password Change Modal */}
-        {showPasswordModal && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-            <ChangePasswordForm
-              onClose={() => setShowPasswordModal(false)}
-              onSuccess={() => {
-                setShowPasswordModal(false);
-                setHasChangedPassword(true);
-                localStorage.setItem('hasChangedPassword', 'true');
-                toast.success('Password changed successfully!');
-              }}
-            />
-          </div>
-        )}
 
         {/* Recent Activity */}
         <motion.div

@@ -953,6 +953,12 @@ const NewAppointment = () => {
     navigate('/appointments');
   };
 
+  const handleCloseSearch = () => {
+    // Just hide the animation without navigating away
+    setShowSearchAnimation(false);
+    toast('Search is continuing in the background. You can check your appointments page for updates.');
+  };
+
   const checkAppointmentStatus = async (appointmentId) => {
     try {
       const response = await makeAuthenticatedRequest(`${API_BASE}/customer/appointments/${appointmentId}`, {
@@ -1246,6 +1252,7 @@ const NewAppointment = () => {
         isVisible={showSearchAnimation} 
         searchDuration={searchStartTime ? Date.now() - searchStartTime : 0}
         onCancel={handleCancelSearch}
+        onClose={handleCloseSearch}
       />
     </div>
   );

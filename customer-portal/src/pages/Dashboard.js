@@ -225,7 +225,7 @@ const Dashboard = () => {
                     <div key={appointment.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h3 className="text-sm font-medium text-gray-900">{appointment.title}</h3>
+                          <h3 className="text-sm font-medium text-gray-900">{appointment.job_number || appointment.title}</h3>
                           <p className="text-sm text-gray-500 mt-1">
                             {formatDate(appointment.scheduled_date)} at {formatTime(appointment.scheduled_time)}
                           </p>
@@ -284,7 +284,7 @@ const Dashboard = () => {
                     <div key={appointment.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h3 className="text-sm font-medium text-gray-900">{appointment.title}</h3>
+                          <h3 className="text-sm font-medium text-gray-900">{appointment.job_number || appointment.title}</h3>
                           <p className="text-sm text-gray-500 mt-1">
                             {formatDate(appointment.scheduled_date)} at {formatTime(appointment.scheduled_time)}
                           </p>

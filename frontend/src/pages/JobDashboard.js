@@ -386,7 +386,7 @@ const JobDashboard = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
+                        <h3 className="text-lg font-semibold text-gray-900">{job.job_number || job.title}</h3>
                         <div className="flex flex-col space-y-1">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(job.status)}`}>
                             {getStatusIcon(job.status)}
@@ -420,7 +420,7 @@ const JobDashboard = () => {
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center space-x-4">
                           <span className="text-gray-500">
-                            <span className="font-medium">Languages:</span> {job.source_language_name} → {job.target_language_name}
+                            <span className="font-medium">Languages:</span> {job.source_language_name} → {job.target_language_name || 'English'}
                           </span>
                           <span className="text-gray-500">
                             <span className="font-medium">Type:</span> {job.service_type_name}

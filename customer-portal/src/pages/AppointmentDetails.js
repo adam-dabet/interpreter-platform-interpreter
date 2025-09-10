@@ -131,7 +131,7 @@ const AppointmentDetails = () => {
                 <ArrowLeftIcon className="h-6 w-6" />
               </button>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">{appointment.title}</h1>
+                <h1 className="text-3xl font-bold text-gray-900">{appointment.job_number || appointment.title}</h1>
                 <p className="mt-2 text-gray-600">Appointment Details</p>
               </div>
             </div>

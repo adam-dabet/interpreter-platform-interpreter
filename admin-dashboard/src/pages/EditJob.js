@@ -194,7 +194,8 @@ const EditJob = ({ jobId, setCurrentView }) => {
     interpreterType: '',
     claimantId: '',
     claimId: '',
-    locationOfService: ''
+    locationOfService: '',
+    facilityPhone: ''
   });
 
   const [loading, setLoading] = useState(false);
@@ -381,7 +382,8 @@ const EditJob = ({ jobId, setCurrentView }) => {
           interpreterType: job.interpreter_type_id ? job.interpreter_type_id.toString() : '',
           claimantId: job.claimant_id ? job.claimant_id.toString() : '',
           claimId: job.claim_id ? job.claim_id.toString() : '',
-          locationOfService: job.location_address || ''
+          locationOfService: job.location_address || '',
+          facilityPhone: job.facility_phone || ''
         };
         
         console.log('=== FORM LOADING DEBUG ===');
@@ -948,6 +950,14 @@ const EditJob = ({ jobId, setCurrentView }) => {
                   placeholder="Enter location (e.g., City, State or Full Address)"
                   required
                   id="locationOfService"
+                />
+                <Input
+                  label="Facility Phone"
+                  value={formData.facilityPhone}
+                  onChange={(e) => handleInputChange('facilityPhone', e.target.value)}
+                  placeholder="Enter facility phone number"
+                  type="tel"
+                  id="facilityPhone"
                 />
               </div>
             </div>

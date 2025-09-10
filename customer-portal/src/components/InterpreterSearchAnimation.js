@@ -1,7 +1,16 @@
 import React from 'react';
 
-const InterpreterSearchAnimation = ({ isVisible = true, searchDuration = 0, onCancel }) => {
+const InterpreterSearchAnimation = ({ isVisible = true, searchDuration = 0, onCancel, onClose }) => {
   if (!isVisible) return null;
+
+  // Handle clicking outside the modal
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      if (onClose) {
+        onClose();
+      }
+    }
+  };
 
   // Calculate search duration in seconds
   const searchSeconds = Math.floor(searchDuration / 1000);
@@ -24,8 +33,24 @@ const InterpreterSearchAnimation = ({ isVisible = true, searchDuration = 0, onCa
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={handleBackdropClick}
+    >
+      <div className="bg-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl relative">
+        {/* Close Button */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            title="Minimize search (continues in background)"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+        
         {/* Header */}
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">
@@ -126,6 +151,11 @@ const InterpreterSearchAnimation = ({ isVisible = true, searchDuration = 0, onCa
               Search time: {searchMinutes > 0 ? `${searchMinutes}m ` : ''}{remainingSeconds}s
             </p>
           )}
+          
+          {/* Click outside hint */}
+          <p className="text-xs text-gray-400 mt-2">
+            💡 Click outside to minimize and continue in background
+          </p>
           
           {/* Cancel Search Button */}
           {onCancel && (

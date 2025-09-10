@@ -425,7 +425,7 @@ const JobManagement = ({ setCurrentView }) => {
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{job.title}</div>
+                        <div className="text-sm font-medium text-gray-900">{job.job_number || job.title}</div>
                         <div className="text-sm text-gray-500">{job.client_name}</div>
                       </div>
                     </td>
@@ -444,7 +444,7 @@ const JobManagement = ({ setCurrentView }) => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{job.service_type_name}</div>
                       <div className="text-sm text-gray-500">
-                        {job.source_language_name} → {job.target_language_name}
+                        {job.source_language_name} → {job.target_language_name || 'English'}
                       </div>
                       <div className="text-xs text-gray-400">
                         {formatCurrency(job.hourly_rate)}/hr

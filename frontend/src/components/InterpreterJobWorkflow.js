@@ -410,7 +410,7 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
             <div className="space-y-2 text-sm">
               <div><span className="font-medium">Job ID:</span> {job.id}</div>
               <div><span className="font-medium">Service Type:</span> {job.service_type_name || 'N/A'}</div>
-              <div><span className="font-medium">Languages:</span> {job.source_language_name} → {job.target_language_name}</div>
+              <div><span className="font-medium">Languages:</span> {job.source_language_name} → {job.target_language_name || 'English'}</div>
               <div><span className="font-medium">Rate:</span> ${job.hourly_rate || 0}/hour</div>
             </div>
           </div>

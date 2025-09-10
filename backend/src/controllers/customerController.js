@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const loggerService = require('../services/loggerService');
+const { generateJobNumberWithRetry } = require('../utils/jobNumberGenerator');
 
 class CustomerController {
   /**
@@ -378,10 +379,13 @@ class CustomerController {
 
       const hourlyRate = serviceTypeResult.rows[0]?.rate_amount || null;
 
+      // Generate unique job number
+      const jobNumber = await generateJobNumberWithRetry();
+
       // Create the job
       const jobResult = await db.query(`
         INSERT INTO jobs (
-          title, description, job_type, priority, status,
+          job_number, title, description, job_type, priority, status,
           scheduled_date, scheduled_time, arrival_time, estimated_duration_minutes,
           appointment_type, claimant_id, claim_id, requested_by_id,
           service_type_id, source_language_id, interpreter_type_id,
@@ -389,10 +393,11 @@ class CustomerController {
           is_remote, hourly_rate, billing_account_id, special_requirements,
           created_by, created_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-          $17, $18, $19, $20, $21, $22, $23, $24, $25, CURRENT_TIMESTAMP
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+          $18, $19, $20, $21, $22, $23, $24, $25, $26, CURRENT_TIMESTAMP
         ) RETURNING id, created_at
       `, [
+        jobNumber, // job_number
         title,
         description || `${appointmentType} appointment`,
         'medical', // Default job type
@@ -556,6 +561,9 @@ class CustomerController {
       );
       const billingAccountId = customerResult.rows[0]?.billing_account_id;
 
+      // Generate unique job number
+      const jobNumber = await generateJobNumberWithRetry();
+      
       // Create a job record for the appointment
       const title = `${appointmentType}${doctorName ? ` - ${doctorName}` : ''}`;
       let description = `${appointmentType} appointment`;
@@ -619,17 +627,18 @@ class CustomerController {
 
       const jobResult = await db.query(`
         INSERT INTO jobs (
-          title, description, job_type, priority, status,
+          job_number, title, description, job_type, priority, status,
           scheduled_date, scheduled_time, arrival_time, estimated_duration_minutes,
           appointment_type, claimant_id, claim_id, requested_by_id,
           service_type_id, source_language_id, interpreter_type_id,
           location_address, location_city, location_state, location_zip_code,
-          latitude, longitude, is_remote, hourly_rate, billing_account_id, special_requirements, created_by, created_at
+          facility_phone, latitude, longitude, is_remote, hourly_rate, billing_account_id, special_requirements, created_by, created_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-          $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, CURRENT_TIMESTAMP
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+          $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, CURRENT_TIMESTAMP
         ) RETURNING id, created_at
       `, [
+        jobNumber, // job_number
         title,
         description,
         'medical', // Default job type
@@ -650,6 +659,7 @@ class CustomerController {
         locationCity || null,
         locationState || null,
         locationZipCode || null,
+        phone || null, // facility_phone
         latitude,
         longitude,
         isRemote || false,

@@ -32,6 +32,8 @@ const JobDetails = ({ jobId, setCurrentView }) => {
   const [interpreterRate, setInterpreterRate] = useState('');
   const [estimatedDuration, setEstimatedDuration] = useState('');
   const [actualDuration, setActualDuration] = useState('');
+  const [facilityConfirmationRequired, setFacilityConfirmationRequired] = useState(false);
+  const [updatingFacilityConfirmation, setUpdatingFacilityConfirmation] = useState(false);
   
   // Collapsible section states
   const [serviceDetailsExpanded, setServiceDetailsExpanded] = useState(true);
@@ -41,6 +43,40 @@ const JobDetails = ({ jobId, setCurrentView }) => {
   useEffect(() => {
     loadJobDetails();
   }, [jobId]);
+
+  const handleFacilityConfirmationChange = async (checked) => {
+    try {
+      setUpdatingFacilityConfirmation(true);
+      const token = localStorage.getItem('adminToken');
+      
+      const response = await fetch(`${API_BASE}/admin/jobs/${jobId}/facility-confirmation`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          facility_confirmation_required: checked
+        })
+      });
+      
+      if (response.ok) {
+        setFacilityConfirmationRequired(checked);
+        setJob(prev => ({
+          ...prev,
+          facility_confirmation_required: checked
+        }));
+        toast.success('Facility confirmation status updated successfully');
+      } else {
+        toast.error('Failed to update facility confirmation status');
+      }
+    } catch (error) {
+      console.error('Error updating facility confirmation:', error);
+      toast.error('Failed to update facility confirmation status');
+    } finally {
+      setUpdatingFacilityConfirmation(false);
+    }
+  };
 
   const loadJobDetails = async () => {
     try {
@@ -58,6 +94,7 @@ const JobDetails = ({ jobId, setCurrentView }) => {
       if (jobResponse.ok) {
         const jobData = await jobResponse.json();
         setJob(jobData.data);
+        setFacilityConfirmationRequired(jobData.data.facility_confirmation_required || false);
         
         // Load billing rates for all jobs
         const ratesResponse = await fetch(`${API_BASE}/admin/jobs/${jobId}/billing-rates`, {
@@ -461,7 +498,7 @@ const JobDetails = ({ jobId, setCurrentView }) => {
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-700">Job Number</label>
-                <p className="text-sm text-gray-900 mt-1">{job.title}</p>
+                <p className="text-sm text-gray-900 mt-1">{job.job_number || job.title}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">Description</label>
@@ -478,6 +515,10 @@ const JobDetails = ({ jobId, setCurrentView }) => {
               <div>
                 <label className="text-sm font-medium text-gray-700">Job Type</label>
                 <p className="text-sm text-gray-900 mt-1 capitalize">{job.job_type}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Requested By</label>
+                <p className="text-sm text-gray-900 mt-1">{job.requested_by_name || 'Not specified'}</p>
               </div>
             </div>
           </div>
@@ -533,6 +574,22 @@ const JobDetails = ({ jobId, setCurrentView }) => {
                 <label className="text-sm font-medium text-gray-700">Zip Code</label>
                 <p className="text-sm text-gray-900 mt-1">{job.location_zip_code || 'N/A'}</p>
               </div>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-gray-700">Facility Phone</label>
+                  <p className="text-sm text-gray-900 mt-1">{job.facility_phone || 'N/A'}</p>
+                </div>
+                <div className="flex items-center ml-4">
+                  <input
+                    type="checkbox"
+                    checked={facilityConfirmationRequired}
+                    onChange={(e) => handleFacilityConfirmationChange(e.target.checked)}
+                    disabled={updatingFacilityConfirmation}
+                    className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
+                  />
+                  <span className="text-sm text-gray-700">Confirm with Facility</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -571,7 +628,7 @@ const JobDetails = ({ jobId, setCurrentView }) => {
                   <div>
                     <label className="text-sm font-medium text-gray-700">Languages</label>
                     <p className="text-sm text-gray-900 mt-1">
-                      {job.source_language_name || 'N/A'} → {job.target_language_name || 'N/A'}
+                      {job.source_language_name || 'N/A'} → {job.target_language_name || 'English'}
                     </p>
                   </div>
                 </div>

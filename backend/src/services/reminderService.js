@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const emailService = require('./emailService');
+const smsService = require('./smsService');
 const loggerService = require('./loggerService');
 const magicLinkService = require('./magicLinkService');
 
@@ -21,14 +22,14 @@ class ReminderService {
         SELECT 
           j.id, j.title, j.description, j.scheduled_date, j.scheduled_time,
           j.location_address, j.location_city, j.location_state, j.is_remote,
-          j.hourly_rate, j.assigned_interpreter_id, j.claimant_id, j.client_email,
+          j.hourly_rate, j.assigned_interpreter_id, j.claimant_id, j.client_email, j.client_phone,
           j.claimant_reminder_sent, j.claimant_reminder_sent_at,
           j.interpreter_2day_reminder_sent, j.interpreter_2day_reminder_sent_at,
           j.interpreter_1day_reminder_sent, j.interpreter_1day_reminder_sent_at,
           j.interpreter_2hour_reminder_sent, j.interpreter_2hour_reminder_sent_at,
           j.interpreter_5minute_reminder_sent, j.interpreter_5minute_reminder_sent_at,
           c.first_name as claimant_first_name, c.last_name as claimant_last_name,
-          i.first_name as interpreter_first_name, i.last_name as interpreter_last_name, i.email as interpreter_email,
+          i.first_name as interpreter_first_name, i.last_name as interpreter_last_name, i.email as interpreter_email, i.phone as interpreter_phone,
           st.name as service_type_name,
           sl.name as source_language_name, tl.name as target_language_name
         FROM jobs j
@@ -60,14 +61,14 @@ class ReminderService {
         SELECT 
           j.id, j.title, j.description, j.scheduled_date, j.scheduled_time,
           j.location_address, j.location_city, j.location_state, j.is_remote,
-          j.hourly_rate, j.assigned_interpreter_id, j.claimant_id, j.client_email,
+          j.hourly_rate, j.assigned_interpreter_id, j.claimant_id, j.client_email, j.client_phone,
           j.claimant_reminder_sent, j.claimant_reminder_sent_at,
           j.interpreter_2day_reminder_sent, j.interpreter_2day_reminder_sent_at,
           j.interpreter_1day_reminder_sent, j.interpreter_1day_reminder_sent_at,
           j.interpreter_2hour_reminder_sent, j.interpreter_2hour_reminder_sent_at,
           j.interpreter_5minute_reminder_sent, j.interpreter_5minute_reminder_sent_at,
           c.first_name as claimant_first_name, c.last_name as claimant_last_name,
-          i.first_name as interpreter_first_name, i.last_name as interpreter_last_name, i.email as interpreter_email,
+          i.first_name as interpreter_first_name, i.last_name as interpreter_last_name, i.email as interpreter_email, i.phone as interpreter_phone,
           st.name as service_type_name,
           sl.name as source_language_name, tl.name as target_language_name
         FROM jobs j
@@ -133,6 +134,7 @@ class ReminderService {
         languages: languages
       };
 
+      // Send email reminder
       await this.emailService.queueEmail(
         'claimant_2day_reminder',
         job.client_email,
@@ -141,10 +143,31 @@ class ReminderService {
         'normal'
       );
 
+      // Send SMS reminder if phone number is available
+      if (job.client_phone && job.client_phone.trim() !== '') {
+        try {
+          await smsService.sendReminderSMS(job.client_phone, 'claimant_2day_reminder', job);
+          await loggerService.info('Claimant SMS reminder sent', {
+            category: 'SMS',
+            jobId: job.id,
+            claimantPhone: job.client_phone,
+            appointmentDate: job.scheduled_date
+          });
+        } catch (smsError) {
+          await loggerService.error('Failed to send claimant SMS reminder', {
+            category: 'SMS',
+            jobId: job.id,
+            claimantPhone: job.client_phone,
+            error: smsError.message
+          });
+          // Don't fail the entire reminder if SMS fails
+        }
+      }
+
       // Update job record
       await db.query(
-        'UPDATE jobs SET claimant_reminder_sent = true, claimant_reminder_sent_at = CURRENT_TIMESTAMP, status = $2 WHERE id = $1',
-        [job.id, 'reminders_sent']
+        'UPDATE jobs SET claimant_reminder_sent = true, claimant_reminder_sent_at = CURRENT_TIMESTAMP WHERE id = $1',
+        [job.id]
       );
 
       await loggerService.info('Claimant reminder sent', {
@@ -212,6 +235,7 @@ class ReminderService {
         hourly_rate: `$${job.hourly_rate}/hour`
       };
 
+      // Send email reminder
       await this.emailService.queueEmail(
         'interpreter_2day_reminder',
         job.interpreter_email,
@@ -219,6 +243,27 @@ class ReminderService {
         variables,
         'normal'
       );
+
+      // Send SMS reminder if phone number is available
+      if (job.interpreter_phone && job.interpreter_phone.trim() !== '') {
+        try {
+          await smsService.sendReminderSMS(job.interpreter_phone, 'interpreter_2day_reminder', job);
+          await loggerService.info('Interpreter 2-day SMS reminder sent', {
+            category: 'SMS',
+            jobId: job.id,
+            interpreterPhone: job.interpreter_phone,
+            appointmentDate: job.scheduled_date
+          });
+        } catch (smsError) {
+          await loggerService.error('Failed to send interpreter 2-day SMS reminder', {
+            category: 'SMS',
+            jobId: job.id,
+            interpreterPhone: job.interpreter_phone,
+            error: smsError.message
+          });
+          // Don't fail the entire reminder if SMS fails
+        }
+      }
 
       // Update job record
       await db.query(
@@ -414,13 +459,15 @@ class ReminderService {
         return { sent: false, reason: 'No interpreter email address' };
       }
 
-      const appointmentDate = new Date(job.scheduled_date);
-      const appointmentTime = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
+      // Fix date parsing - handle both Date objects and strings
+      const dateStr = job.scheduled_date instanceof Date ? job.scheduled_date.toISOString() : job.scheduled_date;
+      const dateOnly = dateStr.split('T')[0];
+      const appointmentDateTime = new Date(`${dateOnly}T${job.scheduled_time}`);
       const now = new Date();
       
       // Check if it's within 5 minutes of appointment time (skip for admin-triggered reminders)
       if (!skipTimingCheck) {
-        const timeDiff = appointmentTime.getTime() - now.getTime();
+        const timeDiff = appointmentDateTime.getTime() - now.getTime();
         const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
         
         if (timeDiff > fiveMinutes || timeDiff < 0) {
@@ -515,6 +562,21 @@ class ReminderService {
 
         const interpreter5MinuteResult = await this.sendInterpreter5MinuteReminder(job);
         if (interpreter5MinuteResult.sent) interpreter5MinuteRemindersSent++;
+      }
+
+      // Update job status to 'reminders_sent' after 5-minute reminder is sent
+      for (const job of jobs) {
+        const jobReminders = await db.query(
+          'SELECT interpreter_5minute_reminder_sent FROM jobs WHERE id = $1',
+          [job.id]
+        );
+        
+        if (jobReminders.rows.length > 0 && jobReminders.rows[0].interpreter_5minute_reminder_sent) {
+          await db.query(
+            'UPDATE jobs SET status = $1 WHERE id = $2',
+            ['reminders_sent', job.id]
+          );
+        }
       }
 
       const summary = {

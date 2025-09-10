@@ -1316,10 +1316,12 @@ router.get('/jobs', authenticateToken, async (req, res) => {
                    j.scheduled_date, j.scheduled_time, j.arrival_time, j.estimated_duration_minutes,
                    j.hourly_rate, j.total_amount, j.payment_status, j.client_name,
                    j.client_email, j.client_phone, j.client_notes, j.special_requirements,
-                   j.admin_notes, j.appointment_type, j.is_remote,
+                   j.admin_notes, j.appointment_type, j.is_remote, j.facility_confirmation_required,
                    j.created_at, j.updated_at,
                    c.first_name as claimant_first_name, c.last_name as claimant_last_name,
-                   cl.claim_number, cl.case_type,
+                   c.phone as claimant_phone, c.address as claimant_address, 
+                   c.city as claimant_city, c.state as claimant_state, c.zip_code as claimant_zip_code,
+                   cl.claim_number, cl.case_type, cl.date_of_injury, cl.diagnosis,
                    j.assigned_interpreter_id,
                    CASE 
                      WHEN i.first_name IS NOT NULL AND i.last_name IS NOT NULL 
@@ -1372,7 +1374,9 @@ router.get('/jobs/:id', authenticateToken, async (req, res) => {
         const result = await db.query(`
             SELECT j.*, 
                    c.first_name as claimant_first_name, c.last_name as claimant_last_name,
-                   cl.claim_number, cl.case_type,
+                   c.phone as claimant_phone, c.address as claimant_address, 
+                   c.city as claimant_city, c.state as claimant_state, c.zip_code as claimant_zip_code,
+                   cl.claim_number, cl.case_type, cl.date_of_injury, cl.diagnosis,
                    j.assigned_interpreter_id,
                    CASE 
                      WHEN i.first_name IS NOT NULL AND i.last_name IS NOT NULL 
@@ -1612,6 +1616,38 @@ router.put('/jobs/:id', authenticateToken, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to update job'
+        });
+    }
+});
+
+// Update facility confirmation status
+router.put('/jobs/:id/facility-confirmation', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { facility_confirmation_required } = req.body;
+        
+        const result = await db.query(
+            'UPDATE jobs SET facility_confirmation_required = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, facility_confirmation_required',
+            [facility_confirmation_required, id]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Job not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Facility confirmation status updated successfully',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Error updating facility confirmation:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update facility confirmation status'
         });
     }
 });

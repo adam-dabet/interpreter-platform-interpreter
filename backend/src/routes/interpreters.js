@@ -3,6 +3,203 @@ const router = express.Router();
 const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const loggerService = require('../services/loggerService');
+const bcrypt = require('bcryptjs');
+const { body, validationResult } = require('express-validator');
+
+// ===== INTERPRETER REGISTRATION =====
+
+// Create interpreter profile (registration)
+router.post('/', [
+  body('email').isEmail().withMessage('Valid email required'),
+  body('first_name').notEmpty().withMessage('First name required'),
+  body('last_name').notEmpty().withMessage('Last name required'),
+  body('phone').notEmpty().withMessage('Phone number required'),
+], async (req, res) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const {
+      email,
+      first_name,
+      last_name,
+      phone,
+      date_of_birth,
+      street_address,
+      city,
+      state_id,
+      zip_code,
+      years_of_experience,
+      hourly_rate,
+      bio,
+      availability_notes,
+      languages: languagesString,
+      service_types: serviceTypesString,
+      certificates_metadata: certificatesMetadataString,
+      documents
+    } = req.body;
+
+    // Parse JSON strings if they exist
+    let languages = [];
+    let service_types = [];
+    let certificates = [];
+    
+    try {
+      if (languagesString) {
+        languages = JSON.parse(languagesString);
+      }
+    } catch (e) {
+      // Skip invalid JSON
+    }
+    
+    try {
+      if (serviceTypesString) {
+        service_types = JSON.parse(serviceTypesString);
+      }
+    } catch (e) {
+      // Skip invalid JSON
+    }
+    
+    try {
+      if (certificatesMetadataString) {
+        certificates = JSON.parse(certificatesMetadataString);
+      }
+    } catch (e) {
+      // Skip invalid JSON
+    }
+
+    // Check if email already exists in interpreters table
+    const existingInterpreter = await db.query(
+      'SELECT id FROM interpreters WHERE email = $1',
+      [email]
+    );
+
+    if (existingInterpreter.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already registered'
+      });
+    }
+
+    // Start transaction
+    await db.query('BEGIN');
+
+    try {
+      // Create user account first (for authentication)
+      const defaultPassword = 'TempPassword123!'; // Default password for new interpreters
+      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+      
+      const userResult = await db.query(`
+        INSERT INTO users (
+          username, email, password, role, first_name, last_name, phone,
+          is_active, email_verified, password_changed, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING id, email, first_name, last_name
+      `, [
+        email, email, hashedPassword, 'provider', first_name, last_name, phone,
+        true, false, false // password_changed = false for new accounts
+      ]);
+
+      const userId = userResult.rows[0].id;
+
+      // Create interpreter record
+      const interpreterResult = await db.query(`
+        INSERT INTO interpreters (
+          user_id, first_name, last_name, email, phone, profile_status, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING id, email, first_name, last_name, profile_status
+      `, [
+        userId, first_name, last_name, email, phone, 'pending'
+      ]);
+
+      const interpreterId = interpreterResult.rows[0].id;
+
+      // Handle languages if provided
+      if (languages && languages.length > 0) {
+        for (const language of languages) {
+          const languageId = language.language_id || language;
+          
+          // Validate that language_id is a valid UUID
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+          if (!uuidRegex.test(languageId)) {
+            continue; // Skip invalid language IDs
+          }
+          
+          await db.query(`
+            INSERT INTO interpreter_languages (interpreter_id, language_id, proficiency_level, created_at)
+            VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+          `, [interpreterId, languageId, language.proficiency_level || 'intermediate']);
+        }
+      }
+
+      // Handle service types if provided
+      if (service_types && service_types.length > 0) {
+        for (const serviceTypeId of service_types) {
+          await db.query(`
+            INSERT INTO interpreter_service_types (interpreter_id, service_type_id, created_at)
+            VALUES ($1, $2, CURRENT_TIMESTAMP)
+          `, [interpreterId, serviceTypeId]);
+        }
+      }
+
+      // Handle certificates if provided
+      if (certificates && certificates.length > 0) {
+        for (const certificate of certificates) {
+          await db.query(`
+            INSERT INTO interpreter_certificates (
+              interpreter_id, certificate_type_id, issuing_organization, 
+              issue_date, expiry_date, certificate_number, created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+          `, [
+            interpreterId, certificate.certificate_type_id, certificate.issuing_organization,
+            certificate.issue_date, certificate.expiry_date, certificate.certificate_number
+          ]);
+        }
+      }
+
+      // Commit transaction
+      await db.query('COMMIT');
+
+      res.status(201).json({
+        success: true,
+        message: 'Interpreter profile created successfully',
+        data: {
+          id: interpreterId,
+          email: interpreterResult.rows[0].email,
+          firstName: interpreterResult.rows[0].first_name,
+          lastName: interpreterResult.rows[0].last_name,
+          profileStatus: interpreterResult.rows[0].profile_status,
+          defaultPassword: defaultPassword,
+          requiresPasswordChange: true
+        }
+      });
+
+    } catch (error) {
+      // Rollback transaction on error
+      try {
+        await db.query('ROLLBACK');
+      } catch (rollbackError) {
+        // Log rollback error but don't throw it
+      }
+      throw error;
+    }
+
+  } catch (error) {
+    loggerService.error('Error creating interpreter profile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create interpreter profile',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
 
 // ===== INTERPRETER JOB WORKFLOW ROUTES =====
 
@@ -107,10 +304,6 @@ router.post('/jobs/:id/end', authenticateToken, async (req, res) => {
         
         const job = jobCheck.rows[0];
         
-        console.log('End job debug:');
-        console.log('Job assigned_interpreter_id:', job.assigned_interpreter_id);
-        console.log('Request user:', req.user);
-        console.log('Request user interpreterId:', req.user.interpreterId);
         
         // Check if interpreter is assigned to this job
         if (job.assigned_interpreter_id !== req.user.interpreterId) {
@@ -191,14 +384,10 @@ router.put('/jobs/:id/update-duration', authenticateToken, async (req, res) => {
         
         const job = jobCheck.rows[0];
         
-        console.log('Job assigned_interpreter_id:', job.assigned_interpreter_id);
-        console.log('Request user id:', req.user.id);
-        console.log('User type:', req.user.type);
         
         // Check if interpreter is assigned to this job
         // Temporarily allow any interpreter for testing
         if (job.assigned_interpreter_id !== req.user.id && req.user.type !== 'admin') {
-            console.log('Permission check failed - allowing for testing');
             // return res.status(403).json({
             //     success: false,
             //     message: 'You are not assigned to this job',
@@ -245,14 +434,6 @@ router.post('/jobs/:id/completion-report', authenticateToken, async (req, res) =
             start_time, end_time, result, file_status, notes
         } = req.body;
         
-        console.log('Completion report submission data:', {
-            id,
-            start_time,
-            end_time,
-            result,
-            file_status,
-            notes
-        });
         
         // Handle uploaded files
         let uploadedFiles = [];
@@ -300,10 +481,6 @@ router.post('/jobs/:id/completion-report', authenticateToken, async (req, res) =
         
         const job = jobCheck.rows[0];
         
-        console.log('Completion report submission debug:');
-        console.log('Job assigned_interpreter_id:', job.assigned_interpreter_id);
-        console.log('Request user:', req.user);
-        console.log('Request user interpreterId:', req.user.interpreterId);
         
         // Check if interpreter is assigned to this job
         if (job.assigned_interpreter_id !== req.user.interpreterId) {
@@ -535,8 +712,6 @@ router.get('/profile', authenticateToken, async (req, res) => {
         // For interpreters, use interpreterId if available, otherwise use userId
         const interpreterId = req.user.interpreterId || req.user.id;
         
-        console.log('Profile request - req.user:', req.user);
-        console.log('Profile request - interpreterId:', interpreterId);
         
         const result = await db.query(`
             SELECT i.id, i.first_name, i.last_name, i.email, i.phone, i.date_of_birth,
@@ -549,7 +724,6 @@ router.get('/profile', authenticateToken, async (req, res) => {
             WHERE i.id = $1
         `, [interpreterId]);
         
-        console.log('Profile query result:', result.rows);
         
         if (result.rows.length === 0) {
             return res.status(404).json({

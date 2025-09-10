@@ -62,10 +62,14 @@ const Login = () => {
         // Use the auth context to handle login
         login(response.data.data);
         
-        toast.success('Login successful! Welcome back.');
-        
-        // Redirect to interpreter dashboard
-        navigate('/dashboard');
+        // Check if user needs to change password
+        if (response.data.data.requiresPasswordChange) {
+          toast('Please change your password to continue.');
+          navigate('/change-password');
+        } else {
+          toast.success('Login successful! Welcome back.');
+          navigate('/dashboard');
+        }
       } else {
         toast.error(response.data?.message || 'Login failed. Please check your credentials.');
       }

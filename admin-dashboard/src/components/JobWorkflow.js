@@ -32,6 +32,7 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
   const [showSkipDropdown, setShowSkipDropdown] = useState(false);
   const [skipReason, setSkipReason] = useState('');
   const [validTransitions, setValidTransitions] = useState([]);
+  const [facilityConfirmationRequired, setFacilityConfirmationRequired] = useState(false);
   const skipDropdownRef = useRef(null);
 
   const workflowSteps = [
@@ -108,6 +109,11 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
   ];
 
   const currentStepIndex = workflowSteps.findIndex(step => step.key === job.status) || 0;
+
+  // Initialize facility confirmation state from job data
+  useEffect(() => {
+    setFacilityConfirmationRequired(job.facility_confirmation_required || false);
+  }, [job.facility_confirmation_required]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -350,6 +356,41 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
     } catch (error) {
       console.error('Error sending interpreter 5-minute reminder:', error);
       toast.error('Failed to send interpreter 5-minute reminder');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFacilityConfirmationChange = async (checked) => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('adminToken');
+      
+      const response = await fetch(`${API_BASE}/admin/jobs/${job.id}/facility-confirmation`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          facility_confirmation_required: checked
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setFacilityConfirmationRequired(checked);
+        toast.success(checked ? 'Facility confirmation marked as required' : 'Facility confirmation requirement removed');
+        if (onJobUpdate) {
+          onJobUpdate({ ...job, facility_confirmation_required: checked });
+        }
+      } else {
+        toast.error(data.message || 'Failed to update facility confirmation status');
+      }
+    } catch (error) {
+      console.error('Error updating facility confirmation:', error);
+      toast.error('Failed to update facility confirmation status');
     } finally {
       setIsLoading(false);
     }
@@ -705,6 +746,17 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
           <div className="flex items-center">
             <div className={`w-3 h-3 rounded-full mr-2 ${job.status === JOB_STATUSES.REMINDERS_SENT || job.status === JOB_STATUSES.IN_PROGRESS || job.status === JOB_STATUSES.COMPLETED || job.status === JOB_STATUSES.COMPLETION_REPORT || job.status === JOB_STATUSES.BILLED || job.status === JOB_STATUSES.CLOSED || job.status === JOB_STATUSES.INTERPRETER_PAID ? 'bg-green-500' : 'bg-gray-300'}`}></div>
             Reminders {job.status === JOB_STATUSES.REMINDERS_SENT || job.status === JOB_STATUSES.IN_PROGRESS || job.status === JOB_STATUSES.COMPLETED || job.status === JOB_STATUSES.COMPLETION_REPORT || job.status === JOB_STATUSES.BILLED || job.status === JOB_STATUSES.CLOSED || job.status === JOB_STATUSES.INTERPRETER_PAID ? 'Sent' : 'Pending'}
+          </div>
+          
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              checked={facilityConfirmationRequired}
+              onChange={(e) => handleFacilityConfirmationChange(e.target.checked)}
+              disabled={isLoading}
+              className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
+            />
+            <span className="text-sm text-gray-700">Confirm with Facility</span>
           </div>
           
           <div className="flex items-center">

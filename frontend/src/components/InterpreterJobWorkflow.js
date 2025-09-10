@@ -18,13 +18,8 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
   
   // Calculate actual duration from magic link timestamps if available
   const calculateActualDuration = () => {
-    console.log('Calculating actual duration for job:', job.title);
-    console.log('job.actual_duration_minutes:', job.actual_duration_minutes);
-    console.log('job.job_started_at:', job.job_started_at);
-    console.log('job.job_ended_at:', job.job_ended_at);
     
     if (job.actual_duration_minutes) {
-      console.log('Using existing actual_duration_minutes:', job.actual_duration_minutes);
       return job.actual_duration_minutes;
     }
     
@@ -33,11 +28,9 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
       const endTime = new Date(job.job_ended_at);
       const durationMs = endTime.getTime() - startTime.getTime();
       const durationMinutes = Math.round(durationMs / (1000 * 60));
-      console.log('Calculated duration from timestamps:', durationMinutes, 'minutes');
       return durationMinutes > 0 ? durationMinutes : '';
     }
     
-    console.log('No duration data available, returning empty string');
     return '';
   };
   
@@ -138,9 +131,6 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
 
     try {
       const token = localStorage.getItem('interpreterToken');
-      console.log('Job ID:', job.id);
-      console.log('Job assigned_interpreter_id:', job.assigned_interpreter_id);
-      console.log('Token exists:', !!token);
       
       const response = await fetch(`${API_BASE}/interpreters/jobs/${job.id}/update-duration`, {
         method: 'PUT',
@@ -186,14 +176,6 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
       // Set increment based on appointment type
       const incrementMinutes = isLegalAppointment ? 180 : 15; // 3 hours for legal, 15 minutes for others
       
-      console.log('Interpreter payment calculation:', {
-        title: job.title,
-        interpreter_type_code: job.interpreter_type_code,
-        service_type_name: job.service_type_name,
-        isLegalAppointment,
-        incrementMinutes,
-        minimumMinutes
-      });
       
       const paymentAmount = calculateIncrementalPayment(minimumMinutes, job.hourly_rate || 0, incrementMinutes);
       
@@ -218,15 +200,6 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
     const totalHours = totalIncrementalMinutes / 60;
     const payment = hourlyRate * totalHours;
     
-    console.log('Interpreter incremental payment calculation:', {
-      totalMinutes,
-      incrementMinutes,
-      increments,
-      totalIncrementalMinutes,
-      totalHours,
-      hourlyRate,
-      payment
-    });
     
     return payment;
   };

@@ -143,13 +143,15 @@ class AuthController {
             email: user.email,
             name: `${user.first_name} ${user.last_name}`,
             role: user.role,
-            username: user.username
+            username: user.username,
+            passwordChanged: user.password_changed
           },
           interpreterProfile: interpreterProfile ? {
             id: interpreterProfile.id,
             profileStatus: interpreterProfile.profile_status,
             verificationStatus: interpreterProfile.verification_status
-          } : null
+          } : null,
+          requiresPasswordChange: !user.password_changed
         }
       });
 
@@ -256,9 +258,9 @@ class AuthController {
       const saltRounds = 12;
       const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
 
-      // Update password
+      // Update password and set password_changed flag
       await db.query(
-        'UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        'UPDATE users SET password = $1, password_changed = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
         [hashedNewPassword, userId]
       );
 

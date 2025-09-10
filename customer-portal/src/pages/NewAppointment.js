@@ -949,7 +949,7 @@ const NewAppointment = () => {
     
     // Hide animation and navigate
     setShowSearchAnimation(false);
-    toast.info('Search cancelled. You can check your appointments page for updates.');
+    toast('Search cancelled. You can check your appointments page for updates.');
     navigate('/appointments');
   };
 
@@ -1063,7 +1063,7 @@ const NewAppointment = () => {
             setSearchInterval(null);
           }
           setShowSearchAnimation(false);
-          toast.info('Search is taking longer than expected. You can check your appointments page for updates.');
+          toast('Search is taking longer than expected. You can check your appointments page for updates.');
           navigate('/appointments');
         }, 300000); // 5 minutes
       } else {

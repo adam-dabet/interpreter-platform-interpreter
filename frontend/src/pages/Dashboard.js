@@ -4,22 +4,14 @@ import { motion } from 'framer-motion';
 import { 
   DocumentTextIcon, 
   ChartBarIcon,
-  KeyIcon,
   CalendarIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
-import toast from 'react-hot-toast';
-import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
-import ChangePasswordForm from '../components/forms/ChangePasswordForm';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, profile, isLoading, isAuthenticated } = useAuth();
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [hasChangedPassword, setHasChangedPassword] = useState(() => {
-    return localStorage.getItem('hasChangedPassword') === 'true';
-  });
 
   useEffect(() => {
     // Check if user is authenticated
@@ -50,38 +42,6 @@ const Dashboard = () => {
       </div>
         
 
-        {/* Password Change Notification */}
-        {!hasChangedPassword && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="mb-6"
-          >
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <KeyIcon className="h-5 w-5 text-blue-600 mr-3" />
-                  <div>
-                    <h3 className="text-sm font-medium text-blue-900">
-                      Secure Your Account
-                    </h3>
-                    <p className="text-sm text-blue-800 mt-1">
-                      For security, please change your password if you're using a temporary one.
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => setShowPasswordModal(true)}
-                  className="ml-4"
-                >
-                  Change Password
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
 
         {/* Stats Cards */}
         <motion.div
@@ -165,25 +125,6 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
-        {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white shadow rounded-lg p-6 mb-8"
-        >
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Button
-              variant="outline"
-              className="justify-start"
-              onClick={() => setShowPasswordModal(true)}
-            >
-              <KeyIcon className="h-5 w-5 mr-2" />
-              Change Password
-            </Button>
-          </div>
-        </motion.div>
 
         {/* Password Change Modal */}
         {showPasswordModal && (

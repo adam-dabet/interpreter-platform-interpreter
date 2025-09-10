@@ -59,12 +59,7 @@ const JobDashboard = () => {
             ...(filter !== 'all' && { status: filter })
           };
       
-      console.log('🔍 Loading jobs with params:', params);
       const response = await jobAPI.getMyJobs(params);
-      console.log('📊 Jobs API response:', response);
-      console.log('📋 Jobs data:', response.data.data.jobs);
-      console.log('📊 Pagination info:', response.data.data.pagination);
-      console.log('📊 Total jobs in response:', response.data.data.jobs.length);
       setJobs(response.data.data.jobs);
       setTotalPages(response.data.data.pagination.total_pages);
     } catch (error) {
@@ -152,8 +147,6 @@ const JobDashboard = () => {
 
   // Filter jobs based on active tab
   const getFilteredJobs = () => {
-    console.log('🔍 Filtering jobs for tab:', activeTab);
-    console.log('📋 All jobs:', jobs);
     
     if (activeTab === 'upcoming') {
       const upcomingJobs = jobs.filter(job => {
@@ -164,14 +157,11 @@ const JobDashboard = () => {
         const shouldShow = isAssigned && isNotCompleted;
         
         if (shouldShow) {
-          console.log(`✅ Including job: ${job.title} (status: ${job.status})`);
         } else {
-          console.log(`❌ Excluding job: ${job.title} (status: ${job.status})`);
         }
         
         return shouldShow;
       });
-      console.log('⏰ Upcoming jobs:', upcomingJobs);
       return upcomingJobs;
     } else if (activeTab === 'completion_reports') {
       const completionReportJobs = jobs.filter(job => {
@@ -179,14 +169,11 @@ const JobDashboard = () => {
         const needsReport = job.status === 'completed' && !job.completion_report_submitted;
         
         if (needsReport) {
-          console.log(`✅ Including completion report job: ${job.title} (status: ${job.status}, report submitted: ${job.completion_report_submitted})`);
         } else {
-          console.log(`❌ Excluding job: ${job.title} (status: ${job.status}, report submitted: ${job.completion_report_submitted})`);
         }
         
         return needsReport;
       });
-      console.log('📋 Completion report jobs:', completionReportJobs);
       return completionReportJobs;
     } else if (activeTab === 'past') {
       const pastJobs = jobs.filter(job => {
@@ -196,17 +183,13 @@ const JobDashboard = () => {
         const shouldShow = isJobCompleted;
         
         if (shouldShow) {
-          console.log(`✅ Including past job: ${job.title} (status: ${job.status})`);
         } else {
-          console.log(`❌ Excluding past job: ${job.title} (status: ${job.status})`);
         }
         
         return shouldShow;
       });
-      console.log('📚 Past jobs:', pastJobs);
       return pastJobs;
     }
-    console.log('📄 All jobs (no filter):', jobs);
     return jobs; // Return all jobs for other tabs
   };
 

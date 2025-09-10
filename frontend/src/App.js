@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import InterpreterProfile from './pages/InterpreterProfile';
 import ApplicationStatus from './pages/ApplicationStatus';
 import Login from './pages/Login';
+import ChangePassword from './pages/ChangePassword';
 import Dashboard from './pages/Dashboard';
 import JobDashboard from './pages/JobDashboard';
 import JobSearch from './pages/JobSearch';
@@ -29,6 +30,7 @@ function App() {
             <Route path="/apply" element={<Layout><InterpreterProfile /></Layout>} />
             <Route path="/status" element={<Layout><ApplicationStatus /></Layout>} />
             <Route path="/login" element={<Login />} />
+            <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
             <Route path="/job-timer/:token" element={<JobTimer />} />
             <Route path="/dashboard" element={<ProtectedRoute><AuthenticatedLayout><Dashboard /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/jobs" element={<ProtectedRoute><AuthenticatedLayout><JobDashboard /></AuthenticatedLayout></ProtectedRoute>} />

@@ -32,6 +32,11 @@ const JobDetails = ({ jobId, setCurrentView }) => {
   const [interpreterRate, setInterpreterRate] = useState('');
   const [estimatedDuration, setEstimatedDuration] = useState('');
   const [actualDuration, setActualDuration] = useState('');
+  
+  // Collapsible section states
+  const [serviceDetailsExpanded, setServiceDetailsExpanded] = useState(true);
+  const [claimantInfoExpanded, setClaimantInfoExpanded] = useState(true);
+  const [claimInfoExpanded, setClaimInfoExpanded] = useState(true);
 
   useEffect(() => {
     loadJobDetails();
@@ -52,25 +57,21 @@ const JobDetails = ({ jobId, setCurrentView }) => {
       
       if (jobResponse.ok) {
         const jobData = await jobResponse.json();
-        console.log('Job data received:', jobData.data);
         setJob(jobData.data);
         
-        // Load billing rates for completed jobs
-        if (jobData.data.status === 'completed' || jobData.data.status === 'completed_with_issues') {
-          const ratesResponse = await fetch(`${API_BASE}/admin/jobs/${jobId}/billing-rates`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (ratesResponse.ok) {
-            const ratesData = await ratesResponse.json();
-            console.log('Billing rates data:', ratesData.data);
-            setBillingRates(ratesData.data);
-          } else {
-            console.error('Failed to fetch billing rates:', ratesResponse.status);
+        // Load billing rates for all jobs
+        const ratesResponse = await fetch(`${API_BASE}/admin/jobs/${jobId}/billing-rates`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
+        });
+        
+        if (ratesResponse.ok) {
+          const ratesData = await ratesResponse.json();
+          setBillingRates(ratesData.data);
+        } else {
+          console.error('Failed to fetch billing rates:', ratesResponse.status);
         }
       } else {
         toast.error('Failed to load job details');
@@ -228,21 +229,16 @@ const JobDetails = ({ jobId, setCurrentView }) => {
   };
 
   const calculateBillingTotal = (job, billingRates, type) => {
-    console.log('Calculating billing total:', { job, billingRates, type });
     
     if (!billingRates || !billingRates.rates || billingRates.rates.length === 0) {
-      console.log('No billing rates available');
       return '0.00';
     }
     
     const duration = type === 'actual' ? job.actual_duration_minutes : job.estimated_duration_minutes;
     if (!duration) {
-      console.log('No duration available');
       return '0.00';
     }
     
-    console.log('Duration:', duration);
-    console.log('Available rates:', billingRates.rates);
     
     // Find the appropriate rate based on duration
     const rates = billingRates.rates.sort((a, b) => a.time_minutes - b.time_minutes);
@@ -255,7 +251,6 @@ const JobDetails = ({ jobId, setCurrentView }) => {
     if (timeARate && remainingMinutes >= timeARate.time_minutes) {
       total += parseFloat(timeARate.rate_amount);
       remainingMinutes -= timeARate.time_minutes;
-      console.log('Applied Time A rate:', timeARate.rate_amount, 'Remaining:', remainingMinutes);
     }
     
     // Apply Time B rate for additional time
@@ -263,10 +258,8 @@ const JobDetails = ({ jobId, setCurrentView }) => {
     if (timeBRate && remainingMinutes > 0) {
       const additionalPeriods = Math.ceil(remainingMinutes / timeBRate.time_minutes);
       total += parseFloat(timeBRate.rate_amount) * additionalPeriods;
-      console.log('Applied Time B rate:', timeBRate.rate_amount, 'Periods:', additionalPeriods);
     }
     
-    console.log('Final total:', total);
     return total.toFixed(2);
   };
 
@@ -275,15 +268,6 @@ const JobDetails = ({ jobId, setCurrentView }) => {
       return '0.00';
     }
     
-    // Debug logging
-    console.log('calculateInterpreterPayment - Job data:', {
-      title: job.title,
-      interpreter_type_code: job.interpreter_type_code,
-      service_type_name: job.service_type_name,
-      hourly_rate: job.hourly_rate,
-      estimated_duration_minutes: job.estimated_duration_minutes,
-      actual_duration_minutes: job.actual_duration_minutes
-    });
     
     // Determine if this is a legal appointment
     // Only court certified interpreters OR explicitly legal services (not medical-legal or non-legal)
@@ -295,11 +279,6 @@ const JobDetails = ({ jobId, setCurrentView }) => {
     // Set increment based on appointment type
     const incrementMinutes = isLegalAppointment ? 180 : 15; // 3 hours for legal, 15 minutes for others
     
-    console.log('Legal appointment detection:', {
-      isLegalAppointment,
-      incrementMinutes,
-      type
-    });
     
     if (type === 'estimated') {
       // For estimated payment, use incremental billing
@@ -330,15 +309,6 @@ const JobDetails = ({ jobId, setCurrentView }) => {
     const totalHours = totalIncrementalMinutes / 60;
     const payment = hourlyRate * totalHours;
     
-    console.log('Incremental payment calculation:', {
-      totalMinutes,
-      incrementMinutes,
-      increments,
-      totalIncrementalMinutes,
-      totalHours,
-      hourlyRate,
-      payment
-    });
     
     return payment;
   };
@@ -567,28 +537,160 @@ const JobDetails = ({ jobId, setCurrentView }) => {
           </div>
 
           {/* Service Details */}
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center border-b border-gray-200 pb-3">
-              <LanguageIcon className="h-5 w-5 mr-2 text-blue-600" />
-              Service Details
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700">Service Type</label>
-                <p className="text-sm text-gray-900 mt-1">{job.service_type_name || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Languages</label>
-                <p className="text-sm text-gray-900 mt-1">
-                  {job.source_language_name || 'N/A'} → {job.target_language_name || 'N/A'}
-                </p>
+          <div className="bg-white rounded-lg shadow-sm border">
+            <div className="border-b border-gray-200">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center justify-between">
+                  <div 
+                    className="flex items-center cursor-pointer flex-1"
+                    onClick={() => setServiceDetailsExpanded(!serviceDetailsExpanded)}
+                  >
+                    <LanguageIcon className="h-5 w-5 mr-2 text-blue-600" />
+                    Service Details
+                  </div>
+                  <div 
+                    className="cursor-pointer p-1 rounded hover:bg-gray-100"
+                    onClick={() => setServiceDetailsExpanded(!serviceDetailsExpanded)}
+                  >
+                    {serviceDetailsExpanded ? (
+                      <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+                    ) : (
+                      <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+                    )}
+                  </div>
+                </h3>
               </div>
             </div>
+            {serviceDetailsExpanded && (
+              <div className="p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Service Type</label>
+                    <p className="text-sm text-gray-900 mt-1">{job.service_type_name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Languages</label>
+                    <p className="text-sm text-gray-900 mt-1">
+                      {job.source_language_name || 'N/A'} → {job.target_language_name || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Interpreter Payment - Only show for completed jobs */}
-          {(job.status === 'completed' || job.status === 'completed_with_issues') && (
-            <div className="bg-white rounded-lg shadow-sm border">
+          {/* Claimant Information */}
+          <div className="bg-white rounded-lg shadow-sm border">
+            <div className="border-b border-gray-200">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center justify-between">
+                  <div 
+                    className="flex items-center cursor-pointer flex-1"
+                    onClick={() => setClaimantInfoExpanded(!claimantInfoExpanded)}
+                  >
+                    <UserIcon className="h-5 w-5 mr-2 text-blue-600" />
+                    Claimant Information
+                  </div>
+                  <div 
+                    className="cursor-pointer p-1 rounded hover:bg-gray-100"
+                    onClick={() => setClaimantInfoExpanded(!claimantInfoExpanded)}
+                  >
+                    {claimantInfoExpanded ? (
+                      <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+                    ) : (
+                      <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+                    )}
+                  </div>
+                </h3>
+              </div>
+            </div>
+            {claimantInfoExpanded && (
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Name</label>
+                    <p className="text-sm text-gray-900 mt-1">
+                      {job.claimant_first_name && job.claimant_last_name 
+                        ? `${job.claimant_first_name} ${job.claimant_last_name}`
+                        : 'N/A'
+                      }
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Phone</label>
+                    <p className="text-sm text-gray-900 mt-1">{job.claimant_phone || 'N/A'}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium text-gray-700">Address</label>
+                    <p className="text-sm text-gray-900 mt-1">
+                      {job.claimant_address ? (
+                        <>
+                          {job.claimant_address}
+                          {job.claimant_city && job.claimant_state && (
+                            <><br />{job.claimant_city}, {job.claimant_state} {job.claimant_zip_code}</>
+                          )}
+                        </>
+                      ) : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Claim Information */}
+          <div className="bg-white rounded-lg shadow-sm border">
+            <div className="border-b border-gray-200">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center justify-between">
+                  <div 
+                    className="flex items-center cursor-pointer flex-1"
+                    onClick={() => setClaimInfoExpanded(!claimInfoExpanded)}
+                  >
+                    <BuildingOfficeIcon className="h-5 w-5 mr-2 text-blue-600" />
+                    Claim Information
+                  </div>
+                  <div 
+                    className="cursor-pointer p-1 rounded hover:bg-gray-100"
+                    onClick={() => setClaimInfoExpanded(!claimInfoExpanded)}
+                  >
+                    {claimInfoExpanded ? (
+                      <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+                    ) : (
+                      <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+                    )}
+                  </div>
+                </h3>
+              </div>
+            </div>
+            {claimInfoExpanded && (
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Claim Number</label>
+                    <p className="text-sm text-gray-900 mt-1">{job.claim_number || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Case Type</label>
+                    <p className="text-sm text-gray-900 mt-1">{job.case_type || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Date of Injury</label>
+                    <p className="text-sm text-gray-900 mt-1">
+                      {job.date_of_injury ? new Date(job.date_of_injury).toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Diagnosis</label>
+                    <p className="text-sm text-gray-900 mt-1">{job.diagnosis || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Interpreter Payment */}
+          <div className="bg-white rounded-lg shadow-sm border">
               <div className="border-b border-gray-200">
                 <div className="p-6">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center justify-between">
@@ -732,11 +834,9 @@ const JobDetails = ({ jobId, setCurrentView }) => {
                 </div>
               )}
             </div>
-          )}
 
-          {/* Billing Information - Only show for completed jobs */}
-          {(job.status === 'completed' || job.status === 'completed_with_issues') && (
-            <div className="bg-white rounded-lg shadow-sm border">
+          {/* Billing Information */}
+          <div className="bg-white rounded-lg shadow-sm border">
               <div className="border-b border-gray-200">
                 <div className="p-6">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center justify-between">
@@ -875,8 +975,6 @@ const JobDetails = ({ jobId, setCurrentView }) => {
                 </div>
               )}
             </div>
-          )}
-
 
           {/* Additional Information */}
           {job.special_requirements && (

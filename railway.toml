@@ -1,0 +1,9 @@
+[build]
+command = "npm install && npm run build"
+
+[deploy]
+startCommand = "npx serve -s build -p $PORT"
+restartPolicyType = "always"
+
+[env]
+NODE_ENV = "production"

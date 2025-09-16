@@ -178,10 +178,6 @@ const JobDashboard = () => {
         jobDateTime = new Date(`${dateStr}T${timeStr}`);
       }
 
-      error: Failed to update appointment {"appointmentId":"5702ffb2-8cb1-4794-baf4-38a684876228","category":"CUSTOMER","customerId":401,"error":{"code":"42703","message":"column \"end_time\" of relation \"jobs\" does not exist","stack":"error: column \"end_time\" of relation \"jobs\" does not exist\n    at /Users/adamdabet/Desktop/interpreter-platform/backend/node_modules/pg-pool/index.js:45:11\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async updateAppointment (/Users/adamdabet/Desktop/interpreter-platform/backend/src/controllers/customerController.js:1695:22)"},"service":"interpreter-platform","timestamp":"2025-09-15T20:35:57.674Z"}
-error: PUT /api/customer/appointments/5702ffb2-8cb1-4794-baf4-38a684876228 - 500 {"error":{},"service":"interpreter-platform","timestamp":"2025-09-15T20:35:57.677Z"}
-    
-
       // Check if the date is valid
       if (isNaN(jobDateTime.getTime())) {
         console.log('Invalid job date/time:', {

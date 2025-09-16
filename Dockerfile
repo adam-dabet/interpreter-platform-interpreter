@@ -13,7 +13,12 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build the React app
+# Set environment variables for build
+ENV REACT_APP_API_URL=https://interpreter-platform-backend-production.up.railway.app/api
+ENV NODE_ENV=production
+ENV GENERATE_SOURCEMAP=false
+
+# Build the React app with verbose output
 RUN npm run build
 
 # Install serve globally

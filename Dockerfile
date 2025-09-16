@@ -24,8 +24,8 @@ RUN npm run build
 # Copy the server.js file
 COPY server.js ./
 
-# Install express for the server
-RUN npm install express
+# Install express for the server (use a specific version to avoid path-to-regexp issues)
+RUN npm install express@4.19.2
 
 # Expose port
 EXPOSE 3000

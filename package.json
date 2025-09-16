@@ -1,5 +1,15 @@
 {
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.12"
+  "name": "interpreter-platform",
+  "version": "1.0.0",
+  "description": "Interpreter Platform - Full Stack Application",
+  "main": "backend/src/app.js",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "install-all": "cd backend && npm install && cd ../admin-dashboard && npm install && cd ../customer-portal && npm install && cd ../frontend && npm install",
+    "build-all": "cd admin-dashboard && npm run build && cd ../customer-portal && npm run build && cd ../frontend && npm run build"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
   }
 }

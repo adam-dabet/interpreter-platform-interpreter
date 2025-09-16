@@ -21,11 +21,8 @@ ENV GENERATE_SOURCEMAP=false
 # Build the React app with verbose output
 RUN npm run build
 
-# Install serve globally
-RUN npm install -g serve
-
 # Expose port
 EXPOSE 3000
 
 # Start the application with proper port handling
-CMD sh -c "serve -s build -l ${PORT:-3000}"
+CMD sh -c "npx serve -s build -p ${PORT:-3000}"

@@ -11,6 +11,7 @@ import NewAppointment from './pages/NewAppointment';
 import Claimants from './pages/Claimants';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import RoutePersistence from './components/RoutePersistence';
 import './App.css';
 
 function AppRoutes() {
@@ -26,6 +27,7 @@ function AppRoutes() {
 
   return (
     <Router>
+      <RoutePersistence />
       <Routes>
         {/* Public routes */}
         <Route 

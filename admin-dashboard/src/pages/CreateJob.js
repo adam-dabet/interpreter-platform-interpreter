@@ -221,7 +221,6 @@ const CreateJob = ({ setCurrentView }) => {
       });
       if (serviceTypesResponse.ok) {
         const serviceTypesData = await serviceTypesResponse.json();
-        console.log('Service types loaded:', serviceTypesData.data);
         setServiceTypes(serviceTypesData.data || []);
       }
 
@@ -370,18 +369,13 @@ const CreateJob = ({ setCurrentView }) => {
     
     // Auto-populate service type when appointment type changes
     if (field === 'appointmentType' && value) {
-      console.log('Appointment type selected:', value);
       const serviceTypeCode = getServiceTypeForAppointmentType(value);
-      console.log('Mapped service type code:', serviceTypeCode);
-      console.log('Available service types:', serviceTypes);
       
       if (serviceTypeCode && serviceTypes.length > 0) {
         // Find the service type ID that matches the code
         const matchingServiceType = serviceTypes.find(st => st.code === serviceTypeCode);
-        console.log('Matching service type:', matchingServiceType);
         
         if (matchingServiceType) {
-          console.log('Auto-populating service type to:', matchingServiceType.id);
           setFormData(prev => ({
             ...prev,
             [field]: value,
@@ -397,7 +391,6 @@ const CreateJob = ({ setCurrentView }) => {
           if (serviceTypeCode === 'legal' && interpreterTypes.length > 0) {
             const courtCertifiedType = interpreterTypes.find(it => it.code === 'court_certified');
             if (courtCertifiedType) {
-              console.log('Auto-populating interpreter type to Court Certified');
               setFormData(prev => ({
                 ...prev,
                 interpreterType: courtCertifiedType.id.toString()
@@ -409,23 +402,18 @@ const CreateJob = ({ setCurrentView }) => {
             }
           }
         } else {
-          console.log('No matching service type found for code:', serviceTypeCode);
         }
       } else {
-        console.log('Service types not loaded yet or no service type code found');
       }
     }
     
     // Auto-populate interpreter type when service type changes directly
     if (field === 'serviceType' && value) {
-      console.log('Service type selected:', value);
       const selectedServiceType = serviceTypes.find(st => st.id.toString() === value);
-      console.log('Selected service type:', selectedServiceType);
       
       if (selectedServiceType && selectedServiceType.code === 'legal' && interpreterTypes.length > 0) {
         const courtCertifiedType = interpreterTypes.find(it => it.code === 'court_certified');
         if (courtCertifiedType) {
-          console.log('Auto-populating interpreter type to Court Certified');
           setFormData(prev => ({
             ...prev,
             interpreterType: courtCertifiedType.id.toString()
@@ -496,8 +484,6 @@ const CreateJob = ({ setCurrentView }) => {
         is_remote: false // Default to in-person, can be enhanced later
       };
       
-      console.log('Sending job data:', jobData);
-      console.log('Form data before processing:', formData);
       
       const response = await fetch(`${API_BASE}/admin/jobs`, {
         method: 'POST',

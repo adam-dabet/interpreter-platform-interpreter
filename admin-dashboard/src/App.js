@@ -24,6 +24,7 @@ import BillingAccounts from './pages/BillingAccounts';
 import Customers from './pages/Customers';
 import Claimants from './pages/Claimants';
 import Interpreters from './pages/Interpreters';
+import EmailHistory from './pages/EmailHistory';
 import Sidebar from './components/Sidebar';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
@@ -98,12 +99,36 @@ const AdminDashboard = () => {
     email: '',
     password: ''
   });
-  const [currentView, setCurrentView] = useState('applications'); // 'applications', 'jobs', 'create-job', 'job-details', or 'edit-job'
-  const [viewParams, setViewParams] = useState({}); // For passing parameters like jobId
+  // Initialize with saved view if available
+  const [currentView, setCurrentView] = useState(() => {
+    const savedView = localStorage.getItem('adminCurrentView');
+    console.log('Admin Dashboard - Initializing with saved view:', savedView);
+    return savedView || 'applications';
+  });
+  const [viewParams, setViewParams] = useState(() => {
+    const savedParams = localStorage.getItem('adminViewParams');
+    try {
+      const parsed = savedParams ? JSON.parse(savedParams) : {};
+      console.log('Admin Dashboard - Initializing with saved params:', parsed);
+      return parsed;
+    } catch (error) {
+      console.error('Error parsing saved view params:', error);
+      return {};
+    }
+  });
 
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // Save current view to localStorage whenever it changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log('Admin Dashboard - Saving view:', currentView, 'params:', viewParams);
+      localStorage.setItem('adminCurrentView', currentView);
+      localStorage.setItem('adminViewParams', JSON.stringify(viewParams));
+    }
+  }, [currentView, viewParams, isAuthenticated]);
 
   const handleViewChange = (view, params = {}) => {
     setCurrentView(view);
@@ -170,6 +195,8 @@ const AdminDashboard = () => {
 
   const logout = () => {
     localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminCurrentView');
+    localStorage.removeItem('adminViewParams');
     setIsAuthenticated(false);
     setStats(null);
     setApplications([]);
@@ -178,6 +205,8 @@ const AdminDashboard = () => {
     setFilters({ status: '', search: '', limit: '10' });
     setSelectedApplication(null);
     setShowModal(false);
+    setCurrentView('applications');
+    setViewParams({});
   };
 
   const loadDashboardData = async () => {
@@ -651,6 +680,10 @@ const AdminDashboard = () => {
 
         {currentView === 'claimants' && (
           <Claimants setCurrentView={handleViewChange} />
+        )}
+
+        {currentView === 'email-history' && (
+          <EmailHistory setCurrentView={handleViewChange} />
         )}
           </div>
         </div>

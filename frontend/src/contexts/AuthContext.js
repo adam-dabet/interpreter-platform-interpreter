@@ -104,6 +104,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('interpreterToken');
     localStorage.removeItem('interpreterUser');
     localStorage.removeItem('interpreterProfile');
+    localStorage.removeItem('interpreterCurrentRoute');
     
     setToken(null);
     setUser(null);

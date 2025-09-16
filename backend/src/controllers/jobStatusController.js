@@ -1,5 +1,7 @@
 const db = require('../config/database');
 const loggerService = require('../services/loggerService');
+const emailService = require('../services/emailService');
+const pdfInvoiceService = require('../services/pdfInvoiceService');
 
 class JobStatusController {
   // Transition job to a new status with validation
@@ -46,6 +48,47 @@ class JobStatusController {
         });
       }
 
+      // If transitioning to 'billed', send invoice email first (before transaction)
+      if (status === 'billed') {
+        try {
+          // Get job data for invoice email (before status change)
+          const jobData = await db.query(
+            'SELECT id, title, job_type, priority, status, scheduled_date, scheduled_time FROM jobs WHERE id = $1 AND is_active = true',
+            [jobId]
+          );
+
+          if (jobData.rows.length === 0) {
+            return res.status(404).json({
+              success: false,
+              message: 'Job not found for invoice email'
+            });
+          }
+
+          // Send invoice email before updating status
+          await this.sendInvoiceEmail(jobId, jobData.rows[0]);
+          
+          await loggerService.info('Invoice email sent successfully, proceeding with status update', {
+            category: 'BILLING_EMAIL',
+            jobId,
+            userId
+          });
+
+        } catch (emailError) {
+          // If invoice email fails, return error without updating status
+          await loggerService.error('Failed to send invoice email, status update cancelled', emailError, {
+            category: 'BILLING_EMAIL',
+            jobId,
+            userId
+          });
+          
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to send invoice email. Status cannot be changed to billed.',
+            error: emailError.message
+          });
+        }
+      }
+
       // Begin transaction for status update
       await db.query('BEGIN');
 
@@ -74,8 +117,8 @@ class JobStatusController {
           case 'billed':
             updateQuery += `, billed_at = CURRENT_TIMESTAMP`;
             if (req.body.billed_amount) {
-              updateQuery += `, billed_amount = $${++paramCount}`;
-              updateParams.push(req.body.billed_amount);
+              updateQuery += `, billed_amount = $${++paramCount}, total_amount = $${++paramCount}`;
+              updateParams.push(req.body.billed_amount, req.body.billed_amount);
             }
             break;
           case 'closed':
@@ -116,6 +159,7 @@ class JobStatusController {
 
         // Commit transaction
         await db.query('COMMIT');
+
 
         await loggerService.info('Job status updated', {
           category: 'JOB_STATUS',
@@ -454,6 +498,146 @@ class JobStatusController {
         success: false,
         message: 'Failed to get status statistics'
       });
+    }
+  }
+
+  // Send invoice email when job is marked as billed
+  async sendInvoiceEmail(jobId, jobData) {
+    try {
+      // Get detailed job information including claimant, claim, and billing account data
+      const jobQuery = await db.query(`
+        SELECT 
+          j.id, j.title, j.job_number, j.status,
+          j.scheduled_date, j.scheduled_time, j.estimated_duration_minutes,
+          j.actual_duration_minutes, j.total_amount, j.billed_amount,
+          j.claimant_id, j.claim_id, j.billing_account_id,
+          j.source_language_id, j.target_language_id, j.notes,
+          j.appointment_type, j.interpreter_type_id,
+          c.first_name as claimant_first_name,
+          c.last_name as claimant_last_name,
+          c.name as claimant_name,
+          c.date_of_birth as claimant_dob,
+          c.address as claimant_address,
+          cl.claim_number as case_claim_number,
+          cl.date_of_injury,
+          c.employer,
+          ba.name as billing_company,
+          ba.email as billing_account_email,
+          ba.address as billing_company_address,
+          sl.name as language_name,
+          st.name as service_type_name,
+          it.name as interpreter_type_name,
+          int_user.first_name as interpreter_first_name,
+          int_user.last_name as interpreter_last_name
+        FROM jobs j
+        LEFT JOIN claimants c ON j.claimant_id = c.id
+        LEFT JOIN claims cl ON j.claim_id = cl.id
+        LEFT JOIN billing_accounts ba ON j.billing_account_id = ba.id
+        LEFT JOIN languages sl ON j.source_language_id = sl.id
+        LEFT JOIN service_types st ON j.service_type_id = st.id
+        LEFT JOIN interpreter_types it ON j.interpreter_type_id = it.id
+        LEFT JOIN interpreters i ON j.assigned_interpreter_id = i.id
+        LEFT JOIN users int_user ON i.user_id = int_user.id
+        WHERE j.id = $1
+      `, [jobId]);
+
+      if (jobQuery.rows.length === 0) {
+        throw new Error('Job not found for invoice email');
+      }
+
+      const job = jobQuery.rows[0];
+
+      // Check if job has a billing account
+      if (!job.billing_account_id) {
+        await loggerService.warn('Job has no billing account, skipping invoice email', {
+          category: 'BILLING_EMAIL',
+          jobId,
+          jobTitle: job.title
+        });
+        return; // Skip sending invoice email if no billing account
+      }
+
+      // Prepare email variables
+      const emailVariables = {
+        caseClaimNumber: job.case_claim_number || job.claimant_id || 'N/A',
+        claimantFirstName: job.claimant_first_name || 'N/A',
+        claimantLastName: job.claimant_last_name || 'N/A',
+        claimantName: job.claimant_name || 'N/A',
+        billingReference: job.job_number || job.id.substring(0, 8),
+        billingCompany: job.billing_company || 'N/A',
+        language: job.language_name || 'N/A',
+        jobName: job.job_number || job.id.substring(0, 8)
+      };
+
+      // Generate PDF invoice
+      let pdfPath = null;
+      let attachments = [];
+      
+      try {
+        // Prepare job data for PDF generation - use existing billing values
+        const pdfJobData = {
+          ...job,
+          service_address: job.claimant_address, // Use claimant address as service address for now
+          total_amount: job.total_amount || job.billed_amount || 0, // Use existing calculated values
+          certification_number: '', // Add if available in database
+          authorized_by: 'System', // Add if available in database
+          authorized_date: new Date().toISOString().split('T')[0] // Current date
+        };
+        
+        pdfPath = await pdfInvoiceService.generateInvoicePDF(pdfJobData);
+        
+        // Add PDF as attachment
+        attachments = [{
+          filename: `invoice_${job.job_number || job.id}.pdf`,
+          path: pdfPath
+        }];
+        
+        await loggerService.info('PDF invoice generated successfully', {
+          category: 'BILLING_EMAIL',
+          jobId,
+          pdfPath
+        });
+        
+      } catch (pdfError) {
+        await loggerService.error('Failed to generate PDF invoice', pdfError, {
+          category: 'BILLING_EMAIL',
+          jobId
+        });
+        // Continue with email without attachment if PDF generation fails
+      }
+
+      // Determine recipient email - use billing account email if available
+      const recipientEmail = job.billing_account_email || 'billing@integrityinterpreting.com';
+      const recipientName = job.billing_company || 'Billing Department';
+
+      // Queue the invoice email with PDF attachment
+      await emailService.queueEmail(
+        'invoice_email',
+        recipientEmail,
+        recipientName,
+        emailVariables,
+        'high', // High priority for invoices
+        {
+          jobId: jobId,
+          emailType: 'invoice'
+        },
+        attachments // Pass attachments array
+      );
+
+      await loggerService.info('Invoice email queued successfully', {
+        category: 'BILLING_EMAIL',
+        jobId,
+        recipientEmail,
+        recipientName,
+        emailVariables
+      });
+
+    } catch (error) {
+      await loggerService.error('Failed to send invoice email', error, {
+        category: 'BILLING_EMAIL',
+        jobId
+      });
+      throw error;
     }
   }
 }

@@ -9,12 +9,16 @@ import {
   TrashIcon,
   FunnelIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  UserIcon,
+  BuildingOfficeIcon,
+  ExclamationTriangleIcon,
+  CheckBadgeIcon,
+  XMarkIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { 
   getJobStatusColor, 
-  getWorkflowStatusColor, 
-  getWorkflowStatusLabel,
   JOB_STATUS_OPTIONS 
 } from '../utils/statusConstants';
 
@@ -30,30 +34,72 @@ const JobManagement = ({ setCurrentView }) => {
     cancelled_jobs: 0,
     total_revenue: 0
   });
-  const [filter, setFilter] = useState('all');
-  const [workflowFilter, setWorkflowFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  
+  // Advanced filters
+  const [filters, setFilters] = useState({
+    status: 'all',
+    dateRange: 'all',
+    needsInterpreter: false,
+    needsConfirmation: false,
+    needsInterpreterConfirmation: false,
+    needsBilling: false,
+    needsPayment: false,
+    isRemote: 'all',
+    priority: 'all',
+    search: ''
+  });
 
   useEffect(() => {
     loadJobs();
     loadStats();
-  }, [filter, currentPage]);
+  }, [currentPage, filters]);
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Current state:', { jobs, stats, loading });
-  }, [jobs, stats, loading]);
 
   const loadJobs = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
+      
+      // Build query parameters
       const params = new URLSearchParams({
         page: currentPage,
-        limit: 10,
-        ...(filter !== 'all' && { status: filter })
+        limit: 10
       });
+
+      // Add filters to query parameters
+      if (filters.status !== 'all') {
+        params.append('status', filters.status);
+      }
+      if (filters.dateRange !== 'all') {
+        params.append('dateRange', filters.dateRange);
+      }
+      if (filters.needsInterpreter) {
+        params.append('needsInterpreter', 'true');
+      }
+      if (filters.needsConfirmation) {
+        params.append('needsConfirmation', 'true');
+      }
+      if (filters.needsInterpreterConfirmation) {
+        params.append('needsInterpreterConfirmation', 'true');
+      }
+      if (filters.needsBilling) {
+        params.append('needsBilling', 'true');
+      }
+      if (filters.needsPayment) {
+        params.append('needsPayment', 'true');
+      }
+      if (filters.isRemote !== 'all') {
+        params.append('isRemote', filters.isRemote);
+      }
+      if (filters.priority !== 'all') {
+        params.append('priority', filters.priority);
+      }
+      if (filters.search) {
+        params.append('search', filters.search);
+      }
+      
       
       const response = await fetch(`http://localhost:3001/api/admin/jobs?${params}`, {
         headers: {
@@ -64,7 +110,6 @@ const JobManagement = ({ setCurrentView }) => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Jobs API response:', data);
         setJobs(data.data || []);
         // Since we don't have pagination yet, set totalPages to 1
         setTotalPages(1);
@@ -78,7 +123,7 @@ const JobManagement = ({ setCurrentView }) => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, filter]);
+  }, [currentPage, filters]);
 
   const loadStats = async () => {
     try {
@@ -92,7 +137,6 @@ const JobManagement = ({ setCurrentView }) => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Stats API response:', data);
         setStats(data.data || {
           total_jobs: 0,
           open_jobs: 0,
@@ -244,18 +288,70 @@ const JobManagement = ({ setCurrentView }) => {
     }
   };
 
+  // Filter helper functions
+  const handleFilterChange = (filterName, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value
+    }));
+  };
 
-  const filters = JOB_STATUS_OPTIONS;
+  const clearAllFilters = () => {
+    setFilters({
+      status: 'all',
+      dateRange: 'all',
+      needsInterpreter: false,
+      needsConfirmation: false,
+      needsInterpreterConfirmation: false,
+      needsBilling: false,
+      needsPayment: false,
+      isRemote: 'all',
+      priority: 'all',
+      search: ''
+    });
+  };
 
-  const workflowFilters = [
-    { value: 'all', label: 'All Workflows' },
-    { value: 'assigned', label: 'Assigned' },
-    { value: 'started', label: 'Started' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'reported', label: 'Reported' },
-    { value: 'authorized', label: 'Authorized' },
-    { value: 'billed', label: 'Billed' },
-    { value: 'paid', label: 'Paid' }
+  const getActiveFiltersCount = () => {
+    let count = 0;
+    if (filters.status !== 'all') count++;
+    if (filters.dateRange !== 'all') count++;
+    if (filters.needsInterpreter) count++;
+    if (filters.needsConfirmation) count++;
+    if (filters.needsInterpreterConfirmation) count++;
+    if (filters.needsBilling) count++;
+    if (filters.needsPayment) count++;
+    if (filters.isRemote !== 'all') count++;
+    if (filters.priority !== 'all') count++;
+    if (filters.search) count++;
+    return count;
+  };
+
+
+  const statusFilters = JOB_STATUS_OPTIONS;
+
+  const dateRangeFilters = [
+    { value: 'all', label: 'All Dates' },
+    { value: 'today', label: 'Today' },
+    { value: 'tomorrow', label: 'Tomorrow' },
+    { value: 'this_week', label: 'This Week' },
+    { value: 'next_week', label: 'Next Week' },
+    { value: 'this_month', label: 'This Month' },
+    { value: 'past', label: 'Past Appointments' },
+    { value: 'upcoming', label: 'Upcoming Appointments' }
+  ];
+
+  const priorityFilters = [
+    { value: 'all', label: 'All Priorities' },
+    { value: 'urgent', label: 'Urgent' },
+    { value: 'high', label: 'High' },
+    { value: 'normal', label: 'Normal' },
+    { value: 'low', label: 'Low' }
+  ];
+
+  const remoteFilters = [
+    { value: 'all', label: 'All Types' },
+    { value: 'true', label: 'Remote Only' },
+    { value: 'false', label: 'In-Person Only' }
   ];
 
   if (loading && (jobs || []).length === 0) {
@@ -319,7 +415,7 @@ const JobManagement = ({ setCurrentView }) => {
         </div>
       )}
 
-      {/* Actions */}
+      {/* Actions and Filters */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">
           <button 
@@ -330,36 +426,184 @@ const JobManagement = ({ setCurrentView }) => {
             Create Job
           </button>
           
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <FunnelIcon className="h-5 w-5 text-gray-400" />
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {filters.map((filterOption) => (
-                  <option key={filterOption.value} value={filterOption.value}>
-                    {filterOption.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <ClockIcon className="h-5 w-5 text-gray-400" />
-              <select
-                value={workflowFilter}
-                onChange={(e) => setWorkflowFilter(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {workflowFilters.map((filterOption) => (
-                  <option key={filterOption.value} value={filterOption.value}>
-                    {filterOption.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Search Bar */}
+          <div className="relative">
+            <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search jobs..."
+              value={filters.search}
+              onChange={(e) => handleFilterChange('search', e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-4">
+          {/* Clear Filters */}
+          {getActiveFiltersCount() > 0 && (
+            <button
+              onClick={clearAllFilters}
+              className="flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
+            >
+              <XMarkIcon className="h-4 w-4 mr-1" />
+              Clear All
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* All Filters - Always Visible */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Status
+            </label>
+            <select
+              value={filters.status}
+              onChange={(e) => handleFilterChange('status', e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {statusFilters.map((filterOption) => (
+                <option key={filterOption.value} value={filterOption.value}>
+                  {filterOption.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date Range Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Date Range
+            </label>
+            <select
+              value={filters.dateRange}
+              onChange={(e) => handleFilterChange('dateRange', e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {dateRangeFilters.map((filterOption) => (
+                <option key={filterOption.value} value={filterOption.value}>
+                  {filterOption.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Priority Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Priority
+            </label>
+            <select
+              value={filters.priority}
+              onChange={(e) => handleFilterChange('priority', e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {priorityFilters.map((filterOption) => (
+                <option key={filterOption.value} value={filterOption.value}>
+                  {filterOption.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Remote/In-Person Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Appointment Type
+            </label>
+            <select
+              value={filters.isRemote}
+              onChange={(e) => handleFilterChange('isRemote', e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {remoteFilters.map((filterOption) => (
+                <option key={filterOption.value} value={filterOption.value}>
+                  {filterOption.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Quick Action Filters */}
+        <div className="mt-6">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Quick Filters
+          </label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Needs Interpreter */}
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.needsInterpreter}
+                onChange={(e) => handleFilterChange('needsInterpreter', e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <div className="flex items-center">
+                <UserIcon className="h-4 w-4 text-orange-500 mr-1" />
+                <span className="text-sm text-gray-700">Finding Interpreter</span>
+              </div>
+            </label>
+
+            {/* Needs Confirmation */}
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.needsConfirmation}
+                onChange={(e) => handleFilterChange('needsConfirmation', e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <div className="flex items-center">
+                <BuildingOfficeIcon className="h-4 w-4 text-yellow-500 mr-1" />
+                <span className="text-sm text-gray-700">Needs Facility Confirmation</span>
+              </div>
+            </label>
+
+            {/* Needs Interpreter Confirmation */}
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.needsInterpreterConfirmation}
+                onChange={(e) => handleFilterChange('needsInterpreterConfirmation', e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <div className="flex items-center">
+                <UserIcon className="h-4 w-4 text-orange-500 mr-1" />
+                <span className="text-sm text-gray-700">Needs Interpreter Confirmation</span>
+              </div>
+            </label>
+
+            {/* Needs Billing */}
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.needsBilling}
+                onChange={(e) => handleFilterChange('needsBilling', e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <div className="flex items-center">
+                <CurrencyDollarIcon className="h-4 w-4 text-green-500 mr-1" />
+                <span className="text-sm text-gray-700">Completed - Needs Billing</span>
+              </div>
+            </label>
+
+            {/* Needs Payment */}
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.needsPayment}
+                onChange={(e) => handleFilterChange('needsPayment', e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <div className="flex items-center">
+                <CheckBadgeIcon className="h-4 w-4 text-purple-500 mr-1" />
+                <span className="text-sm text-gray-700">Report Submitted - Needs Payment</span>
+              </div>
+            </label>
           </div>
         </div>
       </div>
@@ -409,7 +653,7 @@ const JobManagement = ({ setCurrentView }) => {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Workflow
+                    Created By
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -510,9 +754,14 @@ const JobManagement = ({ setCurrentView }) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col space-y-1">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getWorkflowStatusColor(job.workflow_status)}`}>
-                          {getWorkflowStatusLabel(job.workflow_status)}
+                        <span className="text-sm font-medium text-gray-900">
+                          {job.created_by_username || 'Unknown'}
                         </span>
+                        {job.created_by_email && (
+                          <span className="text-xs text-gray-500">
+                            {job.created_by_email}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

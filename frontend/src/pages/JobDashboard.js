@@ -60,6 +60,7 @@ const JobDashboard = () => {
           };
       
       const response = await jobAPI.getMyJobs(params);
+      console.log('Loaded jobs:', response.data.data.jobs);
       setJobs(response.data.data.jobs);
       setTotalPages(response.data.data.pagination.total_pages);
     } catch (error) {
@@ -90,6 +91,10 @@ const JobDashboard = () => {
         case 'decline':
           response = await jobAPI.declineJob(jobId, data);
           toast.success('Job declined');
+          break;
+        case 'unassign':
+          response = await jobAPI.unassignJob(jobId, data);
+          toast.success('Successfully unassigned from job');
           break;
 
         default:
@@ -143,6 +148,71 @@ const JobDashboard = () => {
       style: 'currency',
       currency: 'USD'
     }).format(amount || 0);
+  };
+
+  // Check if job is more than 24 hours away
+  const isJobMoreThan24HoursAway = (job) => {
+    try {
+      // Check if we have the required date/time fields
+      if (!job.scheduled_date || !job.scheduled_time) {
+        console.log('Job missing date/time fields:', {
+          jobId: job.id,
+          status: job.status,
+          scheduled_date: job.scheduled_date,
+          scheduled_time: job.scheduled_time
+        });
+        return false;
+      }
+
+      const now = new Date();
+      
+      // Handle different date formats
+      let jobDateTime;
+      if (typeof job.scheduled_date === 'string' && job.scheduled_date.includes('T')) {
+        // Already a full datetime string
+        jobDateTime = new Date(job.scheduled_date);
+      } else {
+        // Combine date and time
+        const dateStr = job.scheduled_date.toString();
+        const timeStr = job.scheduled_time.toString();
+        jobDateTime = new Date(`${dateStr}T${timeStr}`);
+      }
+
+      // Check if the date is valid
+      if (isNaN(jobDateTime.getTime())) {
+        console.log('Invalid job date/time:', {
+          jobId: job.id,
+          status: job.status,
+          scheduled_date: job.scheduled_date,
+          scheduled_time: job.scheduled_time,
+          combined: `${job.scheduled_date}T${job.scheduled_time}`
+        });
+        return false;
+      }
+
+      const hoursUntilJob = (jobDateTime - now) / (1000 * 60 * 60);
+      
+      console.log('Job timing check:', {
+        jobId: job.id,
+        status: job.status,
+        scheduled_date: job.scheduled_date,
+        scheduled_time: job.scheduled_time,
+        jobDateTime: jobDateTime.toISOString(),
+        now: now.toISOString(),
+        hoursUntilJob: hoursUntilJob,
+        isMoreThan24Hours: hoursUntilJob > 24
+      });
+      
+      return hoursUntilJob > 24;
+    } catch (error) {
+      console.error('Error checking job timing:', error, {
+        jobId: job.id,
+        status: job.status,
+        scheduled_date: job.scheduled_date,
+        scheduled_time: job.scheduled_time
+      });
+      return false;
+    }
   };
 
   // Filter jobs based on active tab
@@ -467,17 +537,38 @@ const JobDashboard = () => {
                       </>
                     )}
                     
-                    {job.status === 'assigned' && (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setSelectedJob(job);
-                          setShowCompletionReport(true);
-                        }}
-                      >
-                        <CheckCircleIcon className="h-4 w-4 mr-1" />
-                        Complete Job
-                      </Button>
+                    {(job.status === 'assigned' || job.status === 'reminders_sent') && (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setSelectedJob(job);
+                            setShowCompletionReport(true);
+                          }}
+                        >
+                          <CheckCircleIcon className="h-4 w-4 mr-1" />
+                          Complete Job
+                        </Button>
+                        {isJobMoreThan24HoursAway(job) ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to unassign yourself from this job? This action cannot be undone.')) {
+                                const reason = prompt('Please provide a reason for unassigning (optional):');
+                                handleJobAction(job.id, 'unassign', { unassign_reason: reason || '' });
+                              }
+                            }}
+                          >
+                            <XCircleIcon className="h-4 w-4 mr-1" />
+                            Unassign
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-gray-500">
+                            (Cannot unassign - less than 24 hours away)
+                          </span>
+                        )}
+                      </>
                     )}
                     
                     {job.status === 'completed' && !job.completion_report_submitted && (

@@ -202,8 +202,13 @@ const Appointments = () => {
                       <div className="flex-1">
                         <div className="flex items-start justify-between mb-2">
                           <h3 className="text-lg font-medium text-gray-900">
-                            {appointment.job_number || appointment.title}
+                            {appointment.job_number || `Job #${appointment.id.slice(-6)}`}
                           </h3>
+                          {appointment.title && appointment.title !== appointment.job_number && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              {appointment.title}
+                            </p>
+                          )}
                           <div className="flex items-center space-x-2">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(mapStatusForCustomer(appointment.status))}`}>
                               {getJobStatusLabel(appointment.status)}

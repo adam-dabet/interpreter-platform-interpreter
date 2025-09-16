@@ -41,7 +41,8 @@ class Interpreter {
             w9_file = null,
             
             // Metadata
-            created_by = null
+            created_by = null,
+            profile_status = 'pending'
         } = interpreterData;
 
         const client = await db.pool.connect();
@@ -61,10 +62,10 @@ class Interpreter {
                 RETURNING id, created_at
             `, [
                 first_name, last_name, middle_name, email, phone, date_of_birth, gender,
-                street_address, street_address_2, city, parseInt(state_id), zip_code, county,
+                street_address, street_address_2, city, state_id ? parseInt(state_id) : null, zip_code, county,
                 formatted_address, latitude, longitude, place_id,
                 years_of_experience, availability_notes, bio,
-                'pending', created_by
+                profile_status, created_by
             ]);
 
             const interpreterId = interpreterResult.rows[0].id;
@@ -87,12 +88,14 @@ class Interpreter {
             // Insert service types and rates
             for (const serviceTypeId of service_types) {
                 // Service types table uses INTEGER ids, so always convert to integer
-                const formattedServiceTypeId = parseInt(serviceTypeId);
+                const formattedServiceTypeId = serviceTypeId ? parseInt(serviceTypeId) : null;
                 
-                await client.query(`
-                    INSERT INTO interpreter_service_types (interpreter_id, service_type_id)
-                    VALUES ($1, $2)
-                `, [interpreterId, formattedServiceTypeId]);
+                if (formattedServiceTypeId) {
+                    await client.query(`
+                        INSERT INTO interpreter_service_types (interpreter_id, service_type_id)
+                        VALUES ($1, $2)
+                    `, [interpreterId, formattedServiceTypeId]);
+                }
             }
 
             // Insert service rates if provided
@@ -106,7 +109,7 @@ class Interpreter {
                         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                     `, [
                         interpreterId,
-                        parseInt(serviceRate.service_type_id),
+                        serviceRate.service_type_id ? parseInt(serviceRate.service_type_id) : null,
                         serviceRate.rate_type,
                         serviceRate.rate_amount,
                         serviceRate.rate_unit,
@@ -121,15 +124,16 @@ class Interpreter {
             // Insert certificates (if any)
             for (const certificate of certificates) {
                 // Certificate types table uses INTEGER ids, so always convert to integer
-                const formattedCertificateTypeId = parseInt(certificate.certificate_type_id);
+                const formattedCertificateTypeId = certificate.certificate_type_id ? parseInt(certificate.certificate_type_id) : null;
                 
-                await client.query(`
-                    INSERT INTO interpreter_certificates (
-                        interpreter_id, certificate_type_id, certificate_number,
-                        issuing_organization, issue_date, expiry_date,
-                        file_path, file_name, file_size
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                `, [
+                if (formattedCertificateTypeId) {
+                    await client.query(`
+                        INSERT INTO interpreter_certificates (
+                            interpreter_id, certificate_type_id, certificate_number,
+                            issuing_organization, issue_date, expiry_date,
+                            file_path, file_name, file_size
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                    `, [
                     interpreterId,
                     formattedCertificateTypeId,
                     certificate.certificate_number || null,
@@ -140,6 +144,7 @@ class Interpreter {
                     certificate.file_name || null,
                     certificate.file_size || null
                 ]);
+                }
             }
 
             // Insert W-9 form data (if provided)

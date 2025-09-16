@@ -162,6 +162,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('customerToken');
       localStorage.removeItem('customerRefreshToken');
       localStorage.removeItem('customerData');
+      localStorage.removeItem('customerCurrentRoute');
       
       setToken(null);
       setRefreshToken(null);

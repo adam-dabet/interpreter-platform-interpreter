@@ -436,6 +436,122 @@ class JobAssignmentController {
     }
   }
 
+  // Interpreter unassigns themselves from a job (only if 24+ hours away)
+  async unassignJob(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Validation errors',
+          errors: errors.array()
+        });
+      }
+
+      const { jobId } = req.params;
+      const interpreterId = req.user.interpreterId;
+      const { unassign_reason } = req.body;
+
+      // Check if job exists and interpreter is assigned
+      const jobCheck = await db.query(`
+        SELECT j.*, ja.status as assignment_status
+        FROM jobs j
+        LEFT JOIN job_assignments ja ON j.id = ja.job_id AND ja.interpreter_id = $2
+        WHERE j.id = $1 AND j.assigned_interpreter_id = $2 AND j.is_active = true
+      `, [jobId, interpreterId]);
+
+      if (jobCheck.rows.length === 0) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Job not found or you are not assigned to this job' 
+        });
+      }
+
+      const job = jobCheck.rows[0];
+
+      // Check if job is in a state that allows unassigning
+      if (!['assigned', 'finding_interpreter'].includes(job.status)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Job cannot be unassigned in current status' 
+        });
+      }
+
+      // Check if assignment exists and is accepted
+      if (!job.assignment_status || job.assignment_status !== 'accepted') {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'You must have accepted this job to unassign from it' 
+        });
+      }
+
+      // Check if job is more than 24 hours away
+      const now = new Date();
+      const jobDateTime = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
+      const hoursUntilJob = (jobDateTime - now) / (1000 * 60 * 60);
+
+      if (hoursUntilJob <= 24) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'You can only unassign from jobs that are more than 24 hours away' 
+        });
+      }
+
+      // Start transaction
+      await db.query('BEGIN');
+
+      try {
+        // Update job assignment status to cancelled
+        await db.query(`
+          UPDATE job_assignments 
+          SET status = $1, declined_reason = $2, declined_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+          WHERE job_id = $3 AND interpreter_id = $4
+        `, ['cancelled', unassign_reason || 'Interpreter unassigned themselves', jobId, interpreterId]);
+
+        // Update job status back to finding_interpreter
+        await db.query(`
+          UPDATE jobs 
+          SET status = $1, assigned_interpreter_id = NULL, assigned_at = NULL, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+        `, ['finding_interpreter', jobId]);
+
+        // Create notification for admin
+        await db.query(`
+          INSERT INTO job_notifications (
+            job_id, interpreter_id, notification_type, subject, message, status
+          ) VALUES ($1, $2, $3, $4, $5, $6)
+        `, [
+          jobId,
+          interpreterId,
+          'job_unassigned',
+          'Job Unassigned',
+          `Interpreter has unassigned themselves from job: ${job.title}. Reason: ${unassign_reason || 'No reason provided'}`,
+          'sent'
+        ]);
+
+        // Commit transaction
+        await db.query('COMMIT');
+
+        res.json({
+          success: true,
+          message: 'Successfully unassigned from job',
+          data: {
+            job_id: jobId,
+            unassigned_at: new Date().toISOString(),
+            reason: unassign_reason || 'No reason provided'
+          }
+        });
+      } catch (error) {
+        // Rollback transaction on error
+        await db.query('ROLLBACK');
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error unassigning from job:', error);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  }
+
   // Get job assignments for admin view
   async getJobAssignments(req, res) {
     try {
@@ -478,6 +594,200 @@ class JobAssignmentController {
     } catch (error) {
       console.error('Error fetching job assignments:', error);
       res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  }
+
+  // Confirm availability for a job after schedule change
+  async confirmAvailability(req, res) {
+    try {
+      const { jobId } = req.params;
+      const { confirmation_status, confirmation_notes } = req.body;
+      const interpreterId = req.user.interpreterId;
+
+      // Validate interpreter ID
+      if (!interpreterId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Interpreter ID not found in authentication token'
+        });
+      }
+
+      // Validate confirmation status
+      if (!['confirmed', 'declined'].includes(confirmation_status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid confirmation status. Must be "confirmed" or "declined"'
+        });
+      }
+
+      // Check if the interpreter is assigned to this job
+      const assignmentQuery = `
+        SELECT ja.*, j.status as job_status, j.job_number, j.scheduled_date, j.scheduled_time
+        FROM job_assignments ja
+        JOIN jobs j ON ja.job_id = j.id
+        WHERE ja.job_id = $1 AND ja.interpreter_id = $2 AND ja.status = 'accepted'
+      `;
+      
+      const assignmentResult = await db.query(assignmentQuery, [jobId, interpreterId]);
+      
+      if (assignmentResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Job assignment not found or you are not assigned to this job'
+        });
+      }
+
+      const assignment = assignmentResult.rows[0];
+
+      // Update the confirmation status
+      const updateQuery = `
+        UPDATE job_assignments 
+        SET confirmation_status = $1, 
+            confirmed_at = CURRENT_TIMESTAMP,
+            confirmation_notes = $2
+        WHERE job_id = $3 AND interpreter_id = $4
+        RETURNING *
+      `;
+      
+      const updateResult = await db.query(updateQuery, [
+        confirmation_status, 
+        confirmation_notes || null, 
+        jobId, 
+        interpreterId
+      ]);
+
+      // If interpreter declined, unassign them from the job
+      if (confirmation_status === 'declined') {
+        const unassignQuery = `
+          UPDATE job_assignments 
+          SET status = 'unassigned', 
+              unassigned_at = CURRENT_TIMESTAMP,
+              unassign_reason = $1
+          WHERE job_id = $2 AND interpreter_id = $3
+        `;
+        
+        await db.query(unassignQuery, [
+          confirmation_notes || 'Declined due to schedule change',
+          jobId, 
+          interpreterId
+        ]);
+
+        // Update job status back to finding interpreter
+        const jobUpdateQuery = `
+          UPDATE jobs 
+          SET status = 'finding_interpreter', 
+              assigned_interpreter_id = NULL,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+        `;
+        
+        await db.query(jobUpdateQuery, [jobId]);
+
+        // Send notification to admin about the decline
+        try {
+          const adminNotificationQuery = `
+            SELECT 
+              j.job_number,
+              j.title,
+              j.scheduled_date,
+              j.scheduled_time,
+              i.first_name,
+              i.last_name,
+              i.email as interpreter_email,
+              c.name as customer_name,
+              c.title as customer_company
+            FROM jobs j
+            LEFT JOIN interpreters i ON j.assigned_interpreter_id = i.id
+            LEFT JOIN claimants clm ON j.claimant_id = clm.id
+            LEFT JOIN customers c ON clm.billing_account_id = c.id
+            WHERE j.id = $1
+          `;
+          
+          const adminResult = await db.query(adminNotificationQuery, [jobId]);
+          const jobData = adminResult.rows[0];
+          
+          if (jobData) {
+            await emailService.queueEmail(
+              'interpreter_declined_schedule_change',
+              'generalinbox@theintegritycompanyinc.com',
+              'Admin',
+              {
+                job_number: jobData.job_number,
+                job_title: jobData.title,
+                appointment_date: jobData.scheduled_date,
+                appointment_time: jobData.scheduled_time,
+                interpreter_name: `${jobData.first_name} ${jobData.last_name}`,
+                interpreter_email: jobData.interpreter_email,
+                customer_name: jobData.customer_name,
+                customer_company: jobData.customer_company,
+                decline_reason: confirmation_notes || 'No reason provided'
+              }
+            );
+          }
+        } catch (emailError) {
+          console.error('Error sending admin notification:', emailError);
+        }
+      }
+
+      // Send confirmation notification to admin
+      try {
+        const confirmationNotificationQuery = `
+          SELECT 
+            j.job_number,
+            j.title,
+            j.scheduled_date,
+            j.scheduled_time,
+            i.first_name,
+            i.last_name,
+            i.email as interpreter_email,
+            c.name as customer_name,
+            c.title as customer_company
+          FROM jobs j
+          LEFT JOIN interpreters i ON j.assigned_interpreter_id = i.id
+          LEFT JOIN claimants clm ON j.claimant_id = clm.id
+          LEFT JOIN customers c ON clm.billing_account_id = c.id
+          WHERE j.id = $1
+        `;
+        
+        const confirmationResult = await db.query(confirmationNotificationQuery, [jobId]);
+        const jobData = confirmationResult.rows[0];
+        
+        if (jobData) {
+          await emailService.queueEmail(
+            'interpreter_confirmed_schedule_change',
+            'generalinbox@theintegritycompanyinc.com',
+            'Admin',
+            {
+              job_number: jobData.job_number,
+              job_title: jobData.title,
+              appointment_date: jobData.scheduled_date,
+              appointment_time: jobData.scheduled_time,
+              interpreter_name: `${jobData.first_name} ${jobData.last_name}`,
+              interpreter_email: jobData.interpreter_email,
+              customer_name: jobData.customer_name,
+              customer_company: jobData.customer_company,
+              confirmation_status: confirmation_status,
+              confirmation_notes: confirmation_notes || ''
+            }
+          );
+        }
+      } catch (emailError) {
+        console.error('Error sending confirmation notification:', emailError);
+      }
+
+      res.json({
+        success: true,
+        message: `Availability ${confirmation_status} successfully`,
+        data: updateResult.rows[0]
+      });
+
+    } catch (error) {
+      console.error('Error confirming availability:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to confirm availability',
+        error: error.message
+      });
     }
   }
 }

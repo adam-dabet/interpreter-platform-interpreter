@@ -49,3 +49,5 @@ fetch('http://localhost:3001/api/jobs/available', {
 - ❌ **Empty jobs array**: Filtering or query issues
 - ✅ **QME job in response**: Frontend display issue
 
+
+

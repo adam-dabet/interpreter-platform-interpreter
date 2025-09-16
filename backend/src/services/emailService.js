@@ -30,7 +30,7 @@ class EmailService {
     } 
   }
 
-  async queueEmail(templateName, toEmail, toName, variables = {}, priority = 'normal') {
+  async queueEmail(templateName, toEmail, toName, variables = {}, priority = 'normal', trackingData = {}, attachments = []) {
     try {
       // Get email template
       const templateResult = await db.query(
@@ -66,12 +66,16 @@ class EmailService {
       const result = await db.query(`
         INSERT INTO email_queue (
           to_email, to_name, subject, body_html, body_text,
-          template_name, priority, from_email, from_name
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          template_name, priority, from_email, from_name,
+          job_id, interpreter_id, customer_id, reminder_type, attachments
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING id
       `, [
         toEmail, toName, processedSubject, processedBodyHtml, 
-        processedBodyText, templateName, priority, fromEmail, fromName
+        processedBodyText, templateName, priority, fromEmail, fromName,
+        trackingData.jobId || null, trackingData.interpreterId || null, 
+        trackingData.customerId || null, trackingData.reminderType || null,
+        JSON.stringify(attachments)
       ]);
 
       console.log(`Email queued: ${templateName} to ${toEmail}`);
@@ -102,13 +106,56 @@ class EmailService {
           ['sending', email.id]
         );
 
-        // Send email
-        await this.transporter.sendMail({
+        // Prepare email options
+        const mailOptions = {
           from: `${email.from_name} <${email.from_email}>`,
           to: `${email.to_name} <${email.to_email}>`,
           subject: email.subject,
           html: email.body_html,
           text: email.body_text
+        };
+
+        // Add attachments if any
+        if (email.attachments && email.attachments.length > 0) {
+          mailOptions.attachments = email.attachments.map(attachment => ({
+            filename: attachment.filename,
+            path: attachment.path
+          }));
+        }
+
+        // Send email
+        await this.transporter.sendMail(mailOptions);
+
+        // Clean up temporary PDF files after successful email send
+        if (email.attachments && email.attachments.length > 0) {
+          email.attachments.forEach(attachment => {
+            if (attachment.path && attachment.path.includes('invoice_') && attachment.path.includes('.pdf')) {
+              try {
+                const fs = require('fs');
+                if (fs.existsSync(attachment.path)) {
+                  fs.unlinkSync(attachment.path);
+                  console.log(`Cleaned up temporary PDF: ${attachment.path}`);
+                }
+              } catch (cleanupError) {
+                console.error('Error cleaning up PDF file:', cleanupError);
+              }
+            }
+          });
+        }
+
+        // Track email in email_tracking table
+        await this.trackEmail({
+          emailType: email.template_name,
+          recipientEmail: email.to_email,
+          recipientName: email.to_name,
+          subject: email.subject,
+          content: email.body_html,
+          status: 'sent',
+          sentAt: new Date(),
+          jobId: email.job_id || null,
+          interpreterId: email.interpreter_id || null,
+          customerId: email.customer_id || null,
+          reminderType: email.reminder_type || null
         });
 
         // Mark as sent
@@ -122,6 +169,22 @@ class EmailService {
 
       } catch (error) {
         console.error(`Failed to send email ${email.id}:`, error);
+        
+        // Track failed email
+        await this.trackEmail({
+          emailType: email.template_name,
+          recipientEmail: email.to_email,
+          recipientName: email.to_name,
+          subject: email.subject,
+          content: email.body_html,
+          status: 'failed',
+          sentAt: null,
+          jobId: email.job_id || null,
+          interpreterId: email.interpreter_id || null,
+          customerId: email.customer_id || null,
+          reminderType: email.reminder_type || null,
+          errorMessage: error.message
+        });
         
         // Update error status
         const newStatus = email.attempts >= email.max_attempts ? 'failed' : 'pending';
@@ -137,6 +200,38 @@ class EmailService {
     }
 
     return processedCount;
+  }
+
+  async trackEmail(emailData) {
+    try {
+      const {
+        emailType,
+        recipientEmail,
+        recipientName,
+        subject,
+        content,
+        status,
+        sentAt,
+        jobId,
+        interpreterId,
+        customerId,
+        reminderType,
+        errorMessage
+      } = emailData;
+
+      await db.query(`
+        INSERT INTO email_tracking (
+          email_type, recipient_email, recipient_name, subject, content,
+          status, sent_at, job_id, interpreter_id, customer_id, reminder_type, error_message
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `, [
+        emailType, recipientEmail, recipientName, subject, content,
+        status, sentAt, jobId, interpreterId, customerId, reminderType, errorMessage
+      ]);
+    } catch (error) {
+      console.error('Error tracking email:', error);
+      // Don't throw error to avoid breaking email sending
+    }
   }
 
   async sendInterpreterConfirmation(interpreterData) {
@@ -159,7 +254,7 @@ class EmailService {
 
     return this.queueEmail(
       'admin_new_application',
-      process.env.ADMIN_EMAIL,
+      'generalinbox@theintegritycompanyinc.com',
       'Admin Team',
       {
         applicant_name: `${applicationData.first_name} ${applicationData.last_name}`,

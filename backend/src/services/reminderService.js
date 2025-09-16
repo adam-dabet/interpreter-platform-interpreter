@@ -140,7 +140,12 @@ class ReminderService {
         job.client_email,
         `${job.claimant_first_name} ${job.claimant_last_name}`,
         variables,
-        'normal'
+        'normal',
+        {
+          jobId: job.id,
+          customerId: job.requested_by_id,
+          reminderType: 'claimant_2day_reminder'
+        }
       );
 
       // Send SMS reminder if phone number is available
@@ -232,7 +237,9 @@ class ReminderService {
         appointment_location: location,
         service_type: job.service_type_name,
         languages: languages,
-        hourly_rate: `$${job.hourly_rate}/hour`
+        hourly_rate: `$${job.hourly_rate}/hour`,
+        interpreter_portal_link: `${process.env.INTERPRETER_PORTAL_URL || 'http://localhost:3000'}/job/${job.id}`,
+        unassign_link: `${process.env.INTERPRETER_PORTAL_URL || 'http://localhost:3000'}/job/${job.id}?action=unassign`
       };
 
       // Send email reminder
@@ -241,7 +248,12 @@ class ReminderService {
         job.interpreter_email,
         `${job.interpreter_first_name} ${job.interpreter_last_name}`,
         variables,
-        'normal'
+        'normal',
+        {
+          jobId: job.id,
+          interpreterId: job.assigned_interpreter_id,
+          reminderType: 'interpreter_2day_reminder'
+        }
       );
 
       // Send SMS reminder if phone number is available
@@ -265,11 +277,20 @@ class ReminderService {
         }
       }
 
-      // Update job record
+      // Update job record and set confirmation status to pending
       await db.query(
         'UPDATE jobs SET interpreter_2day_reminder_sent = true, interpreter_2day_reminder_sent_at = CURRENT_TIMESTAMP WHERE id = $1',
         [job.id]
       );
+
+      // Set confirmation status to pending for the interpreter
+      await db.query(`
+        UPDATE job_assignments 
+        SET confirmation_status = 'pending',
+            confirmed_at = NULL,
+            confirmation_notes = NULL
+        WHERE job_id = $1 AND interpreter_id = $2 AND status = 'accepted'
+      `, [job.id, job.assigned_interpreter_id]);
 
       await loggerService.info('Interpreter 2-day reminder sent', {
         category: 'REMINDER',
@@ -341,8 +362,34 @@ class ReminderService {
         job.interpreter_email,
         `${job.interpreter_first_name} ${job.interpreter_last_name}`,
         variables,
-        'normal'
+        'normal',
+        {
+          jobId: job.id,
+          interpreterId: job.assigned_interpreter_id,
+          reminderType: 'interpreter_1day_reminder'
+        }
       );
+
+      // Send SMS reminder if phone number is available
+      if (job.interpreter_phone && job.interpreter_phone.trim() !== '') {
+        try {
+          await smsService.sendReminderSMS(job.interpreter_phone, 'interpreter_1day_reminder', job);
+          await loggerService.info('Interpreter 1-day SMS reminder sent', {
+            category: 'SMS',
+            jobId: job.id,
+            interpreterPhone: job.interpreter_phone,
+            appointmentDate: job.scheduled_date
+          });
+        } catch (smsError) {
+          await loggerService.error('Failed to send interpreter 1-day SMS reminder', {
+            category: 'SMS',
+            jobId: job.id,
+            interpreterPhone: job.interpreter_phone,
+            error: smsError.message
+          });
+          // Don't fail the entire reminder if SMS fails
+        }
+      }
 
       // Update job record
       await db.query(
@@ -420,8 +467,34 @@ class ReminderService {
         job.interpreter_email,
         `${job.interpreter_first_name} ${job.interpreter_last_name}`,
         variables,
-        'high' // High priority for 2-hour reminder
+        'high', // High priority for 2-hour reminder
+        {
+          jobId: job.id,
+          interpreterId: job.assigned_interpreter_id,
+          reminderType: 'interpreter_2hour_reminder'
+        }
       );
+
+      // Send SMS reminder if phone number is available
+      if (job.interpreter_phone && job.interpreter_phone.trim() !== '') {
+        try {
+          await smsService.sendReminderSMS(job.interpreter_phone, 'interpreter_2hour_reminder', job);
+          await loggerService.info('Interpreter 2-hour SMS reminder sent', {
+            category: 'SMS',
+            jobId: job.id,
+            interpreterPhone: job.interpreter_phone,
+            appointmentDate: job.scheduled_date
+          });
+        } catch (smsError) {
+          await loggerService.error('Failed to send interpreter 2-hour SMS reminder', {
+            category: 'SMS',
+            jobId: job.id,
+            interpreterPhone: job.interpreter_phone,
+            error: smsError.message
+          });
+          // Don't fail the entire reminder if SMS fails
+        }
+      }
 
       // Update job record
       await db.query(
@@ -459,10 +532,12 @@ class ReminderService {
         return { sent: false, reason: 'No interpreter email address' };
       }
 
+      const appointmentDate = new Date(job.scheduled_date);
+      const appointmentTime = job.scheduled_time;
       // Fix date parsing - handle both Date objects and strings
       const dateStr = job.scheduled_date instanceof Date ? job.scheduled_date.toISOString() : job.scheduled_date;
       const dateOnly = dateStr.split('T')[0];
-      const appointmentDateTime = new Date(`${dateOnly}T${job.scheduled_time}`);
+      const appointmentDateTime = new Date(`${dateOnly}T${appointmentTime}`);
       const now = new Date();
       
       // Check if it's within 5 minutes of appointment time (skip for admin-triggered reminders)
@@ -492,16 +567,39 @@ class ReminderService {
             month: 'long',
             day: 'numeric'
           }),
-          appointmentTime: appointmentTime.toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-          }),
+          appointmentTime: appointmentTime,
           location: job.is_remote ? 'Remote (Online)' : `${job.location_address}, ${job.location_city}, ${job.location_state}`,
           magicLinkUrl: magicLinkUrl,
           serviceType: job.service_type_name
+        },
+        'high',
+        {
+          jobId: job.id,
+          interpreterId: job.assigned_interpreter_id,
+          reminderType: 'interpreter_5minute_reminder'
         }
       );
+
+      // Send SMS reminder if phone number is available
+      if (job.interpreter_phone && job.interpreter_phone.trim() !== '') {
+        try {
+          await smsService.sendReminderSMS(job.interpreter_phone, 'interpreter_5minute_reminder', job);
+          await loggerService.info('Interpreter 5-minute SMS reminder sent', {
+            category: 'SMS',
+            jobId: job.id,
+            interpreterPhone: job.interpreter_phone,
+            appointmentDate: job.scheduled_date
+          });
+        } catch (smsError) {
+          await loggerService.error('Failed to send interpreter 5-minute SMS reminder', {
+            category: 'SMS',
+            jobId: job.id,
+            interpreterPhone: job.interpreter_phone,
+            error: smsError.message
+          });
+          // Don't fail the entire reminder if SMS fails
+        }
+      }
 
       // Mark reminder as sent
       await db.query(`

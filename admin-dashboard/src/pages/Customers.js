@@ -208,7 +208,6 @@ const Customers = ({ setCurrentView }) => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Loaded customers:', data.data);
         setCustomers(data.data || []);
       } else {
         toast.error('Failed to load customers');
@@ -260,7 +259,6 @@ const Customers = ({ setCurrentView }) => {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Customer update response:', result);
         toast.success(result.message);
         setShowModal(false);
         setEditingCustomer(null);

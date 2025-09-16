@@ -29,6 +29,9 @@ const JobDetails = () => {
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [confirmationLoading, setConfirmationLoading] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [confirmationNotes, setConfirmationNotes] = useState('');
 
   useEffect(() => {
     loadJobDetails();
@@ -72,6 +75,37 @@ const JobDetails = () => {
       toast.error(errorMessage);
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleConfirmation = async (confirmationStatus) => {
+    try {
+      setConfirmationLoading(true);
+      
+      const response = await jobAPI.confirmAvailability(jobId, {
+        confirmation_status: confirmationStatus,
+        confirmation_notes: confirmationNotes
+      });
+      
+      if (response.data.success) {
+        toast.success(`Availability ${confirmationStatus} successfully!`);
+        setShowConfirmationModal(false);
+        setConfirmationNotes('');
+        
+        // Refresh job details
+        await loadJobDetails();
+        
+        // If declined, navigate back to job search
+        if (confirmationStatus === 'declined') {
+          navigate('/jobs/search');
+        }
+      }
+    } catch (error) {
+      console.error('Error confirming availability:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to confirm availability';
+      toast.error(errorMessage);
+    } finally {
+      setConfirmationLoading(false);
     }
   };
 
@@ -387,12 +421,53 @@ const JobDetails = () => {
                   </>
                 ) : job.status === 'assigned' && job.assigned_interpreter_id ? (
                   <div className="text-center py-4">
-                    <div className="text-lg font-semibold text-green-600 mb-2">
-                      ✓ Job Accepted
-                    </div>
-                    <p className="text-sm text-gray-500">
-                      This job has been assigned to you
-                    </p>
+                    {job.confirmation_status === 'pending' ? (
+                      <div>
+                        <div className="text-lg font-semibold text-orange-600 mb-2">
+                          ⚠️ Schedule Change Notification
+                        </div>
+                        <p className="text-sm text-gray-500 mb-4">
+                          The appointment time has been changed. Please confirm if you can still make it.
+                        </p>
+                        <div className="space-y-2">
+                          <Button
+                            className="w-full"
+                            onClick={() => setShowConfirmationModal(true)}
+                            disabled={confirmationLoading}
+                          >
+                            <CheckCircleIcon className="h-4 w-4 mr-2" />
+                            Confirm Availability
+                          </Button>
+                        </div>
+                      </div>
+                    ) : job.confirmation_status === 'confirmed' ? (
+                      <div>
+                        <div className="text-lg font-semibold text-green-600 mb-2">
+                          ✓ Availability Confirmed
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          You have confirmed you can make the appointment
+                        </p>
+                      </div>
+                    ) : job.confirmation_status === 'declined' ? (
+                      <div>
+                        <div className="text-lg font-semibold text-red-600 mb-2">
+                          ✗ Availability Declined
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          You have declined this appointment due to schedule change
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="text-lg font-semibold text-green-600 mb-2">
+                          ✓ Job Accepted
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          This job has been assigned to you
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-4">
@@ -422,6 +497,65 @@ const JobDetails = () => {
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Confirm Availability
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              The appointment time has been changed. Can you still make it to this appointment?
+            </p>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Notes (optional)
+              </label>
+              <textarea
+                value={confirmationNotes}
+                onChange={(e) => setConfirmationNotes(e.target.value)}
+                placeholder="Add any notes about your availability..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                maxLength={500}
+              />
+            </div>
+            
+            <div className="flex space-x-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setShowConfirmationModal(false);
+                  setConfirmationNotes('');
+                }}
+                disabled={confirmationLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => handleConfirmation('declined')}
+                disabled={confirmationLoading}
+              >
+                <XCircleIcon className="h-4 w-4 mr-2" />
+                {confirmationLoading ? 'Processing...' : 'Decline'}
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => handleConfirmation('confirmed')}
+                disabled={confirmationLoading}
+              >
+                <CheckCircleIcon className="h-4 w-4 mr-2" />
+                {confirmationLoading ? 'Processing...' : 'Confirm'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

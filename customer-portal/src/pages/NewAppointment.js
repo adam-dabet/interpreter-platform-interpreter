@@ -335,7 +335,7 @@ const Step1ClaimInfo = ({ formData, formOptions, handleInputChange, handleClaima
   </div>
 );
 
-const Step2AppointmentDetails = ({ formData, handleInputChange }) => (
+const Step2AppointmentDetails = ({ formData, handleInputChange, handleReserveHoursChange, calculateEndTime }) => (
   <div className="space-y-6">
     <div className="text-center mb-8">
       <h2 className="text-2xl font-bold text-gray-900 mb-2">Appointment Details</h2>
@@ -359,13 +359,30 @@ const Step2AppointmentDetails = ({ formData, handleInputChange }) => (
         required
       />
       
-      <Input
-        label="End Time"
-        type="time"
-        value={formData.endTime}
-        onChange={(e) => handleInputChange('endTime', e.target.value)}
-        required
-      />
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Reserve Hours <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="number"
+          step="0.5"
+          min="0.5"
+          max="12"
+          value={formData.reserveHours}
+          onChange={(e) => handleReserveHoursChange(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Enter hours (e.g., 2.5)"
+          required
+        />
+        <p className="mt-1 text-sm text-gray-500">
+          Common options: 0.5, 1, 1.5, 2, 2.5, 3, 4, 6, 8 hours
+        </p>
+        {formData.startTime && formData.reserveHours && (
+          <p className="mt-1 text-sm text-blue-600">
+            Calculated End Time: {calculateEndTime(formData.startTime, formData.reserveHours)}
+          </p>
+        )}
+      </div>
       
       <Input
         label="Arrival Time"
@@ -539,6 +556,14 @@ const Step4Location = ({ formData, formOptions, handleInputChange, locationAutoc
   </div>
 );
 
+// Helper function to calculate end time from start time and reserve hours
+const calculateEndTime = (startTime, reserveHours) => {
+  if (!startTime || !reserveHours) return '';
+  const start = new Date(`2000-01-01T${startTime}`);
+  const end = new Date(start.getTime() + (reserveHours * 60 * 60 * 1000));
+  return end.toTimeString().slice(0, 5); // Return HH:MM format
+};
+
 const NewAppointment = () => {
   const { makeAuthenticatedRequest } = useAuth();
   const navigate = useNavigate();
@@ -563,7 +588,7 @@ const NewAppointment = () => {
     // Appointment Details
     appointmentDate: '',
     startTime: '',
-    endTime: '',
+    reserveHours: '',
     arrivalTime: '',
     appointmentType: '',
     appointmentNotes: '',
@@ -716,6 +741,8 @@ const NewAppointment = () => {
       claimId: originalAppointment.claim_id ? originalAppointment.claim_id.toString() : '',
       language: originalAppointment.source_language_id ? originalAppointment.source_language_id.toString() : '',
       interpreterType: originalAppointment.interpreter_type_id ? originalAppointment.interpreter_type_id.toString() : '',
+      // Calculate reserve hours from duration
+      reserveHours: originalAppointment.estimated_duration_minutes ? (originalAppointment.estimated_duration_minutes / 60) : '',
       serviceType: originalAppointment.service_type_id ? originalAppointment.service_type_id.toString() : '',
       specialRequirements: originalAppointment.special_requirements || ''
     }));
@@ -771,6 +798,18 @@ const NewAppointment = () => {
       ...prev,
       [field]: value
     }));
+  };
+
+  // Helper function to handle reserve hours input with validation
+  const handleReserveHoursChange = (value) => {
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || value === '') {
+      handleInputChange('reserveHours', '');
+    } else {
+      // Round to nearest 0.5 hour
+      const roundedValue = Math.round(numValue * 2) / 2;
+      handleInputChange('reserveHours', roundedValue);
+    }
   };
 
   const handleClaimantChange = useCallback((claimantId) => {
@@ -899,7 +938,7 @@ const NewAppointment = () => {
       case 1: // Claim Info
         return formData.claimantId && formData.claimId;
       case 2: // Appointment Details
-        return formData.appointmentDate && formData.startTime && formData.endTime && formData.appointmentType;
+        return formData.appointmentDate && formData.startTime && formData.reserveHours && formData.appointmentType;
       case 3: // Interpreter Requirements
         return formData.language && formData.interpreterType && formData.serviceType;
       case 4: // Location
@@ -947,16 +986,23 @@ const NewAppointment = () => {
       setSearchInterval(null);
     }
     
-    // Hide animation and navigate
+    // Hide animation and navigate to specific appointment details
     setShowSearchAnimation(false);
-    toast('Search cancelled. You can check your appointments page for updates.');
-    navigate('/appointments');
+    toast('Search cancelled. You can check your appointment details for updates.');
+    if (appointmentId) {
+      navigate(`/appointments/${appointmentId}`);
+    } else {
+      navigate('/appointments');
+    }
   };
 
   const handleCloseSearch = () => {
     // Just hide the animation without navigating away
     setShowSearchAnimation(false);
-    toast('Search is continuing in the background. You can check your appointments page for updates.');
+    toast('Search is continuing in the background. You can check your appointment details for updates.');
+    if (appointmentId) {
+      navigate(`/appointments/${appointmentId}`);
+    }
   };
 
   const checkAppointmentStatus = async (appointmentId) => {
@@ -969,7 +1015,7 @@ const NewAppointment = () => {
         const data = await response.json();
         const appointment = data.data;
         
-        // If interpreter is assigned, hide animation and navigate
+        // If interpreter is assigned, hide animation and navigate to appointment details
         if (appointment.status === 'assigned' || appointment.status === 'reminders_sent' || 
             appointment.status === 'in_progress' || appointment.status === 'completed' ||
             appointment.status === 'completion_report' || appointment.status === 'billed' ||
@@ -981,10 +1027,10 @@ const NewAppointment = () => {
             setSearchInterval(null);
           }
           
-          // Hide animation and navigate
+          // Hide animation and navigate to specific appointment details
           setShowSearchAnimation(false);
           toast.success('Interpreter found! Your appointment has been assigned.');
-          navigate('/appointments');
+          navigate(`/appointments/${appointmentId}`);
         }
       }
     } catch (error) {
@@ -998,10 +1044,21 @@ const NewAppointment = () => {
 
     try {
       // Validate required fields
-      if (!formData.appointmentDate || !formData.startTime || !formData.endTime || 
+      if (!formData.appointmentDate || !formData.startTime || !formData.reserveHours || 
           !formData.appointmentType || !formData.claimantId || 
           !formData.claimId || !formData.interpreterType || !formData.serviceType) {
         toast.error('Please fill in all required fields');
+        return;
+      }
+
+      // Validate reserve hours
+      if (formData.reserveHours <= 0) {
+        toast.error('Reserve hours must be greater than 0');
+        return;
+      }
+      
+      if (formData.reserveHours > 12) {
+        toast.error('Reserve hours cannot exceed 12 hours');
         return;
       }
 
@@ -1012,16 +1069,11 @@ const NewAppointment = () => {
         return;
       }
 
-      // Validate time range
-      if (formData.startTime >= formData.endTime) {
-        toast.error('End time must be after start time');
-        return;
-      }
 
       const appointmentData = {
         appointmentDate: formData.appointmentDate,
         startTime: formData.startTime,
-        endTime: formData.endTime,
+        endTime: calculateEndTime(formData.startTime, formData.reserveHours),
         arrivalTime: formData.arrivalTime,
         appointmentType: formData.appointmentType,
         doctorName: formData.doctorName,
@@ -1069,8 +1121,8 @@ const NewAppointment = () => {
             setSearchInterval(null);
           }
           setShowSearchAnimation(false);
-          toast('Search is taking longer than expected. You can check your appointments page for updates.');
-          navigate('/appointments');
+          toast('Search is taking longer than expected. You can check your appointment details for updates.');
+          navigate(`/appointments/${data.data.id}`);
         }, 300000); // 5 minutes
       } else {
         toast.error(data.message || 'Failed to submit appointment request');
@@ -1165,6 +1217,8 @@ const NewAppointment = () => {
                 <Step2AppointmentDetails
                   formData={formData}
                   handleInputChange={handleInputChange}
+                  handleReserveHoursChange={handleReserveHoursChange}
+                  calculateEndTime={calculateEndTime}
                 />
               )}
               

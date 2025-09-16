@@ -22,3 +22,4 @@ UPDATE jobs
 SET authorized_at = created_at 
 WHERE status = 'open' AND authorized_at IS NULL;
 
+

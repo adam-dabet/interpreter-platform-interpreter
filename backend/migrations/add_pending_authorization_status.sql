@@ -8,3 +8,4 @@ ALTER TYPE job_status_enum ADD VALUE IF NOT EXISTS 'pending_authorization';
 -- Add comment for documentation
 COMMENT ON TYPE job_status_enum IS 'Status of a job: open, assigned, in_progress, completed, cancelled, no_show, pending_authorization';
 
+

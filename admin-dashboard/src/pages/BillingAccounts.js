@@ -64,7 +64,9 @@ const BillingAccounts = ({ setCurrentView }) => {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    email: ''
+    email: '',
+    address: '',
+    is_active: true
   });
   const [localRates, setLocalRates] = useState({});
   const [updateTimeouts, setUpdateTimeouts] = useState({});
@@ -215,7 +217,9 @@ const BillingAccounts = ({ setCurrentView }) => {
     setFormData({
       name: account.name || '',
       phone: account.phone || '',
-      email: account.email || ''
+      email: account.email || '',
+      address: account.address || '',
+      is_active: true // Explicitly set to true to prevent accidental deactivation
     });
     setShowModal(true);
   };
@@ -230,7 +234,9 @@ const BillingAccounts = ({ setCurrentView }) => {
     setFormData({
       name: '',
       phone: '',
-      email: ''
+      email: '',
+      address: '',
+      is_active: true
     });
   };
 
@@ -352,7 +358,8 @@ const BillingAccounts = ({ setCurrentView }) => {
   const filteredAccounts = accounts.filter(account =>
     account.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     account.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    account.phone?.toLowerCase().includes(searchTerm.toLowerCase())
+    account.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    account.address?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const formatCurrency = (amount) => {
@@ -445,6 +452,19 @@ const BillingAccounts = ({ setCurrentView }) => {
                             </div>
                           )}
                         </div>
+                        {account.address && (
+                          <div className="mt-2">
+                            <div className="flex items-start text-sm text-gray-600">
+                              <div className="flex-shrink-0 mr-1 mt-0.5">
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                              </div>
+                              <div className="whitespace-pre-line">{account.address}</div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                     
@@ -630,6 +650,19 @@ const BillingAccounts = ({ setCurrentView }) => {
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   placeholder="billing@example.com"
                 />
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Address
+                  </label>
+                  <textarea
+                    value={formData.address}
+                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder="Enter billing address (optional)"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
                 
                 <div className="flex justify-end space-x-3 pt-4">
                   <Button

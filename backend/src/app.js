@@ -26,6 +26,7 @@ const jobRoutes = require('./routes/jobs');
 const jobStatusRoutes = require('./routes/jobStatus');
 const customerRoutes = require('./routes/customer');
 const magicLinkRoutes = require('./routes/magicLink');
+const externalRegistryRoutes = require('./routes/externalRegistry');
 
 // Security middleware
 app.use(helmet({
@@ -96,6 +97,7 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api', jobStatusRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/magic-link', magicLinkRoutes);
+app.use('/api/external-registry', externalRegistryRoutes);
 app.use('/admin', express.static('public'));
 
 // Health check endpoint

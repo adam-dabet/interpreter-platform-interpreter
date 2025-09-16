@@ -757,7 +757,10 @@ class JobController {
           i.email as interpreter_email,
           cl.name as claimant_name,
           c.claim_number as claim_number,
-          c.case_type as case_type
+          c.case_type as case_type,
+          ja.confirmation_status,
+          ja.confirmed_at,
+          ja.confirmation_notes
         FROM jobs j
         LEFT JOIN languages l1 ON j.source_language_id = l1.id
         LEFT JOIN languages l2 ON j.target_language_id = l2.id
@@ -767,6 +770,7 @@ class JobController {
         LEFT JOIN interpreters i ON j.assigned_interpreter_id = i.id
         LEFT JOIN claimants cl ON j.claimant_id = cl.id
         LEFT JOIN claims c ON j.claim_id = c.id
+        LEFT JOIN job_assignments ja ON j.id = ja.job_id AND j.assigned_interpreter_id = ja.interpreter_id
         WHERE j.id = $1
       `;
 
@@ -1124,6 +1128,86 @@ class JobController {
     } catch (error) {
       console.error('Error fetching job stats:', error);
       res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  }
+
+  // Get job audit logs
+  async getJobAuditLogs(req, res) {
+    try {
+      const { jobId } = req.params;
+      const { page = 1, limit = 20 } = req.query;
+      const offset = (page - 1) * limit;
+
+      // Verify job exists
+      const jobCheck = await db.query(
+        'SELECT id, job_number, title FROM jobs WHERE id = $1',
+        [jobId]
+      );
+
+      if (jobCheck.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Job not found'
+        });
+      }
+
+      // Get audit logs with user information
+      const auditQuery = `
+        SELECT 
+          jal.*,
+          CASE 
+            WHEN jal.changed_by_type = 'customer' THEN 
+              c.name
+            WHEN jal.changed_by_type = 'admin' THEN 
+              CONCAT(u.first_name, ' ', u.last_name)
+            ELSE 'System'
+          END as changed_by_name,
+          CASE 
+            WHEN jal.changed_by_type = 'customer' THEN c.email
+            WHEN jal.changed_by_type = 'admin' THEN u.email
+            ELSE NULL
+          END as changed_by_email
+        FROM job_audit_logs jal
+        LEFT JOIN customers c ON jal.changed_by_type = 'customer' AND jal.changed_by::text = c.id::text
+        LEFT JOIN users u ON jal.changed_by_type = 'admin' AND jal.changed_by = u.id
+        WHERE jal.job_id = $1
+        ORDER BY jal.created_at DESC
+        LIMIT $2 OFFSET $3
+      `;
+
+      const countQuery = `
+        SELECT COUNT(*) as total_count
+        FROM job_audit_logs
+        WHERE job_id = $1
+      `;
+
+      const [auditResult, countResult] = await Promise.all([
+        db.query(auditQuery, [jobId, parseInt(limit), offset]),
+        db.query(countQuery, [jobId])
+      ]);
+
+      const totalCount = parseInt(countResult.rows[0].total_count);
+      const totalPages = Math.ceil(totalCount / limit);
+
+      res.json({
+        success: true,
+        data: {
+          logs: auditResult.rows,
+          pagination: {
+            current_page: parseInt(page),
+            total_pages: totalPages,
+            total_count: totalCount,
+            limit: parseInt(limit)
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Error fetching job audit logs:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch audit logs'
+      });
     }
   }
 }

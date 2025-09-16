@@ -84,7 +84,6 @@ export const ASSIGNMENT_STATUS_COLORS = {
 // Customer sees relevant statuses for their perspective (admin-only statuses removed)
 export const JOB_STATUS_OPTIONS = [
   { value: 'all', label: 'All Appointments' },
-  { value: JOB_STATUSES.REQUESTED, label: 'Pending Approval' },
   { value: JOB_STATUSES.FINDING_INTERPRETER, label: 'Finding Interpreter' },
   { value: JOB_STATUSES.ASSIGNED, label: 'Interpreter Assigned' },
   { value: JOB_STATUSES.IN_PROGRESS, label: 'In Progress' },
@@ -92,8 +91,7 @@ export const JOB_STATUS_OPTIONS = [
   { value: JOB_STATUSES.BILLED, label: 'Billed' },
   { value: JOB_STATUSES.CLOSED, label: 'Closed' },
   { value: JOB_STATUSES.CANCELLED, label: 'Cancelled' },
-  { value: JOB_STATUSES.NO_SHOW, label: 'No Show' },
-  { value: JOB_STATUSES.REJECTED, label: 'Rejected' }
+  { value: JOB_STATUSES.NO_SHOW, label: 'No Show' }
 ];
 
 // Status Categories (customer-visible only)

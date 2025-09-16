@@ -24,19 +24,19 @@ router.put('/jobs/:jobId/status',
   authenticateToken, 
   ...validateJobId, 
   ...validateStatusTransition, 
-  jobStatusController.transitionJobStatus
+  (req, res) => jobStatusController.transitionJobStatus(req, res)
 );
 
 router.get('/jobs/:jobId/status/history', 
   authenticateToken, 
   ...validateJobId, 
-  jobStatusController.getJobStatusHistory
+  jobStatusController.getJobStatusHistory.bind(jobStatusController)
 );
 
 router.get('/jobs/:jobId/status/transitions', 
   authenticateToken, 
   ...validateJobId, 
-  jobStatusController.getValidTransitions
+  jobStatusController.getValidTransitions.bind(jobStatusController)
 );
 
 // Admin-specific status management routes
@@ -44,7 +44,7 @@ router.post('/admin/jobs/:jobId/approve',
   authenticateToken, 
   requireAdmin,
   ...validateJobId, 
-  jobStatusController.approveJob
+  jobStatusController.approveJob.bind(jobStatusController)
 );
 
 router.post('/admin/jobs/:jobId/reject', 
@@ -52,21 +52,21 @@ router.post('/admin/jobs/:jobId/reject',
   requireAdmin,
   ...validateJobId, 
   ...validateRejectJob, 
-  jobStatusController.rejectJob
+  jobStatusController.rejectJob.bind(jobStatusController)
 );
 
 router.post('/admin/jobs/:jobId/send-to-interpreters', 
   authenticateToken, 
   requireAdmin,
   ...validateJobId, 
-  jobStatusController.sendToInterpreters
+  jobStatusController.sendToInterpreters.bind(jobStatusController)
 );
 
 router.post('/admin/jobs/:jobId/send-reminders', 
   authenticateToken, 
   requireAdmin,
   ...validateJobId, 
-  jobStatusController.sendReminders
+  jobStatusController.sendReminders.bind(jobStatusController)
 );
 
 router.post('/admin/jobs/:jobId/mark-billed', 
@@ -74,14 +74,14 @@ router.post('/admin/jobs/:jobId/mark-billed',
   requireAdmin,
   ...validateJobId, 
   body('amount').optional().isNumeric(),
-  jobStatusController.markAsBilled
+  jobStatusController.markAsBilled.bind(jobStatusController)
 );
 
 router.post('/admin/jobs/:jobId/mark-closed', 
   authenticateToken, 
   requireAdmin,
   ...validateJobId, 
-  jobStatusController.markAsClosed
+  jobStatusController.markAsClosed.bind(jobStatusController)
 );
 
 router.post('/admin/jobs/:jobId/mark-interpreter-paid', 
@@ -89,14 +89,14 @@ router.post('/admin/jobs/:jobId/mark-interpreter-paid',
   requireAdmin,
   ...validateJobId, 
   body('amount').optional().isNumeric(),
-  jobStatusController.markInterpreterPaid
+  jobStatusController.markInterpreterPaid.bind(jobStatusController)
 );
 
 // Statistics routes
 router.get('/admin/status/statistics', 
   authenticateToken, 
   requireAdmin,
-  jobStatusController.getStatusStatistics
+  jobStatusController.getStatusStatistics.bind(jobStatusController)
 );
 
 module.exports = router;

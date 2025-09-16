@@ -7,7 +7,10 @@ import {
   CogIcon,
   ArrowRightOnRectangleIcon,
   MapPinIcon,
-  CreditCardIcon
+  CreditCardIcon,
+  EnvelopeIcon,
+  ChatBubbleLeftRightIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 
 const Sidebar = ({ currentView, setCurrentView, onLogout }) => {
@@ -53,6 +56,24 @@ const Sidebar = ({ currentView, setCurrentView, onLogout }) => {
       view: 'claimants', 
       icon: UserIcon,
       description: 'Manage claimants and claims'
+    },
+    { 
+      name: 'Email History', 
+      view: 'email-history', 
+      icon: EnvelopeIcon,
+      description: 'View and track sent emails'
+    },
+    { 
+      name: 'SMS History', 
+      view: 'sms-history', 
+      icon: ChatBubbleLeftRightIcon,
+      description: 'View and track sent SMS messages'
+    },
+    { 
+      name: 'Audit Logs', 
+      view: 'audit-logs', 
+      icon: DocumentTextIcon,
+      description: 'Track user activities and system actions'
     },
     { 
       name: 'Analytics', 

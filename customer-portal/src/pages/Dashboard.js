@@ -12,7 +12,11 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { getJobStatusColor } from '../utils/statusConstants';
+import { 
+  getJobStatusColor, 
+  getJobStatusLabel,
+  mapStatusForCustomer
+} from '../utils/statusConstants';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -43,7 +47,7 @@ const Dashboard = () => {
 
       // Load all dashboard data in parallel
       const [appointmentsResponse, claimantsResponse, claimsResponse] = await Promise.all([
-        makeAuthenticatedRequest(`${API_BASE}/customer/appointments?limit=10`),
+        makeAuthenticatedRequest(`${API_BASE}/customer/appointments?limit=50`),
         makeAuthenticatedRequest(`${API_BASE}/customer/claimants`),
         makeAuthenticatedRequest(`${API_BASE}/customer/claims`)
       ]);
@@ -59,10 +63,16 @@ const Dashboard = () => {
 
         // Separate upcoming and recent appointments
         const now = new Date();
-        const upcomingAppointments = appointments.filter(apt => 
-          new Date(apt.scheduled_date) >= now && 
-          ['open', 'assigned', 'in_progress'].includes(apt.status)
-        );
+        const upcomingAppointments = appointments.filter(apt => {
+          // Extract date part from scheduled_date (remove timezone info)
+          const dateOnly = apt.scheduled_date.split('T')[0];
+          // Combine date and time properly
+          const scheduledDateTime = new Date(`${dateOnly}T${apt.scheduled_time || '00:00:00'}`);
+          const isUpcomingDateTime = scheduledDateTime >= now;
+          const isUpcomingStatus = ['requested', 'finding_interpreter', 'assigned', 'in_progress', 'reminders_sent'].includes(apt.status);
+          
+          return isUpcomingDateTime && isUpcomingStatus;
+        });
         const recentAppointments = appointments.filter(apt => 
           new Date(apt.scheduled_date) < now || 
           ['completed', 'cancelled'].includes(apt.status)
@@ -234,8 +244,8 @@ const Dashboard = () => {
                           </p>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(appointment.status)}`}>
-                            {appointment.status.replace('_', ' ')}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(mapStatusForCustomer(appointment.status))}`}>
+                            {getJobStatusLabel(appointment.status)}
                           </span>
                           <button
                             onClick={() => navigate(`/appointments/${appointment.id}`)}
@@ -293,8 +303,8 @@ const Dashboard = () => {
                           </p>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(appointment.status)}`}>
-                            {appointment.status.replace('_', ' ')}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getJobStatusColor(mapStatusForCustomer(appointment.status))}`}>
+                            {getJobStatusLabel(appointment.status)}
                           </span>
                           <button
                             onClick={() => navigate(`/appointments/${appointment.id}`)}

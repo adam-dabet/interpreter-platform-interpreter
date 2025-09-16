@@ -201,18 +201,16 @@ const JobNotes = ({ jobId }) => {
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getNoteTypeColor(note.note_type)}`}>
                     {getNoteTypeLabel(note.note_type)}
                   </span>
-                  {note.interpreter_first_name && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <UserIcon className="h-4 w-4 mr-1" />
-                      {note.interpreter_first_name} {note.interpreter_last_name}
-                    </div>
-                  )}
-                  {note.admin_email && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <UserIcon className="h-4 w-4 mr-1" />
-                      Admin: {note.admin_email}
-                    </div>
-                  )}
+                  <div className="flex items-center text-sm text-gray-600">
+                    <UserIcon className="h-4 w-4 mr-1" />
+                    {note.interpreter_first_name && note.interpreter_last_name ? (
+                      `${note.interpreter_first_name} ${note.interpreter_last_name}`
+                    ) : note.admin_email ? (
+                      `Admin: ${note.admin_email}`
+                    ) : (
+                      'Unknown User'
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center text-xs text-gray-500">
                   <ClockIcon className="h-3 w-3 mr-1" />

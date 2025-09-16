@@ -124,7 +124,7 @@ class CustomerController {
 
       let query = `
         SELECT 
-          j.id, j.title, j.description, j.scheduled_date, j.scheduled_time,
+          j.id, j.job_number, j.title, j.description, j.scheduled_date, j.scheduled_time,
           j.arrival_time, j.estimated_duration_minutes, j.actual_duration_minutes,
           j.appointment_type, j.status, j.location_address,
           j.location_city, j.location_state, j.is_remote, j.hourly_rate,
@@ -179,7 +179,7 @@ class CustomerController {
         params.push(status);
       }
 
-      query += ` ORDER BY j.scheduled_date DESC, j.scheduled_time DESC`;
+      query += ` ORDER BY j.scheduled_date ASC, j.scheduled_time ASC`;
       
       paramCount++;
       query += ` LIMIT $${paramCount}`;
@@ -318,6 +318,144 @@ class CustomerController {
       res.status(500).json({
         success: false,
         message: 'Failed to get appointment details'
+      });
+    }
+  }
+
+  /**
+   * Get invoice PDF for a billed appointment
+   */
+  async getInvoicePDF(req, res) {
+    try {
+      const customerId = req.customer.id;
+      const { appointmentId } = req.params;
+
+      // First, verify the appointment belongs to this customer and is billed
+      const appointmentResult = await db.query(`
+        SELECT j.id, j.status, j.job_number
+        FROM jobs j
+        WHERE j.id = $1 AND j.requested_by_id = $2 AND j.status = 'billed'
+      `, [appointmentId, customerId]);
+
+      if (appointmentResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Invoice not found or appointment not billed'
+        });
+      }
+
+      const appointment = appointmentResult.rows[0];
+      const invoicePath = `./temp/invoice_${appointment.job_number}_*.pdf`;
+      
+      // Find the invoice file
+      const fs = require('fs');
+      const path = require('path');
+      const tempDir = './temp';
+      
+      if (!fs.existsSync(tempDir)) {
+        return res.status(404).json({
+          success: false,
+          message: 'Invoice file not found'
+        });
+      }
+
+      const files = fs.readdirSync(tempDir);
+      const invoiceFile = files.find(file => file.startsWith(`invoice_${appointment.job_number}_`));
+      
+      if (!invoiceFile) {
+        // Try to regenerate the invoice if it's missing
+        try {
+          const pdfInvoiceService = require('../services/pdfInvoiceService');
+          
+          // Get full job details for PDF generation
+          const jobDetailsResult = await db.query(`
+            SELECT 
+              j.*,
+              c.first_name as claimant_first_name,
+              c.last_name as claimant_last_name,
+              c.name as claimant_name,
+              c.phone as claimant_phone,
+              c.address as claimant_address,
+              c.date_of_birth as claimant_dob,
+              c.employer,
+              cl.claim_number,
+              cl.case_type,
+              cl.date_of_injury,
+              cl.diagnosis,
+              ba.name as billing_account_name,
+              ba.address as billing_company_address,
+              st.name as service_type_name,
+              l.name as language_name,
+              it.name as interpreter_type_name
+            FROM jobs j
+            LEFT JOIN claimants c ON j.claimant_id = c.id
+            LEFT JOIN claims cl ON j.claim_id = cl.id
+            LEFT JOIN billing_accounts ba ON j.billing_account_id = ba.id
+            LEFT JOIN service_types st ON j.service_type_id = st.id
+            LEFT JOIN languages l ON j.source_language_id = l.id
+            LEFT JOIN interpreter_types it ON j.interpreter_type_id = it.id
+            WHERE j.id = $1
+          `, [appointmentId]);
+          
+          if (jobDetailsResult.rows.length === 0) {
+            return res.status(404).json({
+              success: false,
+              message: 'Job details not found'
+            });
+          }
+          
+          const jobDetails = jobDetailsResult.rows[0];
+          const pdfPath = await pdfInvoiceService.generateInvoicePDF(jobDetails);
+          
+          // Stream the newly generated PDF
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `inline; filename="invoice_${appointment.job_number}.pdf"`);
+          
+          const fileStream = fs.createReadStream(pdfPath);
+          fileStream.pipe(res);
+          
+          // Clean up the temporary file after streaming
+          fileStream.on('end', () => {
+            setTimeout(() => {
+              try {
+                fs.unlinkSync(pdfPath);
+              } catch (cleanupError) {
+                console.error('Error cleaning up temporary PDF:', cleanupError);
+              }
+            }, 5000);
+          });
+          
+          return; // Exit early after streaming the regenerated PDF
+          
+        } catch (regenerationError) {
+          console.error('Error regenerating invoice:', regenerationError);
+          return res.status(500).json({
+            success: false,
+            message: 'Invoice not found and could not be regenerated'
+          });
+        }
+      }
+
+      const fullPath = path.join(tempDir, invoiceFile);
+      
+      // Set headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="invoice_${appointment.job_number}.pdf"`);
+      
+      // Stream the PDF file
+      const fileStream = fs.createReadStream(fullPath);
+      fileStream.pipe(res);
+
+    } catch (error) {
+      await loggerService.error('Failed to get invoice PDF', error, {
+        category: 'CUSTOMER',
+        customerId: req.customer?.id,
+        appointmentId: req.params.appointmentId
+      });
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve invoice'
       });
     }
   }
@@ -1459,6 +1597,494 @@ class CustomerController {
         success: false,
         message: 'Failed to delete claim'
       });
+    }
+  }
+
+  /**
+   * Update appointment details (customer edit)
+   */
+  async updateAppointment(req, res) {
+    try {
+      const { appointmentId } = req.params;
+      const customerId = req.customer.id;
+      const updateData = req.body;
+
+      // First, check if the customer has access to this appointment
+      const accessCheck = await db.query(`
+        SELECT j.id, j.status, j.title, j.scheduled_date, j.scheduled_time,
+               j.estimated_duration_minutes, j.is_remote, j.appointment_type,
+               j.description, j.location_address, j.location_city, j.location_state,
+               j.location_zip_code, j.claimant_id, j.claim_id
+        FROM jobs j
+        LEFT JOIN claims cl ON j.claim_id = cl.id
+        LEFT JOIN claimants clm ON j.claimant_id = clm.id
+        WHERE j.id = $1 AND j.is_active = true
+          AND (
+            cl.contact_claims_handler_id = $2
+            OR cl.adjusters_assistant_id = $2
+            OR clm.billing_account_id = (
+              SELECT billing_account_id 
+              FROM customers 
+              WHERE id = $2
+            )
+          )
+      `, [appointmentId, customerId]);
+
+      if (accessCheck.rows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied to this appointment'
+        });
+      }
+
+      const currentAppointment = accessCheck.rows[0];
+
+      // Check if appointment can be edited (not in certain statuses)
+      const nonEditableStatuses = ['completed', 'billed', 'closed', 'interpreter_paid', 'cancelled', 'no_show'];
+      if (nonEditableStatuses.includes(currentAppointment.status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Appointment cannot be edited in current status'
+        });
+      }
+
+      // Prepare update fields
+      const updateFields = [];
+      const updateValues = [];
+      let paramCount = 1;
+
+      // Map frontend field names to database field names (limited editing)
+      const fieldMapping = {
+        appointmentDate: 'scheduled_date',
+        startTime: 'scheduled_time'
+      };
+
+      // Build dynamic update query
+      for (const [frontendField, dbField] of Object.entries(fieldMapping)) {
+        if (updateData[frontendField] !== undefined) {
+          updateFields.push(`${dbField} = $${paramCount}`);
+          updateValues.push(updateData[frontendField]);
+          paramCount++;
+        }
+      }
+
+      // Handle endTime by calculating duration and updating estimated_duration_minutes
+      if (updateData.endTime && updateData.startTime) {
+        const startTime = new Date(`2000-01-01T${updateData.startTime}`);
+        const endTime = new Date(`2000-01-01T${updateData.endTime}`);
+        const durationMs = endTime - startTime;
+        const durationMinutes = Math.round(durationMs / (1000 * 60));
+        
+        if (durationMinutes > 0) {
+          updateFields.push(`estimated_duration_minutes = $${paramCount}`);
+          updateValues.push(durationMinutes);
+          paramCount++;
+        }
+      }
+
+      if (updateFields.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'No valid fields to update'
+        });
+      }
+
+      // Add updated_at (no updated_by for customer actions)
+      updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+
+      // Add appointment ID for WHERE clause
+      updateValues.push(appointmentId);
+
+      const updateQuery = `
+        UPDATE jobs 
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramCount}
+        RETURNING *
+      `;
+
+      const result = await db.query(updateQuery, updateValues);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Appointment not found'
+        });
+      }
+
+      const updatedAppointment = result.rows[0];
+
+      // Set confirmation status to pending for assigned interpreter
+      const confirmationUpdateQuery = `
+        UPDATE job_assignments 
+        SET confirmation_status = 'pending',
+            confirmed_at = NULL,
+            confirmation_notes = NULL
+        WHERE job_id = $1 AND status = 'accepted'
+      `;
+      
+      await db.query(confirmationUpdateQuery, [appointmentId]);
+
+      // Create audit log entry
+      const changes = [];
+      for (const [frontendField, dbField] of Object.entries(fieldMapping)) {
+        if (updateData[frontendField] !== undefined) {
+          const oldValue = currentAppointment[dbField];
+          const newValue = updateData[frontendField];
+          
+          if (oldValue !== newValue) {
+            changes.push({
+              field: frontendField,
+              oldValue: oldValue,
+              newValue: newValue
+            });
+          }
+        }
+      }
+
+      // Add duration change to audit log if endTime was provided
+      if (updateData.endTime && updateData.startTime) {
+        const startTime = new Date(`2000-01-01T${updateData.startTime}`);
+        const endTime = new Date(`2000-01-01T${updateData.endTime}`);
+        const durationMs = endTime - startTime;
+        const durationMinutes = Math.round(durationMs / (1000 * 60));
+        
+        if (durationMinutes > 0) {
+          const oldDuration = currentAppointment.estimated_duration_minutes ? `${currentAppointment.estimated_duration_minutes / 60} hours` : 'Not set';
+          const newDuration = `${durationMinutes / 60} hours`;
+          
+          if (oldDuration !== newDuration) {
+            changes.push({
+              field: 'reserveHours',
+              oldValue: oldDuration,
+              newValue: newDuration
+            });
+          }
+        }
+      }
+
+      if (changes.length > 0) {
+        // Log the changes (changed_by is NULL for customer actions)
+        await db.query(`
+          INSERT INTO job_audit_logs (
+            job_id, action, changed_by, changed_by_type, changes, notes, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+        `, [
+          appointmentId,
+          'customer_edit',
+          null, // changed_by is NULL for customer actions
+          'customer',
+          JSON.stringify(changes),
+          `Customer ID: ${customerId}`
+        ]);
+
+        // Send email notification to admin
+        try {
+          // Get customer details with billing account
+          const customerResult = await db.query(`
+            SELECT c.name, c.email, c.title, ba.name as billing_account_name
+            FROM customers c
+            LEFT JOIN billing_accounts ba ON c.billing_account_id = ba.id
+            WHERE c.id = $1
+          `, [customerId]);
+
+          if (customerResult.rows.length > 0) {
+            const customer = customerResult.rows[0];
+
+            // Get appointment details
+            const appointmentResult = await db.query(`
+              SELECT j.job_number, j.title, j.scheduled_date, j.scheduled_time,
+                     c.name as claimant_name
+              FROM jobs j
+              LEFT JOIN claimants c ON j.claimant_id = c.id
+              WHERE j.id = $1
+            `, [appointmentId]);
+
+            if (appointmentResult.rows.length > 0) {
+              const appointment = appointmentResult.rows[0];
+
+              // Format changes for email
+              const changesText = changes.map(change => {
+                const fieldName = change.field.replace(/([A-Z])/g, ' $1').toLowerCase();
+                return `• ${fieldName}: "${change.oldValue}" → "${change.newValue}"`;
+              }).join('\n');
+
+              // Send email notification to admin
+              const emailService = require('../services/emailService');
+              await emailService.queueEmail(
+                'appointment_edited',
+                'generalinbox@theintegritycompanyinc.com',
+                'Admin Team',
+                {
+                  customer_name: customer.name,
+                  customer_company: customer.billing_account_name || customer.title || 'N/A',
+                  appointment_number: appointment.job_number,
+                  appointment_title: appointment.title,
+                  appointment_date: appointment.scheduled_date,
+                  appointment_time: appointment.scheduled_time,
+                  claimant_name: appointment.claimant_name,
+                  changes: changesText,
+                  edit_time: new Date().toLocaleString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZoneName: 'short'
+                  }),
+                  admin_portal_link: `${process.env.ADMIN_PORTAL_URL || 'http://localhost:3002'}/jobs/${appointmentId}`
+                }
+              );
+
+              // Send notification to assigned interpreter if there is one
+              const interpreterResult = await db.query(`
+                SELECT i.id, i.email, i.first_name, i.last_name
+                FROM interpreters i
+                JOIN job_assignments ja ON i.id = ja.interpreter_id
+                WHERE ja.job_id = $1 AND ja.status = 'accepted'
+              `, [appointmentId]);
+
+              if (interpreterResult.rows.length > 0) {
+                const interpreter = interpreterResult.rows[0];
+                
+                // Get location information
+                const locationText = appointment.location_address ? 
+                  `${appointment.location_address}, ${appointment.location_city}, ${appointment.location_state}` : 
+                  'Location TBD';
+
+                // Calculate new duration from changes
+                let newDuration = appointment.estimated_duration_minutes / 60;
+                const durationChange = changes.find(change => change.field === 'reserveHours');
+                if (durationChange) {
+                  newDuration = parseFloat(durationChange.newValue.replace(' hours', ''));
+                }
+
+                await emailService.queueEmail(
+                  'interpreter_schedule_change',
+                  interpreter.email,
+                  `${interpreter.first_name} ${interpreter.last_name}`,
+                  {
+                    appointment_number: appointment.job_number,
+                    appointment_title: appointment.title,
+                    claimant_name: appointment.claimant_name,
+                    appointment_location: locationText,
+                    changes: changesText,
+                    new_appointment_date: appointment.scheduled_date,
+                    new_appointment_time: appointment.scheduled_time,
+                    new_duration: `${newDuration} hours`,
+                    interpreter_portal_link: `${process.env.INTERPRETER_PORTAL_URL || 'http://localhost:3000'}/job/${appointmentId}`,
+                    unassign_link: `${process.env.INTERPRETER_PORTAL_URL || 'http://localhost:3000'}/job/${appointmentId}?action=unassign`
+                  }
+                );
+              }
+            }
+          }
+        } catch (emailError) {
+          console.error('Error sending appointment edit notification:', emailError);
+          // Don't fail the entire request if email fails
+        }
+      }
+
+      res.json({
+        success: true,
+        message: 'Appointment updated successfully',
+        data: updatedAppointment
+      });
+
+    } catch (error) {
+      await loggerService.error('Failed to update appointment', error, {
+        category: 'CUSTOMER',
+        customerId: req.customer?.id,
+        appointmentId: req.params.appointmentId
+      });
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update appointment'
+      });
+    }
+  }
+
+  /**
+   * Send email notification to admin when appointment is edited
+   */
+  async sendAppointmentEditNotification(appointmentId, changes, customerId) {
+    try {
+      // Get customer details
+      const customerResult = await db.query(`
+        SELECT first_name, last_name, email, company_name
+        FROM customers 
+        WHERE id = $1
+      `, [customerId]);
+
+      if (customerResult.rows.length === 0) return;
+
+      const customer = customerResult.rows[0];
+
+      // Get appointment details
+      const appointmentResult = await db.query(`
+        SELECT j.job_number, j.title, j.scheduled_date, j.scheduled_time,
+               c.first_name as claimant_first_name, c.last_name as claimant_last_name
+        FROM jobs j
+        LEFT JOIN claimants c ON j.claimant_id = c.id
+        WHERE j.id = $1
+      `, [appointmentId]);
+
+      if (appointmentResult.rows.length === 0) return;
+
+      const appointment = appointmentResult.rows[0];
+
+      // Format changes for email
+      const changesText = changes.map(change => {
+        const fieldName = change.field.replace(/([A-Z])/g, ' $1').toLowerCase();
+        return `• ${fieldName}: "${change.oldValue}" → "${change.newValue}"`;
+      }).join('\n');
+
+      // Send email notification
+      const emailService = require('../services/emailService');
+      await emailService.queueEmail(
+        'appointment_edited',
+        'generalinbox@theintegritycompanyinc.com',
+        'Admin',
+        {
+          customer_name: `${customer.first_name} ${customer.last_name}`,
+          customer_company: customer.company_name || 'N/A',
+          appointment_number: appointment.job_number || appointment.title,
+          appointment_date: new Date(appointment.scheduled_date).toLocaleDateString(),
+          appointment_time: appointment.scheduled_time,
+          claimant_name: `${appointment.claimant_first_name} ${appointment.claimant_last_name}`,
+          changes: changesText,
+          edit_time: new Date().toLocaleString()
+        },
+        'high'
+      );
+
+    } catch (error) {
+      await loggerService.error('Failed to send appointment edit notification', error, {
+        category: 'EMAIL',
+        appointmentId,
+        customerId
+      });
+    }
+  }
+
+  // Cancel appointment
+  async cancelAppointment(req, res) {
+    try {
+      const { appointmentId } = req.params;
+      const customerId = req.customer.id;
+
+      // Check if appointment exists and belongs to customer
+      const appointmentQuery = `
+        SELECT j.*, c.id as customer_id
+        FROM jobs j
+        JOIN customers c ON j.customer_id = c.id
+        WHERE j.id = $1 AND c.id = $2
+      `;
+      
+      const appointmentResult = await db.query(appointmentQuery, [appointmentId, customerId]);
+      
+      if (appointmentResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Appointment not found or access denied'
+        });
+      }
+
+      const appointment = appointmentResult.rows[0];
+
+      // Check if appointment can be cancelled
+      const nonCancellableStatuses = ['completed', 'billed', 'closed', 'interpreter_paid', 'cancelled', 'no_show'];
+      if (nonCancellableStatuses.includes(appointment.status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'This appointment cannot be cancelled'
+        });
+      }
+
+      // Update appointment status to cancelled
+      const updateQuery = `
+        UPDATE jobs 
+        SET status = 'cancelled', 
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING *
+      `;
+      
+      const updateResult = await db.query(updateQuery, [appointmentId]);
+      const updatedAppointment = updateResult.rows[0];
+
+      // Log the cancellation in audit logs
+      const auditQuery = `
+        INSERT INTO job_audit_logs (job_id, action, changed_by, changed_by_type, changes, notes, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+      `;
+      
+      const changes = [{
+        field: 'status',
+        oldValue: appointment.status,
+        newValue: 'cancelled'
+      }];
+      
+      await db.query(auditQuery, [
+        appointmentId,
+        'customer_cancelled',
+        customerId,
+        'customer',
+        JSON.stringify(changes),
+        'Appointment cancelled by customer'
+      ]);
+
+      // Send admin notification about cancellation
+      await this.sendAppointmentCancellationNotification(appointmentId, customerId);
+
+      res.json({
+        success: true,
+        message: 'Appointment cancelled successfully',
+        data: updatedAppointment
+      });
+
+    } catch (error) {
+      console.error('Error cancelling appointment:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Internal server error',
+        error: error.message 
+      });
+    }
+  }
+
+  // Send appointment cancellation notification
+  async sendAppointmentCancellationNotification(appointmentId, customerId) {
+    try {
+      // Get appointment and customer details
+      const appointmentQuery = `
+        SELECT j.*, c.name as customer_name, c.company as customer_company
+        FROM jobs j
+        JOIN customers c ON j.customer_id = c.id
+        WHERE j.id = $1
+      `;
+      
+      const appointmentResult = await db.query(appointmentQuery, [appointmentId]);
+      const appointment = appointmentResult.rows[0];
+
+      // Queue email notification
+      await emailService.queueEmail({
+        toEmail: 'generalinbox@theintegritycompanyinc.com',
+        templateName: 'appointment_cancelled',
+        variables: {
+          customer_name: appointment.customer_name,
+          customer_company: appointment.customer_company,
+          appointment_number: appointment.job_number,
+          appointment_title: appointment.title,
+          appointment_date: appointment.scheduled_date,
+          appointment_time: appointment.scheduled_time,
+          claimant_name: appointment.claimant_name || 'N/A'
+        }
+      });
+
+    } catch (error) {
+      console.error('Error sending cancellation notification:', error);
     }
   }
 }

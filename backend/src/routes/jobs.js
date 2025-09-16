@@ -128,6 +128,32 @@ router.post('/:jobId/decline',
   jobAssignmentController.declineJob
 );
 
+router.post('/:jobId/unassign',
+  authenticateToken,
+  requireRole('provider'),
+  param('jobId').isUUID().withMessage('Valid job ID is required'),
+  body('unassign_reason').optional().isLength({ max: 500 }).withMessage('Unassign reason must be less than 500 characters'),
+  jobAssignmentController.unassignJob
+);
+
+// Get job audit logs
+router.get('/:jobId/audit-logs',
+  authenticateToken,
+  requireRole('admin'),
+  param('jobId').isUUID().withMessage('Valid job ID is required'),
+  jobController.getJobAuditLogs
+);
+
+// Confirm availability for a job after schedule change
+router.post('/:jobId/confirm-availability',
+  authenticateToken,
+  requireRole('provider'),
+  param('jobId').isUUID().withMessage('Valid job ID is required'),
+  body('confirmation_status').isIn(['confirmed', 'declined']).withMessage('Confirmation status must be "confirmed" or "declined"'),
+  body('confirmation_notes').optional().isLength({ max: 500 }).withMessage('Confirmation notes must be less than 500 characters'),
+  jobAssignmentController.confirmAvailability
+);
+
 // Admin routes (require admin authentication)
 router.get('/',
   authenticateToken,

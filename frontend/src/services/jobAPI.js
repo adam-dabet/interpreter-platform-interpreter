@@ -26,6 +26,16 @@ const jobAPI = {
     return api.post(`/jobs/${jobId}/decline`, data);
   },
 
+  // Unassign from a job (only if 24+ hours away)
+  unassignJob: (jobId, data = {}) => {
+    return api.post(`/jobs/${jobId}/unassign`, data);
+  },
+
+  // Confirm availability for a job after schedule change
+  confirmAvailability: (jobId, data = {}) => {
+    return api.post(`/jobs/${jobId}/confirm-availability`, data);
+  },
+
   // Complete a job (now triggers completion report)
   completeJob: (jobId) => {
     // This will now open the completion report form instead of directly completing

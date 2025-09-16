@@ -13,8 +13,9 @@
     "dependencies": {
         "@googlemaps/google-maps-services-js": "^3.3.42",
         "aws-sdk": "^2.1479.0",
-        "axios": "^1.6.0",
+        "axios": "^1.12.1",
         "bcryptjs": "^2.4.3",
+        "cheerio": "^1.1.2",
         "cors": "^2.8.5",
         "csv-parser": "^3.2.0",
         "dotenv": "^16.3.1",
@@ -28,7 +29,9 @@
         "moment": "^2.29.4",
         "multer": "^1.4.5-lts.1",
         "nodemailer": "^6.9.7",
+        "pdfkit": "^0.17.2",
         "pg": "^8.11.3",
+        "puppeteer": "^24.20.0",
         "twilio": "^5.9.0",
         "uuid": "^9.0.1",
         "winston": "^3.11.0"

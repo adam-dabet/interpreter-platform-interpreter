@@ -16,6 +16,7 @@ import JobTimer from './pages/JobTimer';
 import Profile from './pages/Profile';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import RoutePersistence from './components/RoutePersistence';
 import './styles/globals.css';
 import './App.css';
 
@@ -25,6 +26,7 @@ function App() {
       <AuthProvider>
         <div className="App">
           <Toaster position="top-right" />
+          <RoutePersistence />
           <Routes>
             <Route path="/" element={<Layout><Home /></Layout>} />
             <Route path="/apply" element={<Layout><InterpreterProfile /></Layout>} />

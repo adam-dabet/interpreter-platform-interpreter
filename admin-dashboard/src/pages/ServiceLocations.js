@@ -111,7 +111,6 @@ const ServiceLocations = ({ setCurrentView }) => {
 
     // Check if Google Maps API key is available
     if (!process.env.REACT_APP_GOOGLE_MAPS_API_KEY) {
-      console.log('Google Maps API key not found. Address autocomplete will be disabled.');
       return;
     }
 
@@ -144,7 +143,6 @@ const ServiceLocations = ({ setCurrentView }) => {
       setMapsInitialized(true);
     };
     script.onerror = () => {
-      console.log('Failed to load Google Maps API. Address autocomplete will be disabled.');
     };
     document.head.appendChild(script);
   };
@@ -168,7 +166,6 @@ const ServiceLocations = ({ setCurrentView }) => {
         autocompleteInstance.addListener('place_changed', () => {
           const place = autocompleteInstance.getPlace();
           if (place.geometry) {
-            console.log('Selected place:', place);
             
             // Extract address components
             const addressComponents = place.address_components;

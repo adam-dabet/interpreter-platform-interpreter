@@ -629,7 +629,7 @@ router.get('/jobs', authenticateToken, async (req, res) => {
             LEFT JOIN languages sl ON j.source_language_id = sl.id
             LEFT JOIN languages tl ON j.target_language_id = tl.id
             WHERE j.assigned_interpreter_id = $1 AND j.is_active = true
-            ORDER BY j.scheduled_date DESC, j.scheduled_time DESC
+            ORDER BY j.scheduled_date ASC, j.scheduled_time ASC
         `, [req.user.interpreterId]);
         
         res.json({

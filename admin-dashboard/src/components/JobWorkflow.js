@@ -16,7 +16,6 @@ import {
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
-import JobNotes from './JobNotes';
 import { 
   JOB_STATUSES, 
   JOB_STATUS_LABELS, 
@@ -26,8 +25,7 @@ import {
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
-const JobWorkflow = ({ job, onJobUpdate }) => {
-  const [showNotes, setShowNotes] = useState(false);
+const JobWorkflow = ({ job, actualTotal, onJobUpdate }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showSkipDropdown, setShowSkipDropdown] = useState(false);
   const [skipReason, setSkipReason] = useState('');
@@ -112,8 +110,8 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
 
   // Initialize facility confirmation state from job data
   useEffect(() => {
-    setFacilityConfirmationRequired(job.facility_confirmation_required || false);
-  }, [job.facility_confirmation_required]);
+    setFacilityConfirmationRequired(job.facility_confirmed || false);
+  }, [job.facility_confirmed]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -136,9 +134,6 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      console.log('Admin token:', token ? 'Present' : 'Missing');
-      console.log('API URL:', `${API_BASE}/jobs/${job.id}/status`);
-      console.log('Request body:', { status: newStatus, reason: reason });
       
       const response = await fetch(`${API_BASE}/jobs/${job.id}/status`, {
         method: 'PUT',
@@ -152,20 +147,41 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
         })
       });
       
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (response.ok) {
         const result = await response.json();
         toast.success(`Job status updated to ${getJobStatusLabel(newStatus)}`);
-        if (onJobUpdate) {
-          onJobUpdate(result.data);
+        
+        // Fetch full job details to ensure all related data is included
+        try {
+          const jobDetailsResponse = await fetch(`${API_BASE}/admin/jobs/${job.id}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (jobDetailsResponse.ok) {
+            const jobDetailsResult = await jobDetailsResponse.json();
+            if (onJobUpdate && jobDetailsResult.success) {
+              onJobUpdate(jobDetailsResult.data);
+            }
+          } else {
+            // Fallback to the limited data from status update
+            if (onJobUpdate) {
+              onJobUpdate(result.data);
+            }
+          }
+        } catch (fetchError) {
+          console.error('Error fetching full job details:', fetchError);
+          // Fallback to the limited data from status update
+          if (onJobUpdate) {
+            onJobUpdate(result.data);
+          }
         }
       } else {
         const error = await response.json();
-        console.log('Error response:', error);
-        console.log('Response status:', response.status);
-        console.log('Response statusText:', response.statusText);
         toast.error(error.message || 'Failed to update job status');
       }
     } catch (error) {
@@ -189,7 +205,6 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Valid transitions API response:', data);
         // Extract validTransitions from the nested data structure
         const transitions = data.data?.validTransitions || [];
         return Array.isArray(transitions) ? transitions : [];
@@ -204,22 +219,23 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
   };
 
   const handleSkipToStatus = async (targetStatus) => {
-    console.log('handleSkipToStatus called with:', targetStatus);
-    console.log('Current skipReason:', skipReason);
     
     if (!skipReason.trim()) {
-      console.log('No reason provided, showing error');
       toast.error('Please provide a reason for skipping statuses');
       return;
     }
 
-    console.log('Proceeding with status transition...');
     const reason = `Skipped to ${getJobStatusLabel(targetStatus)}: ${skipReason}`;
     await handleStatusTransition(targetStatus, reason);
     
     // Reset skip state
     setShowSkipDropdown(false);
     setSkipReason('');
+  };
+
+  const handleDirectStatusChange = async (targetStatus) => {
+    const reason = `Status changed to ${getJobStatusLabel(targetStatus)} by admin`;
+    await handleStatusTransition(targetStatus, reason);
   };
 
   const handleSendClaimantReminder = async () => {
@@ -373,7 +389,7 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          facility_confirmation_required: checked
+          facility_confirmed: checked
         })
       });
       
@@ -381,9 +397,9 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
       
       if (data.success) {
         setFacilityConfirmationRequired(checked);
-        toast.success(checked ? 'Facility confirmation marked as required' : 'Facility confirmation requirement removed');
+        toast.success(checked ? 'Facility confirmation completed' : 'Facility confirmation marked as incomplete');
         if (onJobUpdate) {
-          onJobUpdate({ ...job, facility_confirmation_required: checked });
+          onJobUpdate({ ...job, facility_confirmed: checked });
         }
       } else {
         toast.error(data.message || 'Failed to update facility confirmation status');
@@ -405,7 +421,62 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
   };
 
   const handleMarkBilled = async () => {
-    await handleStatusTransition(JOB_STATUSES.BILLED, 'Job marked as billed');
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      
+      // Get the billing amount from the actualTotal prop (current frontend value)
+      const billingAmount = parseFloat(actualTotal) || job.total_amount || job.billed_amount || 0;
+      
+      const response = await fetch(`${API_BASE}/admin/jobs/${job.id}/mark-billed`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          amount: billingAmount,
+          notes: 'Job marked as billed'
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        toast.success(`Job marked as billed with amount $${billingAmount}`);
+        
+        // Fetch full job details to ensure all related data is included
+        try {
+          const jobDetailsResponse = await fetch(`${API_BASE}/admin/jobs/${job.id}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (jobDetailsResponse.ok) {
+            const jobDetails = await jobDetailsResponse.json();
+            if (onJobUpdate) {
+              onJobUpdate(jobDetails.data);
+            }
+          }
+        } catch (fetchError) {
+          console.error('Error fetching updated job details:', fetchError);
+          // Still call onJobUpdate with the result from the status change
+          if (onJobUpdate) {
+            onJobUpdate(result.data);
+          }
+        }
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to mark job as billed');
+      }
+    } catch (error) {
+      console.error('Error marking job as billed:', error);
+      toast.error('Failed to mark job as billed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleMarkClosed = async () => {
@@ -625,6 +696,30 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
             </button>
           )}
 
+          {/* Cancel Job - Available for active statuses */}
+          {[JOB_STATUSES.REQUESTED, JOB_STATUSES.FINDING_INTERPRETER, JOB_STATUSES.ASSIGNED, JOB_STATUSES.REMINDERS_SENT, JOB_STATUSES.IN_PROGRESS].includes(job.status) && (
+            <button
+              onClick={() => handleDirectStatusChange(JOB_STATUSES.CANCELLED)}
+              disabled={isLoading}
+              className="flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+            >
+              <XMarkIcon className="h-5 w-5 mr-2" />
+              {isLoading ? 'Updating...' : 'Cancel Job'}
+            </button>
+          )}
+
+          {/* Mark as No Show - Available for assigned/reminders sent statuses */}
+          {[JOB_STATUSES.ASSIGNED, JOB_STATUSES.REMINDERS_SENT].includes(job.status) && (
+            <button
+              onClick={() => handleDirectStatusChange(JOB_STATUSES.NO_SHOW)}
+              disabled={isLoading}
+              className="flex items-center justify-center px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors"
+            >
+              <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
+              {isLoading ? 'Updating...' : 'Mark as No Show'}
+            </button>
+          )}
+
           {/* Skip to Status */}
           <div className="relative" ref={skipDropdownRef}>
             <button
@@ -672,9 +767,6 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
                       const validSteps = workflowSteps.filter(step => 
                         transitions.includes(step.key) && step.key !== job.status
                       );
-                      console.log('Current job status:', job.status);
-                      console.log('Valid transitions:', transitions);
-                      console.log('Available steps to skip to:', validSteps.map(s => ({ key: s.key, label: s.label })));
                       
                       if (validSteps.length === 0) {
                         return (
@@ -693,8 +785,6 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
                           <button
                             key={step.key}
                             onClick={(e) => {
-                              console.log('Status button clicked:', step.key, step.label);
-                              console.log('isLoading state:', isLoading);
                               e.preventDefault();
                               e.stopPropagation();
                               handleSkipToStatus(step.key);
@@ -731,14 +821,6 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
             )}
           </div>
 
-          {/* Notes */}
-          <button
-            onClick={() => setShowNotes(!showNotes)}
-            className="flex items-center justify-center px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            <DocumentTextIcon className="h-5 w-5 mr-2" />
-            {showNotes ? 'Hide Notes' : 'Show Notes'}
-          </button>
         </div>
 
         {/* Status Indicators */}
@@ -766,10 +848,6 @@ const JobWorkflow = ({ job, onJobUpdate }) => {
         </div>
       </div>
 
-      {/* Job Notes */}
-      {showNotes && (
-        <JobNotes jobId={job.id} />
-      )}
 
       {/* Completion Report Display */}
       {job.completion_report_submitted && job.completion_report_data && (

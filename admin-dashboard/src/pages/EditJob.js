@@ -235,7 +235,6 @@ const EditJob = ({ jobId, setCurrentView }) => {
 
     // Check if Google Maps API key is available
     if (!process.env.REACT_APP_GOOGLE_MAPS_API_KEY) {
-      console.log('Google Maps API key not found. Location autocomplete will be disabled.');
       return;
     }
 
@@ -271,7 +270,6 @@ const EditJob = ({ jobId, setCurrentView }) => {
       setMapsInitialized(true);
     };
     script.onerror = () => {
-      console.log('Failed to load Google Maps API. Location will be saved as text only.');
     };
     document.head.appendChild(script);
   };
@@ -280,7 +278,6 @@ const EditJob = ({ jobId, setCurrentView }) => {
     try {
       // Check if Google Maps API is properly loaded
       if (!window.google || !window.google.maps) {
-        console.log('Google Maps API not available. Location will be saved as text only.');
         return;
       }
 
@@ -330,8 +327,6 @@ const EditJob = ({ jobId, setCurrentView }) => {
         const data = await response.json();
         const job = data.data;
         
-        console.log('Job data received:', job);
-        
         // Convert job data to form format
         const hours = Math.floor(job.estimated_duration_minutes / 60);
         const minutes = job.estimated_duration_minutes % 60;
@@ -341,7 +336,6 @@ const EditJob = ({ jobId, setCurrentView }) => {
         
         // If no stored appointment_type, try to derive it from job_type (for backward compatibility)
         if (!job.appointment_type) {
-          console.log('No stored appointment_type, deriving from job_type:', job.job_type);
           if (job.is_remote) {
             if (job.job_type === 'legal') {
               appointmentType = 'deposition_zoom';
@@ -360,7 +354,6 @@ const EditJob = ({ jobId, setCurrentView }) => {
             }
           }
         } else {
-          console.log('Using stored appointment_type:', job.appointment_type);
         }
         
         // Format date for input field (YYYY-MM-DD)
@@ -386,12 +379,6 @@ const EditJob = ({ jobId, setCurrentView }) => {
           facilityPhone: job.facility_phone || ''
         };
         
-        console.log('=== FORM LOADING DEBUG ===');
-        console.log('Job data received:', job);
-        console.log('Form data to set:', formDataToSet);
-        console.log('appointmentType in formDataToSet:', formDataToSet.appointmentType);
-        console.log('interpreterType in formDataToSet:', formDataToSet.interpreterType);
-        console.log('=== END LOADING DEBUG ===');
         
         setFormData(formDataToSet);
         
@@ -420,7 +407,6 @@ const EditJob = ({ jobId, setCurrentView }) => {
       });
       if (serviceTypesResponse.ok) {
         const serviceTypesData = await serviceTypesResponse.json();
-        console.log('Service types loaded:', serviceTypesData.data);
         setServiceTypes(serviceTypesData.data || []);
       }
 
@@ -430,7 +416,6 @@ const EditJob = ({ jobId, setCurrentView }) => {
       });
       if (languagesResponse.ok) {
         const languagesData = await languagesResponse.json();
-        console.log('Languages loaded:', languagesData.data);
         setLanguages(languagesData.data || []);
       }
 
@@ -440,7 +425,6 @@ const EditJob = ({ jobId, setCurrentView }) => {
       });
       if (interpreterTypesResponse.ok) {
         const interpreterTypesData = await interpreterTypesResponse.json();
-        console.log('Interpreter types loaded:', interpreterTypesData.data);
         setInterpreterTypes(interpreterTypesData.data || []);
       }
 
@@ -532,18 +516,13 @@ const EditJob = ({ jobId, setCurrentView }) => {
     
     // Auto-populate service type when appointment type changes
     if (field === 'appointmentType' && value) {
-      console.log('Appointment type selected:', value);
       const serviceTypeCode = getServiceTypeForAppointmentType(value);
-      console.log('Mapped service type code:', serviceTypeCode);
-      console.log('Available service types:', serviceTypes);
       
       if (serviceTypeCode && serviceTypes.length > 0) {
         // Find the service type ID that matches the code
         const matchingServiceType = serviceTypes.find(st => st.code === serviceTypeCode);
-        console.log('Matching service type:', matchingServiceType);
         
         if (matchingServiceType) {
-          console.log('Auto-populating service type to:', matchingServiceType.id);
           setFormData(prev => ({
             ...prev,
             [field]: value,
@@ -559,7 +538,6 @@ const EditJob = ({ jobId, setCurrentView }) => {
           if (serviceTypeCode === 'legal' && interpreterTypes.length > 0) {
             const courtCertifiedType = interpreterTypes.find(it => it.code === 'court_certified');
             if (courtCertifiedType) {
-              console.log('Auto-populating interpreter type to Court Certified');
               setFormData(prev => ({
                 ...prev,
                 interpreterType: courtCertifiedType.id.toString()
@@ -583,14 +561,11 @@ const EditJob = ({ jobId, setCurrentView }) => {
     
     // Auto-populate interpreter type when service type changes directly
     if (field === 'serviceType' && value) {
-      console.log('Service type selected:', value);
       const selectedServiceType = serviceTypes.find(st => st.id.toString() === value);
-      console.log('Selected service type:', selectedServiceType);
       
       if (selectedServiceType && selectedServiceType.code === 'legal' && interpreterTypes.length > 0) {
         const courtCertifiedType = interpreterTypes.find(it => it.code === 'court_certified');
         if (courtCertifiedType) {
-          console.log('Auto-populating interpreter type to Court Certified');
           setFormData(prev => ({
             ...prev,
             interpreterType: courtCertifiedType.id.toString()
@@ -626,12 +601,6 @@ const EditJob = ({ jobId, setCurrentView }) => {
       delete jobData.reserveHours;
       delete jobData.reserveMinutes;
       
-      console.log('=== FORM SUBMISSION DEBUG ===');
-      console.log('Original formData:', formData);
-      console.log('Updating job with data:', jobData);
-      console.log('appointmentType in jobData:', jobData.appointmentType);
-      console.log('interpreterType in jobData:', jobData.interpreterType);
-      console.log('=== END DEBUG ===');
       
       const response = await fetch(`${API_BASE}/jobs/${jobId}`, {
         method: 'PUT',

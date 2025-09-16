@@ -3,12 +3,15 @@ const router = express.Router();
 const customerAuthController = require('../controllers/customerAuthController');
 const customerController = require('../controllers/customerController');
 const { authenticateCustomer } = require('../middleware/customerAuth');
-const { body, validationResult } = require('express-validator');
+const { authenticateToken, requireRole } = require('../middleware/auth');
+const { body, param, validationResult } = require('express-validator');
 
 // Validation middleware
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.log('Validation errors:', errors.array());
+    console.log('Request body:', req.body);
     return res.status(400).json({
       success: false,
       message: 'Validation errors',
@@ -64,6 +67,7 @@ router.get('/claimants', customerController.getMyClaimants);
 router.get('/claims', customerController.getMyClaims);
 router.get('/appointments', customerController.getMyAppointments);
 router.get('/appointments/:appointmentId', customerController.getAppointmentDetails);
+router.get('/appointments/:appointmentId/invoice', customerController.getInvoicePDF);
 
 // Parametric data routes
 router.get('/interpreter-types', customerController.getInterpreterTypes);
@@ -120,6 +124,35 @@ router.post('/appointments',
   ],
   handleValidationErrors,
   customerController.createJobRequest
+);
+
+// Edit appointment route (date, time, and duration)
+router.put('/appointments/:appointmentId',
+  authenticateCustomer,
+  [
+    body('appointmentDate')
+      .optional()
+      .isISO8601()
+      .withMessage('Valid appointment date is required'),
+                body('startTime')
+                  .optional()
+                  .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/)
+                  .withMessage('Valid start time is required (HH:MM or HH:MM:SS format)'),
+                body('endTime')
+                  .optional()
+                  .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/)
+                  .withMessage('Valid end time is required (HH:MM or HH:MM:SS format)')
+  ],
+  handleValidationErrors,
+  customerController.updateAppointment
+);
+
+// Cancel appointment route
+router.post('/appointments/:appointmentId/cancel',
+  authenticateCustomer,
+  param('appointmentId').isUUID().withMessage('Valid appointment ID is required'),
+  handleValidationErrors,
+  customerController.cancelAppointment
 );
 
 // Simple appointment creation route (frontend format)

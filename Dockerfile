@@ -25,4 +25,4 @@ RUN npm run build
 EXPOSE 3000
 
 # Start the application with proper port handling
-CMD sh -c "npx serve -s build -p ${PORT:-3000}"
+CMD sh -c "npx serve -s build --listen tcp://0.0.0.0:${PORT:-3000}"

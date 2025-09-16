@@ -25,7 +25,7 @@ RUN npm run build
 RUN npm install -g serve
 
 # Expose port
-EXPOSE $PORT
+EXPOSE 3000
 
-# Start the application
-CMD ["sh", "-c", "serve -s build -p $PORT"]
+# Start the application with proper port handling
+CMD sh -c "serve -s build -l ${PORT:-3000}"

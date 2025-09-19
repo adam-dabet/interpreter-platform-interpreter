@@ -13,7 +13,6 @@ const ProfessionalInfoStep = ({ data, onNext, onPrevious, onUpdate }) => {
   // Ensure all form fields have proper default values to prevent uncontrolled to controlled warnings
   const defaultValues = {
     business_name: '',
-    years_of_experience: 0,
     education_level: '',
     bio: '',
     preferred_service_types: [],
@@ -84,22 +83,6 @@ const ProfessionalInfoStep = ({ data, onNext, onPrevious, onUpdate }) => {
             )}
           />
           
-          <Controller
-            name="years_of_experience"
-            control={control}
-            render={({ field }) => (
-              <Input
-                {...field}
-                type="number"
-                min="0"
-                max="50"
-                label="Years of Experience"
-                placeholder="5"
-                error={errors.years_of_experience?.message}
-                required
-              />
-            )}
-          />
         </div>
 
         <Controller

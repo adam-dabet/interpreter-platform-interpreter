@@ -167,7 +167,6 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
               <span className="font-medium text-gray-700">Experience:</span>
-              <span className="ml-2">{data.years_of_experience} years</span>
             </div>
             {data.education_level && (
               <div>
@@ -236,7 +235,6 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit }) => {
                 </div>
                 <div className="text-right text-sm text-gray-600">
                   <div>{getProficiencyLabel(language.proficiency || language.proficiency_level)}</div>
-                  <div>{language.years_experience || language.years_of_experience || 0} years experience</div>
                 </div>
               </div>
             )) || <p className="text-gray-500">No languages specified</p>}

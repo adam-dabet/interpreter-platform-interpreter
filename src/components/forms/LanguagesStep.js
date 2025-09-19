@@ -19,12 +19,7 @@ const customLanguagesSchema = yup.object({
       yup.object({
         language_id: yup.string().required('Language is required'),
         proficiency_level: yup.string().required('Proficiency level is required'),
-        is_native: yup.boolean().default(false),
-        years_experience: yup
-          .number()
-          .min(0, 'Years of experience cannot be negative')
-          .max(50, 'Please enter a realistic number of years')
-          .default(0),
+        is_native: yup.boolean().default(false)
       })
     )
     .min(1, 'At least one language is required')
@@ -48,7 +43,7 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
   // Ensure all form fields have proper default values to prevent uncontrolled to controlled warnings
   const defaultValues = {
     languages: data.languages?.length > 0 ? data.languages : [
-      { language_id: '', proficiency_level: '', is_native: false, years_experience: 0 }
+      { language_id: '', proficiency_level: '', is_native: false }
     ]
   };
 
@@ -105,7 +100,7 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
   };
 
   const addLanguage = () => {
-    append({ language_id: '', proficiency_level: '', is_native: false, years_experience: 0 });
+    append({ language_id: '', proficiency_level: '', is_native: false });
   };
 
   const removeLanguage = (index) => {
@@ -124,7 +119,6 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
           language_id: customLanguage.trim(),
           proficiency_level: '',
           is_native: false,
-          years_experience: 0
         });
       }
       setCustomLanguage('');
@@ -240,23 +234,6 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Controller
-                  name={`languages.${index}.years_experience`}
-                  control={control}
-                  render={({ field }) => (
-                    <Input
-                      {...field}
-                      type="number"
-                      min="0"
-                      max="50"
-                      label="Years of Experience"
-                      placeholder="5"
-                      error={errors.languages?.[index]?.years_experience?.message}
-                      helper="Years interpreting in this language"
-                    />
-                  )}
-                />
 
                 <div className="flex items-end pb-2">
                   <Controller
@@ -272,7 +249,6 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
                     )}
                   />
                 </div>
-              </div>
 
               {/* Proficiency Description */}
               {watchedValues.languages?.[index]?.proficiency_level && (

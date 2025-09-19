@@ -32,7 +32,8 @@ export const ASSIGNMENT_STATUSES = {
   PENDING: 'pending',       // Waiting for interpreter response
   ACCEPTED: 'accepted',     // Interpreter accepted
   DECLINED: 'declined',     // Interpreter declined
-  EXPIRED: 'expired'        // Assignment offer expired
+  EXPIRED: 'expired',       // Assignment offer expired
+  PENDING_MILEAGE_APPROVAL: 'pending_mileage_approval'  // Mileage reimbursement pending admin approval
 };
 
 // Status Labels for Display
@@ -56,7 +57,8 @@ export const ASSIGNMENT_STATUS_LABELS = {
   [ASSIGNMENT_STATUSES.PENDING]: 'Pending',
   [ASSIGNMENT_STATUSES.ACCEPTED]: 'Accepted',
   [ASSIGNMENT_STATUSES.DECLINED]: 'Declined',
-  [ASSIGNMENT_STATUSES.EXPIRED]: 'Expired'
+  [ASSIGNMENT_STATUSES.EXPIRED]: 'Expired',
+  [ASSIGNMENT_STATUSES.PENDING_MILEAGE_APPROVAL]: 'Pending Mileage Approval'
 };
 
 // Status Colors (Tailwind CSS classes)
@@ -80,7 +82,8 @@ export const ASSIGNMENT_STATUS_COLORS = {
   [ASSIGNMENT_STATUSES.PENDING]: 'text-yellow-600 bg-yellow-100',
   [ASSIGNMENT_STATUSES.ACCEPTED]: 'text-green-600 bg-green-100',
   [ASSIGNMENT_STATUSES.DECLINED]: 'text-red-600 bg-red-100',
-  [ASSIGNMENT_STATUSES.EXPIRED]: 'text-gray-600 bg-gray-100'
+  [ASSIGNMENT_STATUSES.EXPIRED]: 'text-gray-600 bg-gray-100',
+  [ASSIGNMENT_STATUSES.PENDING_MILEAGE_APPROVAL]: 'text-orange-600 bg-orange-100'
 };
 
 // Interpreter sees relevant statuses for their perspective

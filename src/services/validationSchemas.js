@@ -33,6 +33,9 @@ export const personalInfoSchema = yup.object({
     .max(new Date(), 'Date of birth cannot be in the future')
     .min(new Date('1930-01-01'), 'Please enter a valid date of birth'),
   
+  business_name: yup
+    .string()
+    .max(255, 'Business name must be less than 255 characters'),
 
   });
   
@@ -68,11 +71,6 @@ export const professionalInfoSchema = yup.object({
     .string()
     .max(255, 'Business name is too long'),
   
-  years_of_experience: yup
-    .number()
-    .required('Years of experience is required')
-    .min(0, 'Years of experience cannot be negative')
-    .max(50, 'Please enter a realistic number of years'),
   
   education_level: yup
     .string()
@@ -158,12 +156,7 @@ export const languagesSchema = yup.object({
           .string()
           .oneOf(['beginner', 'intermediate', 'advanced', 'native', 'certified_native'])
           .required('Proficiency level is required'),
-        is_native: yup.boolean().default(false),
-        years_experience: yup
-          .number()
-          .min(0, 'Years of experience cannot be negative')
-          .max(50, 'Please enter a realistic number of years')
-          .default(0),
+        is_native: yup.boolean().default(false)
       })
     )
     .min(1, 'Please add at least one language')

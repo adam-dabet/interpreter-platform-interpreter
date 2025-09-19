@@ -101,7 +101,7 @@ const InterpreterProfile = () => {
         place_id: '',
         
         // Professional Information
-        years_of_experience: 0,
+        business_name: '',
         availability_notes: '',
         bio: '',
         
@@ -212,7 +212,6 @@ const InterpreterProfile = () => {
                     language_id: lang.language_id,
                     proficiency_level: lang.proficiency_level,
                     is_native: lang.is_native || false,
-                    years_experience: lang.years_experience || 0
                 }));
                 formDataToSubmit.append('languages', JSON.stringify(transformedLanguages));
             }

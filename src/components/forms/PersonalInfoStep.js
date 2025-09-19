@@ -16,6 +16,7 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
     phone: '',
     date_of_birth: '',
     gender: '',
+    business_name: '',
     ...data // Spread any existing data on top of defaults
   };
 
@@ -129,7 +130,7 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
           />
         </div>
 
-        {/* Date of Birth */}
+        {/* Date of Birth and Business Name */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Controller
             name="date_of_birth"
@@ -141,6 +142,20 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
                 label="Date of Birth"
                 error={errors.date_of_birth?.message}
                 helper="Optional - helps us verify your identity"
+              />
+            )}
+          />
+          
+          <Controller
+            name="business_name"
+            control={control}
+            render={({ field }) => (
+              <Input
+                {...field}
+                label="Business Name"
+                placeholder="Your Business Name (optional)"
+                error={errors.business_name?.message}
+                helper="If you operate as a business entity"
               />
             )}
           />

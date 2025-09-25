@@ -5,7 +5,7 @@ import {
   DocumentTextIcon,
   CheckCircleIcon,
   ClockIcon,
-  ExclamationTriangleIcon
+  // ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import InterpreterCompletionReport from './InterpreterCompletionReport';
@@ -42,7 +42,7 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
     if (newDuration !== actualDurationMinutes) {
       setActualDurationMinutes(newDuration);
     }
-  }, [job.job_started_at, job.job_ended_at, job.actual_duration_minutes]);
+  }, [job.job_started_at, job.job_ended_at, job.actual_duration_minutes, actualDurationMinutes, calculateActualDuration]);
 
   const workflowSteps = [
     { 

@@ -11,7 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const ChangePassword = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  // const { user } = useAuth();
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',

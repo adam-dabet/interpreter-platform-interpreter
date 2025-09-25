@@ -35,7 +35,7 @@ const JobDashboard = () => {
   const [earnings, setEarnings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-  const [currentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showCompletionReport, setShowCompletionReport] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);

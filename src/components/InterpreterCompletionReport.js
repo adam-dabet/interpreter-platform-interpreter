@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Select from 'react-select';
 import { PlusCircle, X } from 'react-feather';
-// import toast from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -137,7 +137,7 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
       setEndMinute(findOptionByValue(minuteOptions, String(endTime.minute).padStart(2, "0")));
       setEndPeriod(findOptionByValue(periodOptions, endTime.period));
     }
-  }, [jobData?.actual_duration_minutes, jobData?.scheduled_time, calculateTimes]);
+  }, [jobData?.actual_duration_minutes, jobData?.scheduled_time]);
 
   const [followUpDate, setFollowUpDate] = useState("");
   const [followUpHour, setFollowUpHour] = useState(null);

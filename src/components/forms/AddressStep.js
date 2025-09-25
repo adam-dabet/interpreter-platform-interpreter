@@ -31,7 +31,7 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, par
     const [googleMapsLoaded, setGoogleMapsLoaded] = useState(false);
     const [errors, setErrors] = useState({});
 
-    // const autocompleteRef = useRef(null);
+    const autocompleteRef = useRef(null);
     const mapRef = useRef(null);
     const mapInstanceRef = useRef(null);
     const markerRef = useRef(null);

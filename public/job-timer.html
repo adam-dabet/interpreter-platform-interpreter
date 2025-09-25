@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Timer - Interpreter Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .success-animation {
+            animation: success 0.6s ease-in-out;
+        }
+        @keyframes success {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div x-data="jobTimer()" x-init="init()" class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Job Timer</h1>
+            <p class="text-gray-600">Interpreter Platform</p>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="loading" class="max-w-md mx-auto">
+            <div class="bg-white rounded-lg shadow-lg p-8 text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p class="text-gray-600">Loading job information...</p>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div x-show="error && !loading" class="max-w-md mx-auto">
+            <div class="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
+                <div class="text-red-600 text-6xl mb-4">⚠️</div>
+                <h2 class="text-xl font-semibold text-red-800 mb-2">Invalid Link</h2>
+                <p class="text-red-600 mb-4" x-text="error"></p>
+                <p class="text-sm text-red-500">This link may have expired or is invalid. Please contact support if you need assistance.</p>
+            </div>
+        </div>
+
+        <!-- Job Information -->
+        <div x-show="jobData && !loading && !error" class="max-w-2xl mx-auto">
+            <!-- Job Details Card -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4" x-text="jobData.jobTitle"></h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <h3 class="font-semibold text-gray-700 mb-2">📅 Date & Time</h3>
+                        <p class="text-gray-600" x-text="formatDateTime(jobData.scheduledDate, jobData.scheduledTime)"></p>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-700 mb-2">👤 Interpreter</h3>
+                        <p class="text-gray-600" x-text="jobData.interpreterName"></p>
+                    </div>
+                </div>
+
+                <!-- Status Display -->
+                <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                    <h3 class="font-semibold text-gray-700 mb-2">Current Status</h3>
+                    <div class="flex items-center space-x-2">
+                        <span x-show="!jobData.jobStartedAt" class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                            ⏳ Ready to Start
+                        </span>
+                        <span x-show="jobData.jobStartedAt && !jobData.jobEndedAt" class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                            🔄 In Progress
+                        </span>
+                        <span x-show="jobData.jobEndedAt" class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                            ✅ Completed
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timer Controls -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <!-- Start Button -->
+                <div x-show="jobData.canStart" class="text-center">
+                    <button 
+                        @click="startJob()" 
+                        :disabled="starting"
+                        class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-4 px-8 rounded-lg text-xl transition-colors duration-200 pulse-animation"
+                    >
+                        <span x-show="!starting">🚀 Start Job</span>
+                        <span x-show="starting">Starting...</span>
+                    </button>
+                    <p class="text-gray-600 mt-2">Click to start timing your appointment</p>
+                </div>
+
+                <!-- End Button -->
+                <div x-show="jobData.canEnd" class="text-center">
+                    <div class="mb-4">
+                        <div class="text-4xl font-bold text-blue-600 mb-2" x-text="formatDuration(elapsedTime)"></div>
+                        <p class="text-gray-600">Time elapsed since start</p>
+                    </div>
+                    <button 
+                        @click="endJob()" 
+                        :disabled="ending"
+                        class="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold py-4 px-8 rounded-lg text-xl transition-colors duration-200"
+                    >
+                        <span x-show="!ending">🏁 End Job</span>
+                        <span x-show="ending">Ending...</span>
+                    </button>
+                    <p class="text-gray-600 mt-2">Click to end timing and complete your appointment</p>
+                </div>
+
+                <!-- Completed State -->
+                <div x-show="jobData.jobEndedAt" class="text-center">
+                    <div class="text-6xl mb-4 success-animation">✅</div>
+                    <h3 class="text-2xl font-bold text-green-600 mb-2">Job Completed!</h3>
+                    <p class="text-gray-600 mb-4">Your appointment has been successfully completed.</p>
+                    <div class="bg-green-50 rounded-lg p-4">
+                        <p class="text-sm text-green-700">
+                            <strong>Duration:</strong> <span x-text="formatDuration(totalDuration)"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Success Message -->
+            <div x-show="successMessage" class="mt-6 bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                <p class="text-green-800 font-medium" x-text="successMessage"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function jobTimer() {
+            return {
+                loading: true,
+                error: null,
+                jobData: null,
+                starting: false,
+                ending: false,
+                successMessage: null,
+                elapsedTime: 0,
+                totalDuration: 0,
+                timerInterval: null,
+
+                async init() {
+                    const token = this.getTokenFromUrl();
+                    if (!token) {
+                        this.error = 'No token provided in URL';
+                        this.loading = false;
+                        return;
+                    }
+
+                    try {
+                        await this.loadJobData(token);
+                        this.startTimer();
+                    } catch (error) {
+                        this.error = 'Failed to load job information';
+                        this.loading = false;
+                    }
+                },
+
+                getTokenFromUrl() {
+                    const path = window.location.pathname;
+                    const parts = path.split('/');
+                    return parts[parts.length - 1];
+                },
+
+                async loadJobData(token) {
+                    const response = await fetch(`/api/magic-link/validate/${token}`);
+                    const result = await response.json();
+
+                    if (!result.success) {
+                        throw new Error(result.message);
+                    }
+
+                    this.jobData = result.data;
+                    this.loading = false;
+
+                    // Calculate elapsed time if job is in progress
+                    if (this.jobData.jobStartedAt && !this.jobData.jobEndedAt) {
+                        const startTime = new Date(this.jobData.jobStartedAt);
+                        this.elapsedTime = Math.floor((Date.now() - startTime.getTime()) / 1000);
+                    }
+
+                    // Calculate total duration if job is completed
+                    if (this.jobData.jobEndedAt) {
+                        const startTime = new Date(this.jobData.jobStartedAt);
+                        const endTime = new Date(this.jobData.jobEndedAt);
+                        this.totalDuration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
+                    }
+                },
+
+                async startJob() {
+                    this.starting = true;
+                    try {
+                        const token = this.getTokenFromUrl();
+                        const response = await fetch(`/api/magic-link/start/${token}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            this.jobData.jobStartedAt = result.data.startedAt;
+                            this.jobData.canStart = false;
+                            this.jobData.canEnd = true;
+                            this.jobData.status = result.data.status;
+                            this.successMessage = 'Job started successfully!';
+                            setTimeout(() => this.successMessage = null, 3000);
+                        } else {
+                            alert('Failed to start job: ' + result.message);
+                        }
+                    } catch (error) {
+                        alert('Error starting job: ' + error.message);
+                    } finally {
+                        this.starting = false;
+                    }
+                },
+
+                async endJob() {
+                    this.ending = true;
+                    try {
+                        const token = this.getTokenFromUrl();
+                        const response = await fetch(`/api/magic-link/end/${token}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            this.jobData.jobEndedAt = result.data.endedAt;
+                            this.jobData.canEnd = false;
+                            this.jobData.status = result.data.status;
+                            this.totalDuration = this.elapsedTime;
+                            this.stopTimer();
+                            this.successMessage = 'Job completed successfully!';
+                            setTimeout(() => this.successMessage = null, 5000);
+                        } else {
+                            alert('Failed to end job: ' + result.message);
+                        }
+                    } catch (error) {
+                        alert('Error ending job: ' + error.message);
+                    } finally {
+                        this.ending = false;
+                    }
+                },
+
+                startTimer() {
+                    if (this.jobData.jobStartedAt && !this.jobData.jobEndedAt) {
+                        this.timerInterval = setInterval(() => {
+                            this.elapsedTime++;
+                        }, 1000);
+                    }
+                },
+
+                stopTimer() {
+                    if (this.timerInterval) {
+                        clearInterval(this.timerInterval);
+                        this.timerInterval = null;
+                    }
+                },
+
+                formatDateTime(date, time) {
+                    const dateObj = new Date(date);
+                    const timeObj = new Date(`2000-01-01T${time}`);
+                    
+                    const dateStr = dateObj.toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                    
+                    const timeStr = timeObj.toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                    
+                    return `${dateStr} at ${timeStr}`;
+                },
+
+                formatDuration(seconds) {
+                    const hours = Math.floor(seconds / 3600);
+                    const minutes = Math.floor((seconds % 3600) / 60);
+                    const secs = seconds % 60;
+                    
+                    if (hours > 0) {
+                        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                    } else {
+                        return `${minutes}:${secs.toString().padStart(2, '0')}`;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

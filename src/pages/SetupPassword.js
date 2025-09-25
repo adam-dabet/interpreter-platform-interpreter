@@ -46,7 +46,7 @@ const SetupPassword = () => {
       });
 
       if (response.ok) {
-        await response.json();
+        const data = await response.json();
         setUserInfo(data.user);
       } else {
         const error = await response.json();

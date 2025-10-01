@@ -37,6 +37,10 @@ export const personalInfoSchema = yup.object({
     .string()
     .max(255, 'Business name must be less than 255 characters'),
 
+  sms_consent: yup
+    .boolean()
+    .oneOf([true], 'You must consent to receive text messages to continue'),
+
   });
   
   // Address Information Schema

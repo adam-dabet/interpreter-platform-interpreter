@@ -317,7 +317,7 @@ const JobDetails = () => {
                     <div>
                       <p className="text-sm font-medium text-gray-900">Location</p>
                       <p className="text-sm text-gray-600">
-                        {job.is_remote ? 'Remote Session' : `${job.location_city}, ${job.location_state}`}
+                        {job.is_remote ? 'Remote Session' : (job.location_address || `${job.location_city}, ${job.location_state}`)}
                       </p>
                     </div>
                   </div>
@@ -556,7 +556,10 @@ const JobDetails = () => {
               Confirm Availability
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              The appointment time has been changed. Can you still make it to this appointment?
+              {job.confirmation_reason === 'schedule_change' 
+                ? 'The appointment time has been changed. Can you still make it to this appointment?'
+                : 'Please confirm your availability for this upcoming appointment.'
+              }
             </p>
             
             <div className="mb-4">

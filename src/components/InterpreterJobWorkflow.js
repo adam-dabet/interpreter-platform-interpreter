@@ -400,32 +400,6 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
         </div>
       </div>
 
-      {/* Job Details Summary */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Job Details</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h4 className="font-medium text-gray-700 mb-2">Assignment Information</h4>
-            <div className="space-y-2 text-sm">
-              <div><span className="font-medium">Job ID:</span> {job.id}</div>
-              <div><span className="font-medium">Service Type:</span> {job.service_type_name || 'N/A'}</div>
-              <div><span className="font-medium">Languages:</span> {job.source_language_name} → {job.target_language_name || 'English'}</div>
-              <div><span className="font-medium">Rate:</span> ${job.hourly_rate || 0}/hour</div>
-            </div>
-          </div>
-          
-          <div>
-            <h4 className="font-medium text-gray-700 mb-2">Location & Time</h4>
-            <div className="space-y-2 text-sm">
-              <div><span className="font-medium">Date:</span> {new Date(job.scheduled_date).toLocaleDateString()}</div>
-              <div><span className="font-medium">Time:</span> {job.scheduled_time}</div>
-              <div><span className="font-medium">Duration:</span> {job.estimated_duration_minutes} minutes</div>
-              <div><span className="font-medium">Location:</span> {job.location_address || 'Remote'}</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Completion Report Modal */}
       {showCompletionReport && (

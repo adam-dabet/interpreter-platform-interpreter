@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Select from 'react-select';
 import { PlusCircle, X } from 'react-feather';
+import AddressAutocomplete from './AddressAutocomplete';
 import toast from 'react-hot-toast';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
@@ -106,7 +107,7 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
 
   const [formData, setFormData] = useState({
     email: jobData?.interpreter_email || jobData?.email || "",
-    order_number: jobId || "",
+    order_number: jobData?.job_number || jobId || "",
     result: null,
     file_status: null,
     notes: ""
@@ -151,6 +152,7 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
     country: "United States"
   });
   const [isAvailable, setIsAvailable] = useState(null);
+  const [useSameLocation, setUseSameLocation] = useState(null);
 
   const [files, setFiles] = useState([]);
   const [status, setStatus] = useState({ type: "", message: "" });
@@ -158,6 +160,16 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleAddressSelect = (addressData) => {
+    setFollowUpLocation({
+      street: addressData.street || '',
+      city: addressData.city || '',
+      state: addressData.state || '',
+      zip: addressData.zip || '',
+      country: addressData.country || 'United States'
+    });
   };
 
   const handleFileChange = (e) => {
@@ -187,6 +199,7 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
     if (formData.result?.value === "Completed with follow up") {
       data.append("follow_up_date", followUpDate);
       data.append("follow_up_time", getTimeString(followUpHour, followUpMinute, followUpPeriod));
+      data.append("follow_up_use_same_location", useSameLocation ? "Yes" : "No");
       data.append("follow_up_street", followUpLocation.street);
       data.append("follow_up_city", followUpLocation.city);
       data.append("follow_up_state", followUpLocation.state);
@@ -212,7 +225,7 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
       setStatus({ type: "success", message: "Submitted successfully!" });
       setFormData({
         email: jobData?.interpreter_email || "",
-        order_number: jobId || "",
+        order_number: jobData?.job_number || jobId || "",
         result: null,
         file_status: null,
         notes: ""
@@ -229,6 +242,7 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
       setFollowUpPeriod(null);
       setFollowUpLocation({ street: "", city: "", state: "", zip: "", country: "United States" });
       setIsAvailable(null);
+      setUseSameLocation(null);
       setFiles([]);
       
       if (onSubmit) {
@@ -344,13 +358,85 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <input type="text" placeholder="Street" value={followUpLocation.street} onChange={(e) => setFollowUpLocation({ ...followUpLocation, street: e.target.value })} className="border p-2 rounded" />
-            <input type="text" placeholder="City/Suburb" value={followUpLocation.city} onChange={(e) => setFollowUpLocation({ ...followUpLocation, city: e.target.value })} className="border p-2 rounded" />
-            <input type="text" placeholder="State" value={followUpLocation.state} onChange={(e) => setFollowUpLocation({ ...followUpLocation, state: e.target.value })} className="border p-2 rounded" />
-            <input type="text" placeholder="Zip/Postal Code" value={followUpLocation.zip} onChange={(e) => setFollowUpLocation({ ...followUpLocation, zip: e.target.value })} className="border p-2 rounded" />
-            <input type="text" value="United States" readOnly className="border p-2 rounded text-gray-400" />
+          <div>
+            <label className="block font-semibold mb-2">Is the follow-up appointment at the same location?</label>
+            <div className="flex gap-4">
+              <button 
+                type="button" 
+                onClick={() => setUseSameLocation(true)} 
+                className={`w-full p-3 rounded border-2 transition-colors ${
+                  useSameLocation === true 
+                    ? "bg-blue-600 text-white border-blue-600" 
+                    : "bg-white border-gray-300 hover:border-blue-400"
+                }`}
+              >
+                Yes, same location
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setUseSameLocation(false)} 
+                className={`w-full p-3 rounded border-2 transition-colors ${
+                  useSameLocation === false 
+                    ? "bg-blue-600 text-white border-blue-600" 
+                    : "bg-white border-gray-300 hover:border-blue-400"
+                }`}
+              >
+                No, different location
+              </button>
+            </div>
           </div>
+
+          {useSameLocation === false && (
+            <div>
+              <label className="block font-semibold mb-2">New Location Details</label>
+              <div className="space-y-4">
+                <AddressAutocomplete
+                  onAddressSelect={handleAddressSelect}
+                  placeholder="Enter the new address"
+                  className="w-full"
+                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <input 
+                    type="text" 
+                    placeholder="Street" 
+                    value={followUpLocation.street} 
+                    onChange={(e) => setFollowUpLocation({ ...followUpLocation, street: e.target.value })} 
+                    className="border p-2 rounded" 
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="City/Suburb" 
+                    value={followUpLocation.city} 
+                    onChange={(e) => setFollowUpLocation({ ...followUpLocation, city: e.target.value })} 
+                    className="border p-2 rounded" 
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="State" 
+                    value={followUpLocation.state} 
+                    onChange={(e) => setFollowUpLocation({ ...followUpLocation, state: e.target.value })} 
+                    className="border p-2 rounded" 
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="Zip/Postal Code" 
+                    value={followUpLocation.zip} 
+                    onChange={(e) => setFollowUpLocation({ ...followUpLocation, zip: e.target.value })} 
+                    className="border p-2 rounded" 
+                  />
+                  <input 
+                    type="text" 
+                    value="United States" 
+                    readOnly 
+                    className="border p-2 rounded text-gray-400" 
+                  />
+                </div>
+                <p className="text-xs text-gray-600">
+                  💡 Use the address search above to auto-fill the fields, or enter the address manually below.
+                </p>
+              </div>
+            </div>
+          )}
 
           <label className="block font-semibold mt-4 mb-1">Are you available for the follow up?</label>
           <div className="flex gap-4">

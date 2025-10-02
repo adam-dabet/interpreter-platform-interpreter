@@ -227,12 +227,6 @@ const JobDashboard = () => {
     try {
       // Check if we have the required date/time fields
       if (!job.scheduled_date || !job.scheduled_time) {
-        console.log('Job missing date/time fields:', {
-          jobId: job.id,
-          status: job.status,
-          scheduled_date: job.scheduled_date,
-          scheduled_time: job.scheduled_time
-        });
         return false;
       }
 
@@ -252,28 +246,10 @@ const JobDashboard = () => {
 
       // Check if the date is valid
       if (isNaN(jobDateTime.getTime())) {
-        console.log('Invalid job date/time:', {
-          jobId: job.id,
-          status: job.status,
-          scheduled_date: job.scheduled_date,
-          scheduled_time: job.scheduled_time,
-          combined: `${job.scheduled_date}T${job.scheduled_time}`
-        });
         return false;
       }
 
       const hoursUntilJob = (jobDateTime - now) / (1000 * 60 * 60);
-      
-      console.log('Job timing check:', {
-        jobId: job.id,
-        status: job.status,
-        scheduled_date: job.scheduled_date,
-        scheduled_time: job.scheduled_time,
-        jobDateTime: jobDateTime.toISOString(),
-        now: now.toISOString(),
-        hoursUntilJob: hoursUntilJob,
-        isMoreThan24Hours: hoursUntilJob > 24
-      });
       
       return hoursUntilJob > 24;
     } catch (error) {

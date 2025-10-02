@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPinIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import { Loader } from '@googlemaps/js-api-loader';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import toast from 'react-hot-toast';
+import googleMapsLoader from '../../utils/googleMapsLoader';
 
 const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, onUpdate }) => {
     // Debug: Log parametric data
@@ -40,27 +40,15 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, par
     useEffect(() => {
         const loadGoogleMaps = async () => {
             try {
-                const loader = new Loader({
-                    apiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-                    version: 'weekly',
-                    libraries: ['places', 'geometry']
-                });
-
-                await loader.load();
+                await googleMapsLoader.load(['places', 'geometry']);
                 setGoogleMapsLoaded(true);
-        
             } catch (error) {
                 console.error('Error loading Google Maps:', error);
                 toast.error('Failed to load Google Maps');
             }
         };
 
-        if (process.env.REACT_APP_GOOGLE_MAPS_API_KEY) {
-            loadGoogleMaps();
-        } else {
-            console.error('Google Maps API key not configured');
-            toast.error('Google Maps API key not configured');
-        }
+        loadGoogleMaps();
     }, []);
 
     // Initialize map when Google Maps is loaded and we have coordinates

@@ -3,6 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { motion } from 'framer-motion';
 import Input from '../ui/Input';
+import Checkbox from '../ui/Checkbox';
 import { personalInfoSchema } from '../../services/validationSchemas';
 import { formatPhoneNumber } from '../../utils/helpers';
 
@@ -17,6 +18,7 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
     date_of_birth: '',
     gender: '',
     business_name: '',
+    sms_consent: false,
     ...data // Spread any existing data on top of defaults
   };
 
@@ -161,7 +163,22 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
           />
         </div>
 
-
+        {/* SMS Consent Notice */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <Controller
+            name="sms_consent"
+            control={control}
+            render={({ field }) => (
+              <Checkbox
+                {...field}
+                label="I consent to receive text messages"
+                description="By checking this box, you agree to receive text messages from our platform regarding job opportunities, appointment reminders, and other important updates. Message and data rates may apply. You can opt out at any time by replying STOP."
+                required
+                error={errors.sms_consent?.message}
+              />
+            )}
+          />
+        </div>
 
         {/* Navigation Buttons */}
         <div className="flex justify-end pt-6">

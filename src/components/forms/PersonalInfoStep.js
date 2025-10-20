@@ -7,7 +7,7 @@ import Checkbox from '../ui/Checkbox';
 import { personalInfoSchema } from '../../services/validationSchemas';
 import { formatPhoneNumber } from '../../utils/helpers';
 
-const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, parametricData }) => {
+const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, parametricData, rejectedFields = [] }) => {
   // Ensure all form fields have proper default values to prevent uncontrolled to controlled warnings
   const defaultValues = {
     first_name: '',
@@ -51,6 +51,9 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
     setValue(field, formatted);
   };
 
+  // Helper to check if field is rejected
+  const isFieldRejected = (fieldName) => rejectedFields.includes(fieldName);
+
 
 
   return (
@@ -73,13 +76,15 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
             name="first_name"
             control={control}
             render={({ field }) => (
-              <Input
-                {...field}
-                label="First Name"
-                placeholder="Enter your first name"
-                error={errors.first_name?.message}
-                required
-              />
+              <div className={isFieldRejected('first_name') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                <Input
+                  {...field}
+                  label="First Name"
+                  placeholder="Enter your first name"
+                  error={errors.first_name?.message || (isFieldRejected('first_name') ? 'This field needs to be updated' : '')}
+                  required
+                />
+              </div>
             )}
           />
           
@@ -87,13 +92,15 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
             name="last_name"
             control={control}
             render={({ field }) => (
-              <Input
-                {...field}
-                label="Last Name"
-                placeholder="Enter your last name"
-                error={errors.last_name?.message}
-                required
-              />
+              <div className={isFieldRejected('last_name') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                <Input
+                  {...field}
+                  label="Last Name"
+                  placeholder="Enter your last name"
+                  error={errors.last_name?.message || (isFieldRejected('last_name') ? 'This field needs to be updated' : '')}
+                  required
+                />
+              </div>
             )}
           />
         </div>
@@ -104,14 +111,16 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
             name="email"
             control={control}
             render={({ field }) => (
-              <Input
-                {...field}
-                type="email"
-                label="Email Address"
-                placeholder="your.email@example.com"
-                error={errors.email?.message}
-                required
-              />
+              <div className={isFieldRejected('email') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                <Input
+                  {...field}
+                  type="email"
+                  label="Email Address"
+                  placeholder="your.email@example.com"
+                  error={errors.email?.message || (isFieldRejected('email') ? 'This field needs to be updated' : '')}
+                  required
+                />
+              </div>
             )}
           />
           
@@ -119,15 +128,17 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
             name="phone"
             control={control}
             render={({ field }) => (
-              <Input
-                {...field}
-                type="tel"
-                label="Phone Number"
-                placeholder="(555) 123-4567"
-                error={errors.phone?.message}
-                onChange={(e) => handlePhoneChange('phone', e.target.value)}
-                required
-              />
+              <div className={isFieldRejected('phone') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                <Input
+                  {...field}
+                  type="tel"
+                  label="Phone Number"
+                  placeholder="(555) 123-4567"
+                  error={errors.phone?.message || (isFieldRejected('phone') ? 'This field needs to be updated' : '')}
+                  onChange={(e) => handlePhoneChange('phone', e.target.value)}
+                  required
+                />
+              </div>
             )}
           />
         </div>
@@ -138,13 +149,15 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
             name="date_of_birth"
             control={control}
             render={({ field }) => (
-              <Input
-                {...field}
-                type="date"
-                label="Date of Birth"
-                error={errors.date_of_birth?.message}
-                helper="Optional - helps us verify your identity"
-              />
+              <div className={isFieldRejected('date_of_birth') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                <Input
+                  {...field}
+                  type="date"
+                  label="Date of Birth"
+                  error={errors.date_of_birth?.message || (isFieldRejected('date_of_birth') ? 'This field needs to be updated' : '')}
+                  helper="Optional - helps us verify your identity"
+                />
+              </div>
             )}
           />
           
@@ -152,13 +165,15 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
             name="business_name"
             control={control}
             render={({ field }) => (
-              <Input
-                {...field}
-                label="Business Name"
-                placeholder="Your Business Name (optional)"
-                error={errors.business_name?.message}
-                helper="If you operate as a business entity"
-              />
+              <div className={isFieldRejected('business_name') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                <Input
+                  {...field}
+                  label="Business Name"
+                  placeholder="Your Business Name (optional)"
+                  error={errors.business_name?.message || (isFieldRejected('business_name') ? 'This field needs to be updated' : '')}
+                  helper="If you operate as a business entity"
+                />
+              </div>
             )}
           />
         </div>
@@ -168,9 +183,11 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
           <Controller
             name="sms_consent"
             control={control}
-            render={({ field }) => (
+            render={({ field: { value, onChange, ...field } }) => (
               <Checkbox
                 {...field}
+                checked={!!value}
+                onChange={(e) => onChange(e.target.checked)}
                 label="I consent to receive text messages"
                 description="By checking this box, you agree to receive text messages from our platform regarding job opportunities, appointment reminders, and other important updates. Message and data rates may apply. You can opt out at any time by replying STOP."
                 required
@@ -186,7 +203,7 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
             type="submit"
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200"
           >
-            {isEditing ? 'Save & Return to Review' : 'Continue'}
+            {isEditing ? 'Save & Return to Review' : 'Next'}
           </button>
         </div>
       </form>

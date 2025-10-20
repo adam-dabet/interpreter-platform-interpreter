@@ -1,15 +1,46 @@
 import React, { useState } from 'react';
-import { DocumentIcon, CloudArrowUpIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { PencilIcon } from '@heroicons/react/24/outline';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
-import FileUpload from '../ui/FileUpload';
 import toast from 'react-hot-toast';
 
-const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing }) => {
-    const [entryMethod, setEntryMethod] = useState(formData.w9_entry_method || 'upload'); // 'upload' or 'manual'
-    const [w9File, setW9File] = useState(formData.w9_file || null);
+const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, rejectedFields = [] }) => {
     
+    // Helper to check if a W9 field is rejected
+    // Supports both granular field names (old) and grouped section names (new)
+    const isFieldRejected = (fieldName) => {
+        // Check for exact match first
+        if (rejectedFields.includes(fieldName)) return true;
+        
+        // Check for grouped sections (new approach)
+        // Map individual fields to their parent sections
+        const fieldToSectionMap = {
+            'w9_business_name': 'w9_business_info',
+            'w9_business_name_alt': 'w9_business_info',
+            'w9_tax_classification': 'w9_tax_info',
+            'w9_llc_classification': 'w9_tax_info',
+            'w9_ssn': 'w9_tax_id',
+            'w9_ein': 'w9_tax_id',
+            'w9_address': 'w9_address',
+            'w9_city': 'w9_address',
+            'w9_state': 'w9_address',
+            'w9_zip_code': 'w9_address'
+        };
+        
+        const section = fieldToSectionMap[fieldName];
+        return section && rejectedFields.includes(section);
+    };
+    
+    // Get today's date in YYYY-MM-DD format
+    const getTodayDate = () => {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     // Initialize W9 data with address from formData if available
     const getInitialW9Data = () => {
         const existingW9Data = formData.w9_data || {};
@@ -21,66 +52,70 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing }) =>
         
         return {
             business_name: existingW9Data.business_name || fullName || '',
-            business_type: existingW9Data.business_type || 'individual',
+            business_name_alt: existingW9Data.business_name_alt || '',
             tax_classification: existingW9Data.tax_classification || 'individual',
+            llc_classification: existingW9Data.llc_classification || '',
+            has_foreign_partners: existingW9Data.has_foreign_partners || false,
+            exempt_payee_code: existingW9Data.exempt_payee_code || '',
+            fatca_exemption_code: existingW9Data.fatca_exemption_code || '',
             ssn: existingW9Data.ssn || '',
             ein: existingW9Data.ein || '',
             address: existingW9Data.address || formData.street_address || '',
             city: existingW9Data.city || formData.city || '',
             state: existingW9Data.state || formData.state_id || '',
             zip_code: existingW9Data.zip_code || formData.zip_code || '',
-            exempt_payee_code: existingW9Data.exempt_payee_code || '',
-            exempt_from_fatca: existingW9Data.exempt_from_fatca || false,
-            exempt_from_backup_withholding: existingW9Data.exempt_from_backup_withholding || false
+            account_number: existingW9Data.account_number || '',
+            signature: existingW9Data.signature || '',
+            signature_date: existingW9Data.signature_date || '',
+            electronic_signature_acknowledgment: existingW9Data.electronic_signature_acknowledgment || false
         };
     };
     
     const [w9Data, setW9Data] = useState(getInitialW9Data());
     const [errors, setErrors] = useState({});
 
-    const handleEntryMethodChange = (method) => {
-        setEntryMethod(method);
-        // Clear errors when switching methods
-        setErrors({});
-        
-        // Auto-populate address fields when switching to manual entry
-        if (method === 'manual') {
-            const fullName = [formData.first_name, formData.middle_name, formData.last_name]
-                .filter(Boolean)
-                .join(' ');
-            
-            setW9Data(prev => ({
-                ...prev,
-                business_name: prev.business_name || fullName || '',
-                address: prev.address || formData.street_address || '',
-                city: prev.city || formData.city || '',
-                state: prev.state || formData.state_id || '',
-                zip_code: prev.zip_code || formData.zip_code || ''
-            }));
-        }
-    };
-
-    const handleFileUpload = (file) => {
-        if (!file) return;
-
-        // Validate file type (only PDF)
-        if (file.type !== 'application/pdf') {
-            toast.error('Only PDF files are allowed for W-9 forms');
-            return;
-        }
-
-        // Validate file size (5MB limit)
-        if (file.size > 5 * 1024 * 1024) {
-            toast.error('File size must be less than 5MB');
-            return;
-        }
-
-        setW9File(file);
-        toast.success('W-9 form uploaded successfully');
-    };
-
     const handleW9DataChange = (field, value) => {
-        setW9Data(prev => ({ ...prev, [field]: value }));
+        let formattedValue = value;
+        
+        // Format SSN
+        if (field === 'ssn') {
+            // Remove all non-digits
+            const digits = value.replace(/\D/g, '');
+            // Format as XXX-XX-XXXX
+            if (digits.length <= 3) {
+                formattedValue = digits;
+            } else if (digits.length <= 5) {
+                formattedValue = `${digits.slice(0, 3)}-${digits.slice(3)}`;
+            } else {
+                formattedValue = `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5, 9)}`;
+            }
+        }
+        
+        // Format EIN
+        if (field === 'ein') {
+            // Remove all non-digits
+            const digits = value.replace(/\D/g, '');
+            // Format as XX-XXXXXXX
+            if (digits.length <= 2) {
+                formattedValue = digits;
+            } else {
+                formattedValue = `${digits.slice(0, 2)}-${digits.slice(2, 9)}`;
+            }
+        }
+        
+        // Format ZIP code
+        if (field === 'zip_code') {
+            // Remove all non-digits
+            const digits = value.replace(/\D/g, '');
+            // Format as 12345 or 12345-6789
+            if (digits.length <= 5) {
+                formattedValue = digits;
+            } else {
+                formattedValue = `${digits.slice(0, 5)}-${digits.slice(5, 9)}`;
+            }
+        }
+        
+        setW9Data(prev => ({ ...prev, [field]: formattedValue }));
         
         // Clear specific error
         if (errors[field]) {
@@ -91,43 +126,73 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing }) =>
     const validateForm = () => {
         const newErrors = {};
 
-        if (entryMethod === 'upload') {
-            if (!w9File) {
-                newErrors.w9_file = 'Please upload a W-9 form';
+        // Line 1: Name validation
+        if (!w9Data.business_name?.trim()) {
+            newErrors.business_name = 'Name of entity/individual is required';
+        }
+        
+        // Line 3a: Tax classification validation
+        if (!w9Data.tax_classification) {
+            newErrors.tax_classification = 'Federal tax classification is required';
+        }
+        
+        // LLC classification validation
+        if (w9Data.tax_classification === 'llc' && (!w9Data.llc_classification || (typeof w9Data.llc_classification === 'string' && !w9Data.llc_classification.trim()))) {
+            newErrors.llc_classification = 'LLC classification is required';
+        }
+        
+        // TIN validation based on tax classification
+        if (w9Data.tax_classification === 'individual') {
+            if (!w9Data.ssn?.trim()) {
+                newErrors.ssn = 'Social Security Number is required for individual tax classification';
+            } else if (!/^\d{3}-\d{2}-\d{4}$/.test(w9Data.ssn)) {
+                newErrors.ssn = 'SSN must be in format XXX-XX-XXXX';
             }
         } else {
-            // Manual entry validation
-            if (!w9Data.business_name?.trim()) {
-                newErrors.business_name = 'Business name is required';
+            if (!w9Data.ein?.trim()) {
+                newErrors.ein = 'Employer Identification Number is required for business tax classification';
+            } else if (!/^\d{2}-\d{7}$/.test(w9Data.ein)) {
+                newErrors.ein = 'EIN must be in format XX-XXXXXXX';
             }
-            
-            if (!w9Data.tax_classification) {
-                newErrors.tax_classification = 'Tax classification is required';
+        }
+        
+        // Line 5: Address validation
+        if (!w9Data.address?.trim()) {
+            newErrors.address = 'Address is required';
+        }
+        
+        // Line 6: City, state, ZIP validation
+        if (!w9Data.city?.trim()) {
+            newErrors.city = 'City is required';
+        }
+        
+        if (!w9Data.state || (typeof w9Data.state === 'string' && !w9Data.state.trim())) {
+            newErrors.state = 'State is required';
+        }
+        
+        if (!w9Data.zip_code?.trim()) {
+            newErrors.zip_code = 'ZIP code is required';
+        } else if (!/^\d{5}(-\d{4})?$/.test(w9Data.zip_code)) {
+            newErrors.zip_code = 'ZIP code must be in format 12345 or 12345-6789';
+        }
+        
+        // Signature validation
+        if (!w9Data.signature?.trim()) {
+            newErrors.signature = 'Electronic signature is required';
+        }
+        
+        if (!w9Data.signature_date || (typeof w9Data.signature_date === 'string' && !w9Data.signature_date.trim())) {
+            newErrors.signature_date = 'Signature date is required';
+        } else {
+            // Validate that signature date is today's date
+            const today = getTodayDate();
+            if (w9Data.signature_date !== today) {
+                newErrors.signature_date = 'Signature date must be today\'s date';
             }
-            
-            if (w9Data.tax_classification === 'individual' && !w9Data.ssn?.trim()) {
-                newErrors.ssn = 'SSN is required for individual tax classification';
-            }
-            
-            if (w9Data.tax_classification !== 'individual' && !w9Data.ein?.trim()) {
-                newErrors.ein = 'EIN is required for business tax classification';
-            }
-            
-            if (!w9Data.address?.trim()) {
-                newErrors.address = 'Address is required';
-            }
-            
-            if (!w9Data.city?.trim()) {
-                newErrors.city = 'City is required';
-            }
-            
-            if (!w9Data.state?.trim()) {
-                newErrors.state = 'State is required';
-            }
-            
-            if (!w9Data.zip_code?.trim()) {
-                newErrors.zip_code = 'ZIP code is required';
-            }
+        }
+        
+        if (!w9Data.electronic_signature_acknowledgment) {
+            newErrors.electronic_signature_acknowledgment = 'Electronic signature acknowledgment is required';
         }
 
         setErrors(newErrors);
@@ -142,26 +207,11 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing }) =>
         }
 
         onNext({
-            w9_entry_method: entryMethod,
-            w9_file: w9File,
-            w9_data: entryMethod === 'manual' ? w9Data : null
+            w9_entry_method: 'manual',
+            w9_data: w9Data
         });
     };
 
-    const formatFileSize = (bytes) => {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    };
-
-    const businessTypes = [
-        { value: 'individual', label: 'Individual' },
-        { value: 'sole_proprietorship', label: 'Sole Proprietorship' },
-        { value: 'llc', label: 'LLC' },
-        { value: 'corporation', label: 'Corporation' }
-    ];
 
     const usStates = [
         { value: 'AL', label: 'Alabama' }, { value: 'AK', label: 'Alaska' }, { value: 'AZ', label: 'Arizona' },
@@ -183,282 +233,396 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing }) =>
         { value: 'WI', label: 'Wisconsin' }, { value: 'WY', label: 'Wyoming' }, { value: 'DC', label: 'District of Columbia' }
     ];
 
+    // Check if any W9 fields are rejected
+    const hasRejectedW9Fields = rejectedFields.some(field => field.startsWith('w9_'));
+    
     return (
         <div className="space-y-6">
             <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    W-9 Tax Form
+                    Form W-9 - Request for Taxpayer Identification Number and Certification
                 </h3>
                 <p className="text-gray-600 mb-6">
-                    Please provide your W-9 tax form information. You can either upload a completed W-9 form or enter the details manually.
+                    Please provide your W-9 tax form information. This information is required for tax reporting purposes and will be used to generate your 1099 form.
                 </p>
+                
+                {/* Show notice if W9 fields are rejected */}
+                {hasRejectedW9Fields && (
+                    <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg mb-4">
+                        <div className="flex">
+                            <div className="flex-shrink-0">
+                                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <div className="ml-3">
+                                <p className="text-sm text-red-700">
+                                    <strong>W-9 Form Updates Required:</strong> Please review and update the highlighted fields below.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* Entry Method Selection */}
-            <div className="bg-gray-50 rounded-lg p-6">
-                <h4 className="font-medium text-gray-900 mb-4">Choose Entry Method:</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div
-                        className={`border-2 rounded-lg p-4 cursor-pointer transition-all duration-200 ${
-                            entryMethod === 'upload'
-                                ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                        onClick={() => handleEntryMethodChange('upload')}
-                    >
-                        <div className="flex items-center">
-                            <CloudArrowUpIcon className="w-6 h-6 text-blue-600 mr-3" />
-                            <div>
-                                <h5 className="font-medium text-gray-900">Upload W-9 Form</h5>
-                                <p className="text-sm text-gray-600">Upload a completed W-9 PDF form</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div
-                        className={`border-2 rounded-lg p-4 cursor-pointer transition-all duration-200 ${
-                            entryMethod === 'manual'
-                                ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                        onClick={() => handleEntryMethodChange('manual')}
-                    >
-                        <div className="flex items-center">
-                            <PencilIcon className="w-6 h-6 text-blue-600 mr-3" />
-                            <div>
-                                <h5 className="font-medium text-gray-900">Enter Details Manually</h5>
-                                <p className="text-sm text-gray-600">Fill out W-9 information manually</p>
-                            </div>
-                        </div>
-                    </div>
+            {/* Part I: Taxpayer Identification Number (TIN) */}
+            <div className="bg-white border border-gray-300 rounded-lg p-6">
+                <div className="mb-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">Part I - Taxpayer Identification Number (TIN)</h4>
+                    <p className="text-sm text-gray-600 mb-4">
+                        Enter your TIN in the appropriate box. The TIN provided must match the name given on line 1 to avoid backup withholding. 
+                        For individuals, this is generally your social security number (SSN). For other entities, it is your employer identification number (EIN).
+                    </p>
                 </div>
-            </div>
 
-            {/* Upload Method */}
-            {entryMethod === 'upload' && (
-                <div className="space-y-4">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h4 className="font-medium text-blue-900 mb-2">Upload W-9 Form</h4>
-                        <p className="text-sm text-blue-800">
-                            Please upload a completed and signed W-9 form in PDF format.
-                        </p>
-                    </div>
-
-                    {w9File ? (
-                        <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
-                            <div className="flex items-center">
-                                <DocumentIcon className="w-6 h-6 text-green-600 mr-3" />
-                                <div>
-                                    <p className="font-medium text-green-800">{w9File.name}</p>
-                                    <p className="text-sm text-green-600">{formatFileSize(w9File.size)}</p>
-                                </div>
-                            </div>
-                            <Button
-                                onClick={() => setW9File(null)}
-                                variant="outline"
-                                size="sm"
-                                className="text-red-600 hover:text-red-700"
-                            >
-                                Remove
-                            </Button>
-                        </div>
-                    ) : (
-                        <FileUpload
-                            onFileSelect={handleFileUpload}
-                            accept=".pdf"
-                            maxSize={5 * 1024 * 1024} // 5MB
-                            error={errors.w9_file}
+                {/* Line 1: Name */}
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Line 1: Name of entity/individual
+                    </label>
+                    <div className={isFieldRejected('w9_business_name') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                        <Input
+                            type="text"
+                            value={w9Data.business_name}
+                            onChange={(e) => handleW9DataChange('business_name', e.target.value)}
+                            error={errors.business_name || (isFieldRejected('w9_business_name') ? 'This field needs to be updated' : '')}
+                            placeholder="Enter your full name or business name"
+                            required
                         />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                        An entry is required. (For a sole proprietor or disregarded entity, enter the owner's name on line 1, and enter the business/disregarded entity's name on line 2.)
+                    </p>
+                </div>
+
+                {/* Line 2: Business name (if different) */}
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Line 2: Business name/disregarded entity name, if different from above
+                    </label>
+                    <Input
+                        type="text"
+                        value={w9Data.business_name_alt || ''}
+                        onChange={(e) => handleW9DataChange('business_name_alt', e.target.value)}
+                        placeholder="Enter business name if different from above"
+                    />
+                </div>
+
+                {/* Line 3a: Federal tax classification */}
+                <div className={`mb-4 ${isFieldRejected('w9_tax_classification') ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Line 3a: Check appropriate box for federal tax classification
+                        {isFieldRejected('w9_tax_classification') && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
+                    </label>
+                    <p className="text-xs text-gray-500 mb-2">Check only one of the following seven boxes.</p>
+                    <div className="space-y-2">
+                        {[
+                            { value: 'individual', label: 'Individual/sole proprietor' },
+                            { value: 'c_corporation', label: 'C corporation' },
+                            { value: 's_corporation', label: 'S corporation' },
+                            { value: 'partnership', label: 'Partnership' },
+                            { value: 'trust_estate', label: 'Trust/estate' },
+                            { value: 'llc', label: 'LLC' },
+                            { value: 'other', label: 'Other (see instructions)' }
+                        ].map((option) => (
+                            <label key={option.value} className="flex items-center">
+                                <input
+                                    type="radio"
+                                    name="tax_classification"
+                                    value={option.value}
+                                    checked={w9Data.tax_classification === option.value}
+                                    onChange={(e) => handleW9DataChange('tax_classification', e.target.value)}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="ml-2 text-sm text-gray-700">{option.label}</span>
+                            </label>
+                        ))}
+                    </div>
+                    {w9Data.tax_classification === 'llc' && (
+                        <div className="mt-2 ml-6">
+                            <Select
+                                value={w9Data.llc_classification || ''}
+                                onChange={(e) => handleW9DataChange('llc_classification', e.target.value)}
+                                error={errors.llc_classification}
+                                options={[
+                                    { value: 'C', label: 'C Corporation' },
+                                    { value: 'S', label: 'S Corporation' },
+                                    { value: 'P', label: 'Partnership' }
+                                ]}
+                                placeholder="Select LLC classification"
+                                className="text-sm"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                                Note: A disregarded entity should instead check the appropriate box for the tax classification of its owner.
+                            </p>
+                        </div>
+                    )}
+                    {errors.tax_classification && (
+                        <p className="text-red-500 text-sm mt-1">{errors.tax_classification}</p>
                     )}
                 </div>
-            )}
 
-            {/* Manual Entry Method */}
-            {entryMethod === 'manual' && (
-                <div className="space-y-6">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h4 className="font-medium text-blue-900 mb-2">Manual W-9 Entry</h4>
-                        <p className="text-sm text-blue-800">
-                            Please fill out the W-9 form information manually. All required fields are marked with an asterisk (*).
-                        </p>
-                        
-                        {/* Auto-populate profile information button */}
-                        {(formData.first_name || formData.street_address || formData.city || formData.state_id || formData.zip_code) && (
-                            <div className="mt-3 pt-3 border-t border-blue-200">
-                                <Button
-                                    onClick={() => {
-                                        const fullName = [formData.first_name, formData.middle_name, formData.last_name]
-                                            .filter(Boolean)
-                                            .join(' ');
-                                        
-                                        setW9Data(prev => ({
-                                            ...prev,
-                                            business_name: prev.business_name || fullName || '',
-                                            address: formData.street_address || prev.address,
-                                            city: formData.city || prev.city,
-                                            state: formData.state_id || prev.state,
-                                            zip_code: formData.zip_code || prev.zip_code
-                                        }));
-                                        toast.success('Profile information populated from your profile');
-                                    }}
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-blue-700 border-blue-300 hover:bg-blue-100"
-                                >
-                                    Use Profile Information
-                                </Button>
-                            </div>
-                        )}
-                    </div>
+                {/* Line 3b: Foreign partners checkbox */}
+                <div className="mb-4">
+                    <label className="flex items-center">
+                        <input
+                            type="checkbox"
+                            checked={w9Data.has_foreign_partners || false}
+                            onChange={(e) => handleW9DataChange('has_foreign_partners', e.target.checked)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">
+                            Line 3b: If on line 3a you checked "Partnership" or "Trust/estate," or checked "LLC" and entered "P" as its tax classification, 
+                            and you are providing this form to a partnership, trust, or estate in which you have an ownership interest, check this box if you have any foreign partners, owners, or beneficiaries.
+                        </span>
+                    </label>
+                </div>
 
+                {/* Line 4: Exemptions */}
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Line 4: Exemptions (codes apply only to certain entities, not individuals; see instructions on page 3)
+                    </label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
+                        <div>
+                            <label className="block text-sm text-gray-600 mb-1">Exempt payee code (if any)</label>
                             <Input
-                                label="Business Name or Individual Name"
                                 type="text"
-                                value={w9Data.business_name}
-                                onChange={(e) => handleW9DataChange('business_name', e.target.value)}
-                                error={errors.business_name}
-                                placeholder="Enter your full name or business name"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <Select
-                                label="Tax Classification"
-                                value={w9Data.tax_classification}
-                                onChange={(e) => handleW9DataChange('tax_classification', e.target.value)}
-                                error={errors.tax_classification}
-                                required
-                                options={businessTypes}
-                                placeholder="Select tax classification"
-                            />
-                        </div>
-
-                        <div>
-                            <Select
-                                label="Business Type"
-                                value={w9Data.business_type}
-                                onChange={(e) => handleW9DataChange('business_type', e.target.value)}
-                                options={businessTypes}
-                                placeholder="Select business type"
-                            />
-                        </div>
-
-                        {w9Data.tax_classification === 'individual' ? (
-                            <div>
-                                <Input
-                                    label="Social Security Number (SSN)"
-                                    type="text"
-                                    value={w9Data.ssn}
-                                    onChange={(e) => handleW9DataChange('ssn', e.target.value)}
-                                    error={errors.ssn}
-                                    placeholder="XXX-XX-XXXX"
-                                    required
-                                />
-                            </div>
-                        ) : (
-                            <div>
-                                <Input
-                                    label="Employer Identification Number (EIN)"
-                                    type="text"
-                                    value={w9Data.ein}
-                                    onChange={(e) => handleW9DataChange('ein', e.target.value)}
-                                    error={errors.ein}
-                                    placeholder="XX-XXXXXXX"
-                                    required
-                                />
-                            </div>
-                        )}
-
-                        <div className="md:col-span-2">
-                            <Input
-                                label="Address"
-                                type="text"
-                                value={w9Data.address}
-                                onChange={(e) => handleW9DataChange('address', e.target.value)}
-                                error={errors.address}
-                                placeholder="Street address"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <Input
-                                label="City"
-                                type="text"
-                                value={w9Data.city}
-                                onChange={(e) => handleW9DataChange('city', e.target.value)}
-                                error={errors.city}
-                                placeholder="City"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <Select
-                                label="State"
-                                value={w9Data.state}
-                                onChange={(e) => handleW9DataChange('state', e.target.value)}
-                                error={errors.state}
-                                required
-                                options={usStates}
-                                placeholder="Select state"
-                            />
-                        </div>
-
-                        <div>
-                            <Input
-                                label="ZIP Code"
-                                type="text"
-                                value={w9Data.zip_code}
-                                onChange={(e) => handleW9DataChange('zip_code', e.target.value)}
-                                error={errors.zip_code}
-                                placeholder="ZIP code"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <Input
-                                label="Exempt Payee Code (if applicable)"
-                                type="text"
-                                value={w9Data.exempt_payee_code}
+                                value={w9Data.exempt_payee_code || ''}
                                 onChange={(e) => handleW9DataChange('exempt_payee_code', e.target.value)}
                                 placeholder="Exempt payee code"
                             />
                         </div>
-                    </div>
-
-                    {/* Exemptions Section */}
-                    <div className="bg-gray-50 rounded-lg p-4">
-                        <h4 className="font-medium text-gray-900 mb-3">Exemptions (if applicable)</h4>
-                        <div className="space-y-3">
-                            <label className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={w9Data.exempt_from_fatca}
-                                    onChange={(e) => handleW9DataChange('exempt_from_fatca', e.target.checked)}
-                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                />
-                                <span className="ml-2 text-sm text-gray-700">
-                                    Exempt from FATCA reporting
-                                </span>
-                            </label>
-                            <label className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={w9Data.exempt_from_backup_withholding}
-                                    onChange={(e) => handleW9DataChange('exempt_from_backup_withholding', e.target.checked)}
-                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                />
-                                <span className="ml-2 text-sm text-gray-700">
-                                    Exempt from backup withholding
-                                </span>
-                            </label>
+                        <div>
+                            <label className="block text-sm text-gray-600 mb-1">Exemption from FATCA reporting code (if any)</label>
+                            <Input
+                                type="text"
+                                value={w9Data.fatca_exemption_code || ''}
+                                onChange={(e) => handleW9DataChange('fatca_exemption_code', e.target.value)}
+                                placeholder="FATCA exemption code"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">(Applies to accounts maintained outside the United States.)</p>
                         </div>
                     </div>
+                </div>
+
+                {/* Line 5: Address */}
+                <div className={`mb-4 ${isFieldRejected('w9_address') ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Line 5: Address (number, street, and apt. or suite no.)
+                        {isFieldRejected('w9_address') && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
+                    </label>
+                    <Input
+                        type="text"
+                        value={w9Data.address}
+                        onChange={(e) => handleW9DataChange('address', e.target.value)}
+                        error={errors.address || (isFieldRejected('w9_address') ? 'This field needs to be updated' : '')}
+                        placeholder="Street address"
+                        required
+                    />
+                </div>
+
+                {/* Line 6: City, state, and ZIP code */}
+                <div className={`mb-4 ${isFieldRejected('w9_address') ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Line 6: City, state, and ZIP code
+                        {isFieldRejected('w9_address') && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <Input
+                                type="text"
+                                value={w9Data.city}
+                                onChange={(e) => handleW9DataChange('city', e.target.value)}
+                                error={errors.city || (isFieldRejected('w9_city') ? 'This field needs to be updated' : '')}
+                                placeholder="City"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <Select
+                                value={w9Data.state}
+                                onChange={(e) => handleW9DataChange('state', e.target.value)}
+                                error={errors.state || (isFieldRejected('w9_state') ? 'This field needs to be updated' : '')}
+                                required
+                                options={usStates}
+                                placeholder="State"
+                            />
+                        </div>
+                        <div>
+                            <Input
+                                type="text"
+                                value={w9Data.zip_code}
+                                onChange={(e) => handleW9DataChange('zip_code', e.target.value)}
+                                error={errors.zip_code || (isFieldRejected('w9_zip_code') ? 'This field needs to be updated' : '')}
+                                placeholder="ZIP code"
+                                required
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Line 7: Account number (optional) */}
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Line 7: List account number(s) here (optional)
+                    </label>
+                    <Input
+                        type="text"
+                        value={w9Data.account_number || ''}
+                        onChange={(e) => handleW9DataChange('account_number', e.target.value)}
+                        placeholder="Account number"
+                    />
+                </div>
+
+                {/* TIN Section */}
+                <div className={`mb-6 ${isFieldRejected('w9_ssn') || isFieldRejected('w9_ein') ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
+                    <h5 className="text-md font-medium text-gray-700 mb-3">
+                        Taxpayer Identification Number
+                        {(isFieldRejected('w9_ssn') || isFieldRejected('w9_ein')) && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Social security number</label>
+                            <Input
+                                type="text"
+                                value={w9Data.ssn}
+                                onChange={(e) => handleW9DataChange('ssn', e.target.value)}
+                                error={errors.ssn || (isFieldRejected('w9_ssn') ? 'This field needs to be updated' : '')}
+                                placeholder="XXX-XX-XXXX"
+                                required={w9Data.tax_classification === 'individual'}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Employer identification number</label>
+                            <Input
+                                type="text"
+                                value={w9Data.ein}
+                                onChange={(e) => handleW9DataChange('ein', e.target.value)}
+                                error={errors.ein || (isFieldRejected('w9_ein') ? 'This field needs to be updated' : '')}
+                                placeholder="XX-XXXXXXX"
+                                required={w9Data.tax_classification !== 'individual'}
+                            />
+                        </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                        Note: If the account is in more than one name, see the instructions for line 1. See also What Name and Number To Give the Requester for guidelines on whose number to enter.
+                    </p>
+                </div>
+            </div>
+
+            {/* Part II: Certification */}
+            <div className="bg-white border border-gray-300 rounded-lg p-6">
+                <div className="mb-4">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">Part II - Certification</h4>
+                    <p className="text-sm text-gray-600 mb-4">Under penalties of perjury, I certify that:</p>
+                </div>
+
+                <div className="space-y-3 mb-6">
+                    <div className="flex items-start">
+                        <span className="text-sm font-medium text-gray-700 mr-2">1.</span>
+                        <p className="text-sm text-gray-700">
+                            The number shown on this form is my correct taxpayer identification number (or I am waiting for a number to be issued to me); and
+                        </p>
+                    </div>
+                    <div className="flex items-start">
+                        <span className="text-sm font-medium text-gray-700 mr-2">2.</span>
+                        <p className="text-sm text-gray-700">
+                            I am not subject to backup withholding because (a) I am exempt from backup withholding, or (b) I have not been notified by the Internal Revenue Service (IRS) that I am subject to backup withholding as a result of a failure to report all interest or dividends, or (c) the IRS has notified me that I am no longer subject to backup withholding; and
+                        </p>
+                    </div>
+                    <div className="flex items-start">
+                        <span className="text-sm font-medium text-gray-700 mr-2">3.</span>
+                        <p className="text-sm text-gray-700">
+                            I am a U.S. citizen or other U.S. person (defined below); and
+                        </p>
+                    </div>
+                    <div className="flex items-start">
+                        <span className="text-sm font-medium text-gray-700 mr-2">4.</span>
+                        <p className="text-sm text-gray-700">
+                            The FATCA code(s) entered on this form (if any) indicating that I am exempt from FATCA reporting is correct.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Signature Section */}
+                <div className="border-t pt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Signature of U.S. person</label>
+                            <Input
+                                type="text"
+                                value={w9Data.signature || ''}
+                                onChange={(e) => handleW9DataChange('signature', e.target.value)}
+                                error={errors.signature}
+                                placeholder="Type your full name to sign"
+                                required
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Type your full name to electronically sign</p>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <Input
+                                type="date"
+                                value={w9Data.signature_date || ''}
+                                onChange={(e) => handleW9DataChange('signature_date', e.target.value)}
+                                error={errors.signature_date}
+                                required
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Must be today's date ({new Date().toLocaleDateString()})</p>
+                        </div>
+                    </div>
+                    
+                    {/* Electronic Signature Acknowledgment */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <label className="flex items-start">
+                            <input
+                                type="checkbox"
+                                checked={w9Data.electronic_signature_acknowledgment || false}
+                                onChange={(e) => handleW9DataChange('electronic_signature_acknowledgment', e.target.checked)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1"
+                                required
+                            />
+                            <span className="ml-3 text-sm text-gray-700">
+                                <strong>Electronic Signature Acknowledgment:</strong> By checking this box and typing my name above, 
+                                I acknowledge that this constitutes my electronic signature and is legally binding. I certify that the 
+                                information provided on this form is true, accurate, and complete to the best of my knowledge. I understand 
+                                that this electronic signature has the same legal effect as a handwritten signature and that I may be subject 
+                                to penalties for providing false information.
+                            </span>
+                        </label>
+                        {errors.electronic_signature_acknowledgment && (
+                            <p className="text-red-500 text-sm mt-1">{errors.electronic_signature_acknowledgment}</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Auto-populate profile information button */}
+            {(formData.first_name || formData.street_address || formData.city || formData.state_id || formData.zip_code) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <Button
+                        onClick={() => {
+                            const fullName = [formData.first_name, formData.middle_name, formData.last_name]
+                                .filter(Boolean)
+                                .join(' ');
+                            
+                            setW9Data(prev => ({
+                                ...prev,
+                                business_name: prev.business_name || fullName || '',
+                                address: formData.street_address || prev.address,
+                                city: formData.city || prev.city,
+                                state: formData.state_id || prev.state,
+                                zip_code: formData.zip_code || prev.zip_code
+                            }));
+                            toast.success('Profile information populated from your profile');
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                    >
+                        Use Profile Information
+                    </Button>
                 </div>
             )}
 
@@ -470,6 +634,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing }) =>
                     <li>• Ensure all information is accurate and up-to-date</li>
                     <li>• Your SSN or EIN will be used for 1099 tax reporting</li>
                     <li>• This information is kept secure and confidential</li>
+                    <li>• All required fields must be completed to proceed</li>
                 </ul>
             </div>
 
@@ -487,7 +652,6 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing }) =>
                 <div className={isFirstStep && !isEditing ? 'ml-auto' : ''}>
                     <Button
                         onClick={handleNext}
-                        disabled={entryMethod === 'upload' ? !w9File : false}
                     >
                         {isEditing ? 'Save & Return to Review' : 'Next'}
                     </Button>

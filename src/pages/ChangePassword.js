@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { EyeIcon, EyeSlashIcon, LockClosedIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon, LockClosedIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -37,6 +37,36 @@ const ChangePassword = () => {
   const togglePasswordVisibility = (field) => {
     setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }));
   };
+
+  // Function to check password requirements
+  const checkPasswordRequirements = (password) => {
+    return {
+      minLength: password.length >= 8,
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+      hasNumber: /\d/.test(password),
+      hasSpecialChar: /[@$!%*?&]/.test(password)
+    };
+  };
+
+  // Get current password requirements status
+  const passwordRequirements = checkPasswordRequirements(formData.newPassword);
+  
+  // Calculate password strength
+  const getPasswordStrength = () => {
+    const requirements = Object.values(passwordRequirements);
+    const metRequirements = requirements.filter(Boolean).length;
+    const totalRequirements = requirements.length;
+    
+    if (metRequirements === 0) return { strength: 'Very Weak', color: 'bg-red-500', width: '0%' };
+    if (metRequirements === 1) return { strength: 'Weak', color: 'bg-red-400', width: '20%' };
+    if (metRequirements === 2) return { strength: 'Fair', color: 'bg-yellow-400', width: '40%' };
+    if (metRequirements === 3) return { strength: 'Good', color: 'bg-yellow-500', width: '60%' };
+    if (metRequirements === 4) return { strength: 'Strong', color: 'bg-green-400', width: '80%' };
+    if (metRequirements === 5) return { strength: 'Very Strong', color: 'bg-green-500', width: '100%' };
+  };
+  
+  const passwordStrength = getPasswordStrength();
 
   const validateForm = () => {
     const newErrors = {};
@@ -240,28 +270,81 @@ const ChangePassword = () => {
             </div>
           </div>
 
+          {/* Password Strength Indicator */}
+          {formData.newPassword && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-medium text-gray-700">Password Strength:</h4>
+                <span className={`text-sm font-medium ${
+                  passwordStrength.strength.includes('Weak') ? 'text-red-600' :
+                  passwordStrength.strength.includes('Fair') ? 'text-yellow-600' :
+                  passwordStrength.strength.includes('Good') ? 'text-yellow-700' :
+                  'text-green-600'
+                }`}>
+                  {passwordStrength.strength}
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.color}`}
+                  style={{ width: passwordStrength.width }}
+                ></div>
+              </div>
+            </div>
+          )}
+
           {/* Password Requirements */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h4 className="text-sm font-medium text-blue-900 mb-2">Password Requirements:</h4>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li className="flex items-center">
-                <CheckCircleIcon className="h-4 w-4 text-blue-600 mr-2" />
+            <ul className="text-sm space-y-1">
+              <li className={`flex items-center transition-colors duration-200 ${
+                passwordRequirements.minLength ? 'text-green-700' : 'text-red-600'
+              }`}>
+                {passwordRequirements.minLength ? (
+                  <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2" />
+                ) : (
+                  <XCircleIcon className="h-4 w-4 text-red-500 mr-2" />
+                )}
                 At least 8 characters long
               </li>
-              <li className="flex items-center">
-                <CheckCircleIcon className="h-4 w-4 text-blue-600 mr-2" />
+              <li className={`flex items-center transition-colors duration-200 ${
+                passwordRequirements.hasUppercase ? 'text-green-700' : 'text-red-600'
+              }`}>
+                {passwordRequirements.hasUppercase ? (
+                  <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2" />
+                ) : (
+                  <XCircleIcon className="h-4 w-4 text-red-500 mr-2" />
+                )}
                 One uppercase letter
               </li>
-              <li className="flex items-center">
-                <CheckCircleIcon className="h-4 w-4 text-blue-600 mr-2" />
+              <li className={`flex items-center transition-colors duration-200 ${
+                passwordRequirements.hasLowercase ? 'text-green-700' : 'text-red-600'
+              }`}>
+                {passwordRequirements.hasLowercase ? (
+                  <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2" />
+                ) : (
+                  <XCircleIcon className="h-4 w-4 text-red-500 mr-2" />
+                )}
                 One lowercase letter
               </li>
-              <li className="flex items-center">
-                <CheckCircleIcon className="h-4 w-4 text-blue-600 mr-2" />
+              <li className={`flex items-center transition-colors duration-200 ${
+                passwordRequirements.hasNumber ? 'text-green-700' : 'text-red-600'
+              }`}>
+                {passwordRequirements.hasNumber ? (
+                  <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2" />
+                ) : (
+                  <XCircleIcon className="h-4 w-4 text-red-500 mr-2" />
+                )}
                 One number
               </li>
-              <li className="flex items-center">
-                <CheckCircleIcon className="h-4 w-4 text-blue-600 mr-2" />
+              <li className={`flex items-center transition-colors duration-200 ${
+                passwordRequirements.hasSpecialChar ? 'text-green-700' : 'text-red-600'
+              }`}>
+                {passwordRequirements.hasSpecialChar ? (
+                  <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2" />
+                ) : (
+                  <XCircleIcon className="h-4 w-4 text-red-500 mr-2" />
+                )}
                 One special character (@$!%*?&)
               </li>
             </ul>

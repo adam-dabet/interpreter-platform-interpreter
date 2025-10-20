@@ -6,10 +6,20 @@ import Select from '../ui/Select';
 import toast from 'react-hot-toast';
 import { RATE_UNITS } from '../../utils/constants';
 
-const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, onUpdate }) => {
+const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, onUpdate, rejectedFields = [] }) => {
     const [selectedServiceTypes, setSelectedServiceTypes] = useState(formData.service_types || []);
     const [serviceRates, setServiceRates] = useState({});
     const [errors, setErrors] = useState({});
+    
+    // Helper to check if field is rejected
+    const isFieldRejected = (fieldName) => rejectedFields.includes(fieldName);
+
+    // Sync selectedServiceTypes with formData.service_types when it changes (e.g., from prefillFormData)
+    useEffect(() => {
+        if (formData.service_types && Array.isArray(formData.service_types) && formData.service_types.length > 0) {
+            setSelectedServiceTypes(formData.service_types);
+        }
+    }, [formData.service_types]);
 
     // Initialize service rates from formData
     useEffect(() => {
@@ -263,16 +273,18 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                 </p>
             </div>
 
-            {errors.service_types && (
+            {(errors.service_types || isFieldRejected('service_types')) && (
                 <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                    <p className="text-red-800 text-sm">{errors.service_types}</p>
+                    <p className="text-red-800 text-sm">{errors.service_types || 'This field needs to be updated'}</p>
                 </div>
             )}
 
             {/* Service Types Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${isFieldRejected('service_types') ? 'ring-2 ring-red-500 rounded-lg p-2 bg-red-50' : ''}`}>
                 {parametricData?.serviceTypes && parametricData.serviceTypes.length > 0 ? (
-                    parametricData.serviceTypes.map((serviceType) => {
+                    parametricData.serviceTypes
+                        .filter(serviceType => serviceType.code !== 'other' && serviceType.name.toLowerCase() !== 'other')
+                        .map((serviceType) => {
                     const isSelected = selectedServiceTypes.includes(serviceType.id);
                     
                     return (

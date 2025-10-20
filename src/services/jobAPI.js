@@ -42,6 +42,16 @@ const jobAPI = {
     return Promise.resolve({ success: true, message: 'Opening completion report form' });
   },
 
+  // Start a job (authenticated interpreter)
+  startJob: (jobId) => {
+    return api.post(`/interpreters/jobs/${jobId}/start`);
+  },
+
+  // End a job (authenticated interpreter)
+  endJob: (jobId) => {
+    return api.post(`/interpreters/jobs/${jobId}/end`);
+  },
+
   // Admin: Get all jobs
   getAllJobs: (params = {}) => {
     return api.get('/jobs', { params });

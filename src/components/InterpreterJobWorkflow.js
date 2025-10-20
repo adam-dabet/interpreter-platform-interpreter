@@ -15,6 +15,7 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
   const [showCompletionReport, setShowCompletionReport] = useState(false);
   const [isEndingJob, setIsEndingJob] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
   
   // Calculate actual duration from magic link timestamps if available
   const calculateActualDuration = () => {
@@ -43,6 +44,70 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
       setActualDurationMinutes(newDuration);
     }
   }, [job.job_started_at, job.job_ended_at, job.actual_duration_minutes]);
+
+  // Timer for jobs in progress
+  useEffect(() => {
+    let timerInterval = null;
+    
+    if (job.job_started_at && !job.job_ended_at && job.status === 'in_progress') {
+      // Calculate initial elapsed time from when job was started
+      const now = new Date();
+      
+      // Handle timezone issues by parsing the timestamp more carefully
+      let startTime;
+      
+      // If the timestamp string contains timezone info, parse it more carefully
+      if (typeof job.job_started_at === 'string' && job.job_started_at.includes('GMT')) {
+        // Parse GMT timestamp more carefully
+        startTime = new Date(job.job_started_at.replace('GMT-0700 (Pacific Daylight Time)', 'PDT'));
+      } else {
+        startTime = new Date(job.job_started_at);
+      }
+      
+      const initialElapsed = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+      
+      // If we get a negative time, there's definitely a timezone issue
+      // In this case, let's start from 0 and let the user know
+      const validElapsed = Math.max(0, initialElapsed);
+      
+      if (initialElapsed < 0) {
+        console.warn('Timezone issue detected, starting timer from 0:', {
+          startTimeString: job.job_started_at,
+          startTimeParsed: startTime.toISOString(),
+          nowTime: now.toISOString(),
+          diff: initialElapsed
+        });
+      }
+      
+      setElapsedTime(validElapsed);
+      
+      // Update timer every second
+      timerInterval = setInterval(() => {
+        setElapsedTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      setElapsedTime(0);
+    }
+
+    return () => {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
+    };
+  }, [job.job_started_at, job.job_ended_at, job.status]);
+
+  // Format elapsed time for display
+  const formatElapsedTime = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } else {
+      return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    }
+  };
 
   const workflowSteps = [
     { 
@@ -242,6 +307,35 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
           </div>
         </div>
       </div>
+
+      {/* Live Timer - Only show when job is in progress */}
+      {job.status === 'in_progress' && job.job_started_at && !job.job_ended_at && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+            <ClockIcon className="h-5 w-5 mr-2 text-blue-600" />
+            Job in Progress
+          </h3>
+          
+          <div className="text-center">
+            <div className="inline-flex items-center bg-white rounded-lg px-6 py-4 shadow-sm border border-blue-200">
+              <div className="text-4xl font-mono font-bold text-blue-600 mr-4">
+                {formatElapsedTime(elapsedTime)}
+              </div>
+              <div className="text-sm text-blue-700">
+                <div className="font-medium">Elapsed Time</div>
+                <div className="text-xs text-blue-600">
+                  Started: {new Date(job.job_started_at).toLocaleTimeString()}
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-4 text-sm text-blue-700">
+              <p className="font-medium">Your job is currently running</p>
+              <p className="text-blue-600">Click "End Job" when the appointment is complete</p>
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {/* Payment Information */}

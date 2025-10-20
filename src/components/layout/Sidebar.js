@@ -6,18 +6,21 @@ import {
   MagnifyingGlassIcon,
   UserIcon,
   KeyIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  BellIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, profile, user } = useAuth();
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-    { name: 'My Jobs', href: '/jobs', icon: CalendarIcon },
+    { name: 'My Schedule', href: '/schedule', icon: CalendarIcon },
     { name: 'Find Jobs', href: '/jobs/search', icon: MagnifyingGlassIcon },
+    { name: 'Pending', href: '/pending', icon: BellIcon },
+    { name: 'My Jobs', href: '/jobs', icon: CalendarIcon },
     { name: 'Profile', href: '/profile', icon: UserIcon },
   ];
 
@@ -46,8 +49,22 @@ const Sidebar = ({ isOpen, onClose }) => {
       `}>
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-gray-900">Interpreter Portal</h1>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
+                  {(profile?.first_name?.[0] || user?.first_name?.[0] || 'I').toUpperCase()}
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-sm font-semibold text-gray-900 truncate">
+                  {profile?.first_name || user?.first_name || 'Interpreter'} {profile?.last_name?.[0] || user?.last_name?.[0] || ''}.
+                </h2>
+                <p className="text-xs text-gray-500 truncate">
+                  Interpreter Portal
+                </p>
+              </div>
+            </div>
             <button
               onClick={onClose}
               className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"

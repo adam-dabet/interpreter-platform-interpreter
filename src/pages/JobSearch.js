@@ -18,9 +18,11 @@ import jobAPI from '../services/jobAPI';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
+import { useJobRestrictions } from '../contexts/JobRestrictionContext';
 
 const JobSearch = () => {
   const navigate = useNavigate();
+  const { canAcceptJobs, showJobAcceptanceBlocked } = useJobRestrictions();
   const { profile } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +32,7 @@ const JobSearch = () => {
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [mileageRequested, setMileageRequested] = useState(0);
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [filters, setFilters] = useState({
     language: '',
     service_type: '',
@@ -81,6 +84,11 @@ const JobSearch = () => {
       let response;
       switch (action) {
         case 'accept':
+          // Check if user can accept jobs (no overdue reports)
+          if (!canAcceptJobs()) {
+            showJobAcceptanceBlocked();
+            return;
+          }
           // Show mileage prompt before accepting
           setShowMileagePrompt(true);
           setSelectedJobId(jobId);
@@ -165,6 +173,35 @@ const JobSearch = () => {
     setCurrentPage(1);
   };
 
+  // Count active filters
+  const activeFilterCount = Object.values(filters).filter(value => {
+    if (typeof value === 'boolean') return value === true;
+    return value !== '';
+  }).length;
+
+  // Quick filter helpers
+  const setQuickFilter = (type) => {
+    const today = new Date().toISOString().split('T')[0];
+    const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    switch (type) {
+      case 'today':
+        setFilters(prev => ({ ...prev, date_from: today, date_to: today }));
+        break;
+      case 'this_week':
+        setFilters(prev => ({ ...prev, date_from: today, date_to: nextWeek }));
+        break;
+      case 'remote':
+        setFilters(prev => ({ ...prev, remote_only: !prev.remote_only }));
+        break;
+      case 'clear':
+        clearFilters();
+        break;
+      default:
+        break;
+    }
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       weekday: 'short',
@@ -197,44 +234,44 @@ const JobSearch = () => {
       profileServiceRates: profile?.service_rates
     });
 
-    if (!profile?.service_rates || !job.estimated_duration_minutes) {
-      console.log('No service rates or duration, returning job rate:', job.hourly_rate);
-      return job.hourly_rate || 0;
+    // If interpreter has custom service rates, calculate based on those
+    if (profile?.service_rates && job.estimated_duration_minutes) {
+      const serviceRate = profile.service_rates.find(
+        rate => rate.service_type_id === job.service_type_id
+      );
+      
+      if (serviceRate && serviceRate.rate_amount) {
+        const hours = job.estimated_duration_minutes / 60;
+        let earnings = 0;
+        
+        if (serviceRate.rate_unit === 'minutes') {
+          earnings = parseFloat(serviceRate.rate_amount) * job.estimated_duration_minutes;
+        } else {
+          earnings = parseFloat(serviceRate.rate_amount) * hours;
+        }
+        
+        console.log('Calculated earnings from service rate:', earnings);
+        return isNaN(earnings) ? 0 : earnings;
+      }
     }
 
-    // Find the interpreter's rate for this service type
-    const serviceRate = profile.service_rates.find(
-      rate => rate.service_type_id === job.service_type_id
-    );
-
-    console.log('Found service rate:', serviceRate);
-
-    if (!serviceRate) {
-      console.log('No matching service rate, returning job rate:', job.hourly_rate);
-      return job.hourly_rate || 0;
+    // Otherwise, use the job's total_amount (calculated by backend) if it's greater than 0
+    const totalAmount = parseFloat(job.total_amount) || 0;
+    if (totalAmount > 0) {
+      console.log('Using job total_amount:', totalAmount);
+      return totalAmount;
     }
 
-    // Calculate earnings based on duration and rate
-    const hours = job.estimated_duration_minutes / 60;
-    
-    // Handle different rate units (hours vs minutes)
-    let earnings;
-    if (serviceRate.rate_unit === 'minutes') {
-      // For per-minute rates, multiply by total minutes
-      earnings = serviceRate.rate_amount * job.estimated_duration_minutes;
-    } else {
-      // Rate is already per hour
-      earnings = serviceRate.rate_amount * hours;
+    // Fallback: calculate from hourly rate and duration
+    if (job.hourly_rate && job.estimated_duration_minutes) {
+      const hours = job.estimated_duration_minutes / 60;
+      const total = parseFloat(job.hourly_rate) * hours;
+      console.log('Calculated from hourly rate:', total);
+      return total;
     }
 
-    console.log('Calculated earnings:', {
-      rateAmount: serviceRate.rate_amount,
-      rateUnit: serviceRate.rate_unit,
-      hours,
-      earnings
-    });
-
-    return earnings;
+    console.log('No service rates or duration, returning 0');
+    return 0;
   };
 
   const getPriorityColor = (priority) => {
@@ -291,103 +328,148 @@ const JobSearch = () => {
           transition={{ delay: 0.1 }}
           className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            {/* Language Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Language
-              </label>
-              <input
-                type="text"
-                placeholder="e.g., Spanish"
-                value={filters.language}
-                onChange={(e) => handleFilterChange('language', e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Service Type Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Service Type
-              </label>
-              <input
-                type="text"
-                placeholder="e.g., Medical"
-                value={filters.service_type}
-                onChange={(e) => handleFilterChange('service_type', e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Location Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Location
-              </label>
-              <input
-                type="text"
-                placeholder="e.g., Los Angeles"
-                value={filters.location}
-                onChange={(e) => handleFilterChange('location', e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Date From */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                From Date
-              </label>
-              <input
-                type="date"
-                value={filters.date_from}
-                onChange={(e) => handleFilterChange('date_from', e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Date To */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                To Date
-              </label>
-              <input
-                type="date"
-                value={filters.date_to}
-                onChange={(e) => handleFilterChange('date_to', e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Remote Only */}
-            <div className="flex items-end">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={filters.remote_only}
-                  onChange={(e) => handleFilterChange('remote_only', e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">Remote Only</span>
-              </label>
+          {/* Quick Filters - Chips/Pills */}
+          <div className="mb-4">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setQuickFilter('today')}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  filters.date_from === new Date().toISOString().split('T')[0] && filters.date_to === new Date().toISOString().split('T')[0]
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                onClick={() => setQuickFilter('this_week')}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  filters.date_from && filters.date_to && filters.date_to !== filters.date_from
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                This Week
+              </button>
+              <button
+                onClick={() => setQuickFilter('remote')}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  filters.remote_only
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <GlobeAltIcon className="h-4 w-4 inline mr-1" />
+                Remote Only
+              </button>
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={() => setQuickFilter('clear')}
+                  className="px-4 py-2 rounded-full text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                >
+                  <XCircleIcon className="h-4 w-4 inline mr-1" />
+                  Clear All ({activeFilterCount})
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Filter Actions */}
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={clearFilters}
+          {/* Advanced Filters Toggle */}
+          <button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className="flex items-center text-sm text-blue-600 hover:text-blue-700 font-medium mb-4"
+          >
+            <FunnelIcon className="h-4 w-4 mr-1" />
+            {showAdvancedFilters ? 'Hide' : 'Show'} Advanced Filters
+            {activeFilterCount > 0 && !showAdvancedFilters && (
+              <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">
+                {activeFilterCount} active
+              </span>
+            )}
+          </button>
+
+          {/* Advanced Filters - Collapsible */}
+          {showAdvancedFilters && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4"
             >
-              Clear Filters
-            </Button>
-            
-            <div className="flex items-center text-sm text-gray-500">
-              <FunnelIcon className="h-4 w-4 mr-1" />
-              {jobs.length} jobs found
-            </div>
+              {/* Language Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Language
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Spanish"
+                  value={filters.language}
+                  onChange={(e) => handleFilterChange('language', e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Service Type Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Service Type
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Medical"
+                  value={filters.service_type}
+                  onChange={(e) => handleFilterChange('service_type', e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Location Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Los Angeles"
+                  value={filters.location}
+                  onChange={(e) => handleFilterChange('location', e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Date From */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  From Date
+                </label>
+                <input
+                  type="date"
+                  value={filters.date_from}
+                  onChange={(e) => handleFilterChange('date_from', e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Date To */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  To Date
+                </label>
+                <input
+                  type="date"
+                  value={filters.date_to}
+                  onChange={(e) => handleFilterChange('date_to', e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {/* Results Count */}
+          <div className="flex items-center text-sm text-gray-500 pt-4 border-t border-gray-200">
+            <MagnifyingGlassIcon className="h-4 w-4 mr-1" />
+            {loading ? 'Searching...' : `${jobs.length} jobs found`}
           </div>
         </motion.div>
 
@@ -418,7 +500,8 @@ const JobSearch = () => {
                     key={job.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+                    className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => navigate(`/job/${job.id}`)}
                   >
                     {/* Job Header */}
                     <div className="flex items-start justify-between mb-4">
@@ -464,7 +547,7 @@ const JobSearch = () => {
                       </div>
                       <div className="flex items-center text-sm text-gray-500">
                         <span className="font-medium">Languages:</span>
-                        <span className="ml-1">{job.source_language_name} → {job.target_language_name || 'English'}</span>
+                        <span className="ml-1">{job.source_language_name || job.language_name || 'N/A'} → {job.target_language_name || 'English'}</span>
                       </div>
                       <div className="flex items-center text-sm text-gray-500">
                         <span className="font-medium">Service:</span>
@@ -501,14 +584,7 @@ const JobSearch = () => {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex items-center justify-end space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => navigate(`/job/${job.id}`)}
-                      >
-                        View Details
-                      </Button>
+                    <div className="flex items-center justify-end space-x-2" onClick={(e) => e.stopPropagation()}>
                       {job.status === 'finding_interpreter' && (
                         <Button
                           size="sm"

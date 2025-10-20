@@ -165,7 +165,11 @@ export const AuthProvider = ({ children }) => {
       throw new Error('No authentication token');
     }
 
-    return interpreterTokenHandler.fetchWithExpirationHandling(url, {
+    // Ensure we use the correct API base URL
+    const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+    const fullUrl = url.startsWith('http') ? url : `${baseURL}${url}`;
+
+    return interpreterTokenHandler.fetchWithExpirationHandling(fullUrl, {
       ...options,
       headers: {
         'Authorization': `Bearer ${token}`,

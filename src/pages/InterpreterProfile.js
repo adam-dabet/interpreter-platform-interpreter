@@ -71,12 +71,19 @@ const InterpreterProfile = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isEditingFromReview, setIsEditingFromReview] = useState(false);
+    const [visitedSteps, setVisitedSteps] = useState(new Set([1])); // Track which steps user has visited
     const [parametricData, setParametricData] = useState({
         languages: [],
         serviceTypes: [],
         certificateTypes: [],
         usStates: []
     });
+    
+    // Rejection resubmission state
+    const [isResubmission, setIsResubmission] = useState(false);
+    const [rejectedFields, setRejectedFields] = useState([]);
+    const [rejectionNote, setRejectionNote] = useState('');
+    const [rejectionToken, setRejectionToken] = useState(null);
     
     const [formData, setFormData] = useState({
         // Personal Information
@@ -130,7 +137,142 @@ const InterpreterProfile = () => {
     // Load parametric data on component mount
     useEffect(() => {
         loadParametricData();
+        checkForRejectionToken();
     }, []);
+
+    const checkForRejectionToken = async () => {
+        // Check URL params for rejection token
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('rejection_token');
+        
+        if (token) {
+            try {
+                console.log('Found rejection token, loading application data...');
+                const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/interpreters/rejection/${token}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    setIsResubmission(true);
+                    setRejectionToken(token);
+                    setRejectedFields(data.data.rejected_fields || []);
+                    setRejectionNote(data.data.rejection_note || '');
+                    
+                    // Pre-fill form with original data
+                    if (data.data.original_submission_data) {
+                        prefillFormData(data.data.original_submission_data);
+                    }
+                    
+                    toast.success('Application loaded! Please update the highlighted fields.');
+                } else {
+                    toast.error('Invalid or expired rejection link');
+                }
+            } catch (error) {
+                console.error('Error loading rejection data:', error);
+                toast.error('Failed to load application data');
+            }
+        }
+    };
+
+    const prefillFormData = (originalData) => {
+        if (!originalData) return;
+
+        const { interpreter, languages, service_types, service_rates, certificates, w9 } = originalData;
+
+        console.log('Prefilling form data with:', originalData);
+
+        // Pre-fill main interpreter data with ALL fields
+        setFormData(prev => ({
+            ...prev,
+            // Personal Information
+            first_name: interpreter.first_name || '',
+            last_name: interpreter.last_name || '',
+            middle_name: interpreter.middle_name || '',
+            email: interpreter.email || '',
+            phone: interpreter.phone || '',
+            date_of_birth: interpreter.date_of_birth || '',
+            gender: interpreter.gender || '',
+            sms_consent: interpreter.sms_consent || false, // CRITICAL: SMS consent checkbox
+            
+            // Address Information - ALL fields including validation data
+            street_address: interpreter.street_address || '',
+            street_address_2: interpreter.street_address_2 || '',
+            city: interpreter.city || '',
+            state_id: interpreter.state_id ? String(interpreter.state_id) : '',
+            zip_code: interpreter.zip_code || '',
+            county: interpreter.county || '',
+            formatted_address: interpreter.formatted_address || '',
+            latitude: interpreter.latitude || null,
+            longitude: interpreter.longitude || null,
+            place_id: interpreter.place_id || '',
+            // Address validation flags - ensures address shows as validated
+            address_validated: !!(interpreter.latitude && interpreter.longitude && interpreter.place_id),
+            
+            // Professional Information
+            business_name: interpreter.business_name || '',
+            availability_notes: interpreter.availability_notes || '',
+            bio: interpreter.bio || '',
+            years_of_experience: interpreter.years_of_experience || '',
+            hourly_rate: interpreter.hourly_rate || '',
+            
+            // Languages - with all details
+            languages: languages?.map(lang => ({
+                language_id: String(lang.language_id),
+                is_primary: lang.is_primary || false
+            })) || [],
+            
+            // Service Types - as array of IDs (string format for proper selection)
+            service_types: service_types?.map(st => String(st.service_type_id)) || [],
+            
+            // Service Rates - with complete rate information
+            service_rates: service_rates?.map(rate => ({
+                service_type_id: String(rate.service_type_id),
+                rate_amount: rate.rate_amount,
+                rate_type: rate.rate_type,
+                rate_unit: rate.rate_unit,
+                service_type_name: rate.service_type_name
+            })) || [],
+            
+            // Certificates - with all metadata
+            is_certified: certificates && certificates.length > 0 ? true : (certificates?.length === 0 ? false : null),
+            certificates: certificates?.map(cert => ({
+                certificate_type_id: String(cert.certificate_type_id),
+                certificate_number: cert.certificate_number || '',
+                issuing_organization: cert.issuing_organization || '',
+                issue_date: cert.issue_date || '',
+                expiry_date: cert.expiry_date || '',
+                certificate_type_name: cert.certificate_type_name || '',
+                file_path: cert.file_path || '',
+                file_name: cert.file_name || '',
+                verification_status: cert.verification_status || 'pending',
+                // Don't include actual file object as it's already uploaded
+                _isExisting: true // Flag to indicate this is an existing certificate
+            })) || [],
+            certificateFiles: [], // Empty as files are already uploaded
+            
+            // W-9 Form - with complete data
+            w9_entry_method: w9 ? 'manual' : '',
+            w9_file: null, // No file as it was manual entry or already uploaded
+            w9_data: w9 ? {
+                business_name: w9.business_name || '',
+                business_name_alt: w9.business_name_alt || '',
+                tax_classification: w9.tax_classification || '',
+                llc_classification: w9.llc_classification || '',
+                has_foreign_partners: w9.has_foreign_partners || false,
+                exempt_payee_code: w9.exempt_payee_code || '',
+                fatca_exemption_code: w9.fatca_exemption_code || '',
+                ssn: w9.ssn || '',
+                ein: w9.ein || '',
+                address: w9.address || '',
+                city: w9.city || '',
+                state: w9.state || '',
+                zip_code: w9.zip_code || '',
+                signature_name: w9.signature_name || '',
+                signature_date: w9.signature_date || ''
+            } : null
+        }));
+
+        console.log('Form data prefilled successfully with ALL fields including sms_consent, address validation, service types, and all original submission data');
+    };
 
     const loadParametricData = async () => {
         try {
@@ -168,7 +310,10 @@ const InterpreterProfile = () => {
             setCurrentStep(INTERPRETER_STEPS.length);
         } else {
             // Normal flow - go to next step
-            setCurrentStep(prev => Math.min(prev + 1, INTERPRETER_STEPS.length));
+            const nextStep = Math.min(currentStep + 1, INTERPRETER_STEPS.length);
+            setCurrentStep(nextStep);
+            // Mark the next step as visited
+            setVisitedSteps(prev => new Set([...prev, nextStep]));
         }
     };
 
@@ -187,7 +332,10 @@ const InterpreterProfile = () => {
     };
 
     const handleStepClick = (stepId) => {
-        if (stepId < currentStep) {
+        // Allow navigation to:
+        // 1. Previous steps (stepId < currentStep)
+        // 2. Steps that have been visited before (visitedSteps.has(stepId))
+        if (stepId < currentStep || visitedSteps.has(stepId)) {
             setCurrentStep(stepId);
         }
     };
@@ -195,6 +343,8 @@ const InterpreterProfile = () => {
     const handleEdit = (stepNumber) => {
         setIsEditingFromReview(true);
         setCurrentStep(stepNumber);
+        // Mark the step as visited
+        setVisitedSteps(prev => new Set([...prev, stepNumber]));
     };
 
     const handleSubmit = async (finalData) => {
@@ -209,9 +359,7 @@ const InterpreterProfile = () => {
             // Transform languages data to match backend expectations
             if (submissionData.languages) {
                 const transformedLanguages = submissionData.languages.map(lang => ({
-                    language_id: lang.language_id,
-                    proficiency_level: lang.proficiency_level,
-                    is_native: lang.is_native || false,
+                    language_id: lang.language_id
                 }));
                 formDataToSubmit.append('languages', JSON.stringify(transformedLanguages));
             }
@@ -238,13 +386,20 @@ const InterpreterProfile = () => {
             if (submissionData.w9_entry_method) {
                 formDataToSubmit.append('w9_entry_method', submissionData.w9_entry_method);
                 
-                if (submissionData.w9_entry_method === 'upload' && submissionData.w9_file) {
-                    formDataToSubmit.append('w9_file', submissionData.w9_file);
-                } else if (submissionData.w9_entry_method === 'manual' && submissionData.w9_data) {
+                if (submissionData.w9_entry_method === 'manual' && submissionData.w9_data) {
+                    // Manual W-9 entry
                     formDataToSubmit.append('w9_data', JSON.stringify(submissionData.w9_data));
+                } else if (submissionData.w9_entry_method === 'upload' && submissionData.w9_file) {
+                    // W-9 file upload
+                    formDataToSubmit.append('w9_file', submissionData.w9_file);
                 }
             }
             
+            // Add rejection token if this is a resubmission
+            if (rejectionToken) {
+                formDataToSubmit.append('rejection_token', rejectionToken);
+            }
+
             // Add all other form fields
             Object.keys(submissionData).forEach(key => {
                 if (key === 'certificateFiles') {
@@ -252,7 +407,7 @@ const InterpreterProfile = () => {
                     submissionData[key].forEach((file, index) => {
                         formDataToSubmit.append('certificates', file);
                     });
-                } else if (key === 'languages' || key === 'service_types' || key === 'certificates' || key === 'w9_file' || key === 'w9_data' || key === 'w9_entry_method') {
+                } else if (key === 'languages' || key === 'service_types' || key === 'certificates' || key === 'w9_data' || key === 'w9_entry_method' || key === 'w9_file') {
                     // Already handled above
                     return;
                 } else if (submissionData[key] !== null && submissionData[key] !== undefined) {
@@ -332,7 +487,9 @@ const InterpreterProfile = () => {
             isLastStep: currentStep === INTERPRETER_STEPS.length,
             isFirstStep: currentStep === 1,
             parametricData,
-            isEditing: isEditingFromReview // User is editing only if they came from review step
+            isEditing: isEditingFromReview, // User is editing only if they came from review step
+            rejectedFields: rejectedFields || [], // Pass rejected fields for highlighting
+            isResubmission
         };
 
         console.log('Rendering step with props:', {
@@ -416,18 +573,60 @@ const InterpreterProfile = () => {
                 {/* Header */}
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                        Create Interpreter Profile
+                        {isResubmission ? 'Update Your Application' : 'Create Interpreter Profile'}
                     </h1>
                     <p className="text-gray-600">
-                        Complete your professional interpreter profile to join our network
+                        {isResubmission 
+                            ? 'Please review and update the highlighted fields below'
+                            : 'Complete your professional interpreter profile to join our network'
+                        }
                     </p>
                 </div>
+
+                {/* Rejection Notice Banner */}
+                {isResubmission && rejectionNote && (
+                    <div className="mb-6 bg-amber-50 border-l-4 border-amber-400 p-6 rounded-r-lg shadow-md">
+                        <div className="flex items-start">
+                            <div className="flex-shrink-0">
+                                <svg className="h-6 w-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <div className="ml-3 flex-1">
+                                <h3 className="text-lg font-semibold text-amber-800 mb-2">
+                                    Updates Required
+                                </h3>
+                                <p className="text-amber-700 mb-3">
+                                    {rejectionNote}
+                                </p>
+                                {rejectedFields.length > 0 && (
+                                    <div className="bg-white bg-opacity-50 rounded p-3 mt-3">
+                                        <p className="text-sm font-medium text-amber-800 mb-2">
+                                            Please update these fields:
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {rejectedFields.map(field => (
+                                                <span
+                                                    key={field}
+                                                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300"
+                                                >
+                                                    {field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Progress Steps */}
                 <div className="mb-8">
                     <ProgressBar 
                         steps={INTERPRETER_STEPS}
                         currentStep={currentStep}
+                        visitedSteps={visitedSteps}
                         onStepClick={handleStepClick}
                     />
                 </div>

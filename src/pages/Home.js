@@ -78,13 +78,13 @@ const Home = () => {
               className="flex flex-col sm:flex-row gap-4 justify-center"
             >
               <Link to="/apply">
-                <Button variant="primary" size="lg" className="bg-white text-blue-600 hover:bg-gray-100">
+                <Button variant="inverse" size="lg">
                   Apply Now
                   <ArrowRightIcon className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
               <Link to="/status">
-                <Button variant="secondary" size="lg" className="border-white text-white hover:bg-white hover:text-blue-600">
+                <Button variant="outline-inverse" size="lg">
                   Check Application Status
                 </Button>
               </Link>
@@ -234,7 +234,7 @@ const Home = () => {
             transition={{ duration: 0.6, delay: 0.4 }}
           >
             <Link to="/apply">
-              <Button variant="primary" size="lg" className="bg-white text-blue-600 hover:bg-gray-100">
+              <Button variant="inverse" size="lg">
                 Apply Now
                 <ArrowRightIcon className="ml-2 h-5 w-5" />
               </Button>

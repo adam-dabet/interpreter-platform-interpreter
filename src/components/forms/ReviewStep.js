@@ -4,15 +4,22 @@ import { CheckCircleIcon, PencilIcon } from '@heroicons/react/24/outline';
 import Button from '../ui/Button';
 import Checkbox from '../ui/Checkbox';
 import LoadingSpinner from '../ui/LoadingSpinner';
-import { SERVICE_TYPES, EDUCATION_LEVELS, US_STATES, PROFICIENCY_LEVELS } from '../../utils/constants';
+import { SERVICE_TYPES, EDUCATION_LEVELS, US_STATES } from '../../utils/constants';
 
-const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit }) => {
+const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametricData }) => {
   const [agreements, setAgreements] = useState({
     terms_accepted: data.terms_accepted || false,
     privacy_policy_accepted: data.privacy_policy_accepted || false,
   });
 
   const [errors, setErrors] = useState({});
+
+  // Debug logging
+  console.log('ReviewStep - parametricData:', parametricData);
+  console.log('ReviewStep - data:', data);
+  console.log('ReviewStep - languages:', parametricData?.languages);
+  console.log('ReviewStep - usStates:', parametricData?.usStates);
+  console.log('ReviewStep - serviceTypes:', parametricData?.serviceTypes);
 
   const validateAgreements = () => {
     const newErrors = {};
@@ -51,16 +58,22 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit }) => {
     return state?.label || value;
   };
 
-  const getProficiencyLabel = (value) => {
-    return PROFICIENCY_LEVELS.find(level => level.value === value)?.label || value;
-  };
-
   const getCertificateTypeName = (typeId) => {
-    // This would ideally come from parametric data, but for now we'll use a simple mapping
+    // Use parametric data if available
+    if (parametricData?.certificateTypes && typeId) {
+      const certType = parametricData.certificateTypes.find(ct => 
+        ct.id === typeId || 
+        ct.id === parseInt(typeId) ||
+        String(ct.id) === String(typeId)
+      );
+      if (certType) return certType.name;
+    }
+    
+    // Fallback mapping
     const certificateTypes = {
-      1: 'Court Certified Interpreter',
+      1: 'State Court Certification',
       2: 'Medical Interpreter Certification',
-      3: 'ATA Certification',
+      3: 'Administrative Court Certification',
       4: 'CHI Certification',
       5: 'NBCMI Certification',
       6: 'Federal Court Certification',
@@ -68,9 +81,62 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit }) => {
       8: 'Business License',
       9: 'Professional Liability Insurance',
       10: 'Insurance',
-      21: 'W-9 Tax Form'
+      21: 'W-9 Tax Form',
+      23: 'Medical Certification'
     };
-    return certificateTypes[typeId] || `Certificate Type ${typeId}`;
+    return certificateTypes[parseInt(typeId)] || certificateTypes[typeId] || 'Unknown Certificate Type';
+  };
+
+  const getLanguageName = (languageId) => {
+    if (parametricData?.languages && languageId) {
+      // Handle both UUID strings and integer IDs
+      const language = parametricData.languages.find(l => 
+        l.id === languageId || 
+        l.id === parseInt(languageId) ||
+        String(l.id) === String(languageId)
+      );
+      if (language) return language.name;
+    }
+    return 'Unknown Language';
+  };
+
+  const getServiceTypeName = (serviceTypeId) => {
+    if (parametricData?.serviceTypes && serviceTypeId) {
+      // Handle both string and integer IDs
+      const serviceType = parametricData.serviceTypes.find(st => 
+        st.id === serviceTypeId || 
+        st.id === parseInt(serviceTypeId) ||
+        String(st.id) === String(serviceTypeId)
+      );
+      if (serviceType) return serviceType.name;
+    }
+    return 'Unknown Service Type';
+  };
+
+  const getStateName = (stateId) => {
+    if (!stateId) return 'Unknown State';
+    
+    if (parametricData?.usStates) {
+      // Handle both string and integer IDs, and state codes
+      const state = parametricData.usStates.find(s => 
+        s.id === stateId || 
+        s.id === parseInt(stateId) ||
+        String(s.id) === String(stateId) ||
+        s.code === stateId ||
+        s.abbreviation === stateId
+      );
+      if (state) return state.name;
+    }
+    
+    // Fallback to US_STATES constant (handles 2-letter state codes like "CA", "NY")
+    const stateFromConstant = US_STATES.find(s => 
+      s.value === stateId || 
+      s.value === String(stateId) ||
+      s.label === stateId
+    );
+    if (stateFromConstant) return stateFromConstant.label;
+    
+    return getStateLabel(stateId) || stateId || 'Unknown State';
   };
 
   const formatDocumentCount = (documents) => {
@@ -151,64 +217,6 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit }) => {
           </div>
         </div>
 
-        {/* Professional Information */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Professional Background</h3>
-            <button 
-              onClick={() => onEdit && onEdit(1)}
-              className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
-            >
-              <PencilIcon className="h-4 w-4 mr-1" />
-              Edit
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="font-medium text-gray-700">Experience:</span>
-            </div>
-            {data.education_level && (
-              <div>
-                <span className="font-medium text-gray-700">Education:</span>
-                <span className="ml-2">{getEducationLabel(data.education_level)}</span>
-              </div>
-            )}
-            {data.max_travel_distance && (
-              <div>
-                <span className="font-medium text-gray-700">Max Travel Distance:</span>
-                <span className="ml-2">{data.max_travel_distance} miles</span>
-              </div>
-            )}
-            {data.bio && (
-              <div className="md:col-span-2">
-                <span className="font-medium text-gray-700">Bio:</span>
-                <p className="ml-2 mt-1 text-gray-600">{data.bio}</p>
-              </div>
-            )}
-            {(data.willing_to_work_weekends || data.willing_to_work_evenings || data.availability_notes) && (
-              <div className="md:col-span-2">
-                <span className="font-medium text-gray-700">Availability:</span>
-                <div className="ml-2 mt-1">
-                  {data.willing_to_work_weekends && (
-                    <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-2">
-                      Weekends
-                    </span>
-                  )}
-                  {data.willing_to_work_evenings && (
-                    <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                      Evenings
-                    </span>
-                  )}
-                  {data.availability_notes && (
-                    <p className="mt-2 text-sm text-gray-600">{data.availability_notes}</p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Languages */}
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
@@ -223,21 +231,24 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit }) => {
           </div>
           
           <div className="space-y-3">
-            {data.languages?.map((language, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                <div>
-                  <span className="font-medium text-gray-900">{language.name || language.language_name}</span>
-                  {language.is_native && (
-                    <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                      Native
+            {data.languages && data.languages.length > 0 ? (
+              data.languages.map((language, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                  <div>
+                    <span className="font-medium text-gray-900">
+                      {language.name || language.language_name || getLanguageName(language.language_id)}
                     </span>
-                  )}
+                    {language.is_native && (
+                      <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        Native
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-right text-sm text-gray-600">
-                  <div>{getProficiencyLabel(language.proficiency || language.proficiency_level)}</div>
-                </div>
-              </div>
-            )) || <p className="text-gray-500">No languages specified</p>}
+              ))
+            ) : (
+              <p className="text-gray-500">No languages specified</p>
+            )}
           </div>
         </div>
 
@@ -257,29 +268,34 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit }) => {
           <div className="space-y-3">
             <div>
               <span className="font-medium text-gray-700">Selected Service Types:</span>
-              <span className="ml-2">
-                {(data.preferred_service_types || data.service_types)?.map(type => {
-                  // Handle both string and object formats
-                  const serviceType = typeof type === 'object' ? type.name || type.label : type;
-                  return getServiceTypeLabel(serviceType);
-                }).join(', ') || 'No service types selected'}
-              </span>
+              <div className="ml-2 mt-2 flex flex-wrap gap-2">
+                {data.service_types && data.service_types.length > 0 ? (
+                  data.service_types.map((typeId, index) => (
+                    <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                      {getServiceTypeName(typeId)}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-gray-500">No service types selected</span>
+                )}
+              </div>
             </div>
             
             {data.service_rates && data.service_rates.length > 0 && (
-              <div>
+              <div className="mt-4">
                 <span className="font-medium text-gray-700">Service Rates:</span>
-                <div className="ml-2 space-y-1">
+                <div className="mt-2 space-y-2">
                   {data.service_rates.map((rate, index) => {
-                    const serviceType = data.service_types?.find(st => st.id === rate.service_type_id) || 
-                                      { name: `Service ${index + 1}` };
+                    const serviceName = getServiceTypeName(rate.service_type_id);
                     return (
-                      <div key={index} className="text-sm">
-                        <span className="font-medium">{serviceType.name}:</span>
-                        <span className="ml-2">
-                          {rate.rate_type === 'platform' ? 
-                            'Platform Rate' : 
-                            `$${rate.rate_amount}/${rate.rate_unit === 'minutes' ? 'min' : 'hr'}`}
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                        <span className="font-medium text-gray-900">{serviceName}</span>
+                        <span className="text-sm text-gray-600">
+                          {rate.rate_type === 'platform' ? (
+                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded">Platform Rate: ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : 'hr'}</span>
+                          ) : (
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">Custom Rate: ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : 'hr'}</span>
+                          )}
                         </span>
                       </div>
                     );
@@ -329,6 +345,18 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit }) => {
                         <div>
                           <span className="font-medium text-gray-700">Organization:</span>
                           <span className="ml-2 text-gray-600">{cert.issuing_organization}</span>
+                        </div>
+                      )}
+                      {cert.issuing_state_id && (
+                        <div>
+                          <span className="font-medium text-gray-700">State:</span>
+                          <span className="ml-2 text-gray-600">{getStateName(cert.issuing_state_id)}</span>
+                        </div>
+                      )}
+                      {cert.issue_date && (
+                        <div>
+                          <span className="font-medium text-gray-700">Issued:</span>
+                          <span className="ml-2 text-gray-600">{new Date(cert.issue_date).toLocaleDateString()}</span>
                         </div>
                       )}
                       {cert.expiry_date && (
@@ -404,7 +432,7 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit }) => {
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">State:</span>
-                    <span className="ml-2 text-gray-600">{data.w9_data.state}</span>
+                    <span className="ml-2 text-gray-600">{getStateName(data.w9_data.state)}</span>
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">ZIP Code:</span>

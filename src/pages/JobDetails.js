@@ -13,7 +13,9 @@ import {
   BuildingOfficeIcon,
   UserIcon,
   PhoneIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  PlayIcon,
+  StopIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
@@ -21,10 +23,12 @@ import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import InterpreterJobWorkflow from '../components/InterpreterJobWorkflow';
 import { useAuth } from '../contexts/AuthContext';
+import { useJobRestrictions } from '../contexts/JobRestrictionContext';
 
 const JobDetails = () => {
   const { jobId } = useParams();
   const navigate = useNavigate();
+  const { canAcceptJobs, showJobAcceptanceBlocked } = useJobRestrictions();
   const { profile } = useAuth();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -59,6 +63,12 @@ const JobDetails = () => {
       let response;
       switch (action) {
         case 'accept':
+          // Check if user can accept jobs (no overdue reports)
+          if (!canAcceptJobs()) {
+            showJobAcceptanceBlocked();
+            setActionLoading(false);
+            return;
+          }
           // Show mileage prompt before accepting
           setShowMileagePrompt(true);
           setActionLoading(false);
@@ -67,11 +77,23 @@ const JobDetails = () => {
           response = await jobAPI.declineJob(jobId, data);
           toast.success('Job declined');
           break;
+        case 'start':
+          response = await jobAPI.startJob(jobId);
+          toast.success('Job started successfully!');
+          // Reload job details to show updated status
+          await loadJobDetails();
+          return; // Don't navigate away
+        case 'end':
+          response = await jobAPI.endJob(jobId);
+          toast.success('Job ended successfully!');
+          // Reload job details to show updated status
+          await loadJobDetails();
+          return; // Don't navigate away
         default:
           return;
       }
       
-      // Navigate back to job search
+      // Navigate back to job search (only for accept/decline)
       navigate('/jobs/search');
     } catch (error) {
       console.error(`Error ${action}ing job:`, error);
@@ -114,6 +136,12 @@ const JobDetails = () => {
   };
 
   const handleMileageSubmit = async () => {
+    // Double-check restriction before submitting
+    if (!canAcceptJobs()) {
+      showJobAcceptanceBlocked();
+      return;
+    }
+    
     setMileagePromptLoading(true);
     try {
       const response = await jobAPI.acceptJob(jobId, { 
@@ -135,6 +163,12 @@ const JobDetails = () => {
   };
 
   const handleNoMileage = async () => {
+    // Double-check restriction before submitting
+    if (!canAcceptJobs()) {
+      showJobAcceptanceBlocked();
+      return;
+    }
+    
     setMileagePromptLoading(true);
     try {
       const response = await jobAPI.acceptJob(jobId, {});
@@ -178,29 +212,36 @@ const JobDetails = () => {
   };
 
   const calculateEarnings = (job) => {
-    if (!job.estimated_duration_minutes) {
-      return job.hourly_rate || 0;
-    }
-
-    const hours = job.estimated_duration_minutes / 60;
-    
-    // If interpreter has custom service rates, use those
-    if (profile?.service_rates) {
+    // If interpreter has custom service rates, calculate based on those
+    if (profile?.service_rates && job.estimated_duration_minutes) {
       const serviceRate = profile.service_rates.find(
         rate => rate.service_type_id === job.service_type_id
       );
-
-      if (serviceRate) {
+      
+      if (serviceRate && serviceRate.rate_amount) {
+        const hours = job.estimated_duration_minutes / 60;
+        
         if (serviceRate.rate_unit === 'minutes') {
           return serviceRate.rate_amount * job.estimated_duration_minutes;
-        } else {
-          return serviceRate.rate_amount * hours;
         }
+        return serviceRate.rate_amount * hours;
       }
     }
+
+    // Otherwise, use the job's total_amount (calculated by backend) if it's greater than 0
+    const totalAmount = parseFloat(job.total_amount) || 0;
+    if (totalAmount > 0) {
+      return totalAmount;
+    }
+
+    // Fallback: calculate from hourly rate and duration
+    if (job.hourly_rate && job.estimated_duration_minutes) {
+      const hours = job.estimated_duration_minutes / 60;
+      return parseFloat(job.hourly_rate) * hours;
+    }
     
-    // Fallback to job hourly rate
-    return (job.hourly_rate || 0) * hours;
+    // Final fallback: return 0
+    return 0;
   };
 
   const getPriorityColor = (priority) => {
@@ -321,11 +362,32 @@ const JobDetails = () => {
                       </p>
                     </div>
                   </div>
+                  {job.location_contact_name && (
+                    <div className="flex items-start">
+                      <UserIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Location Contact</p>
+                        <p className="text-sm text-gray-600">{job.location_contact_name}</p>
+                        {(job.location_contact_phone || job.facility_phone) && (
+                          <p className="text-sm text-gray-600">{job.location_contact_phone || job.facility_phone}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {!job.location_contact_name && job.facility_phone && (
+                    <div className="flex items-start">
+                      <PhoneIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Facility Phone</p>
+                        <p className="text-sm text-gray-600">{job.facility_phone}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm font-medium text-gray-900">Languages</p>
-                    <p className="text-sm text-gray-600">{job.source_language_name} → {job.target_language_name || 'English'}</p>
+                    <p className="text-sm text-gray-600">{job.source_language_name || job.language_name || 'N/A'} → {job.target_language_name || 'English'}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">Service Type</p>
@@ -531,6 +593,69 @@ const JobDetails = () => {
                 )}
               </div>
             </motion.div>
+
+            {/* Job Timing Controls - Show for assigned jobs */}
+            {job.status === 'assigned' || job.status === 'reminders_sent' || job.status === 'in_progress' ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="bg-white rounded-lg shadow-sm border p-6"
+              >
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <ClockIcon className="h-5 w-5 mr-2 text-blue-600" />
+                  Job Timing
+                </h3>
+                
+                <div className="space-y-4">
+                  {/* Job Status Display */}
+                  <div className="text-center">
+                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                      job.status === 'in_progress' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      <ClockIcon className="h-4 w-4 mr-2" />
+                      Status: {job.status === 'in_progress' ? 'In Progress' : 'Ready to Start'}
+                    </div>
+                  </div>
+
+                  {/* Start/End Job Buttons */}
+                  <div className="space-y-3">
+                    {(job.status === 'assigned' || job.status === 'reminders_sent') && (
+                      <Button
+                        className="w-full"
+                        onClick={() => handleJobAction('start')}
+                        disabled={actionLoading}
+                      >
+                        <PlayIcon className="h-4 w-4 mr-2" />
+                        {actionLoading ? 'Starting...' : 'Start Job'}
+                      </Button>
+                    )}
+                    
+                    {job.status === 'in_progress' && (
+                      <Button
+                        className="w-full"
+                        onClick={() => handleJobAction('end')}
+                        disabled={actionLoading}
+                      >
+                        <StopIcon className="h-4 w-4 mr-2" />
+                        {actionLoading ? 'Ending...' : 'End Job'}
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Instructions */}
+                  <div className="text-sm text-gray-600 text-center">
+                    {job.status === 'in_progress' ? (
+                      <p>Click "End Job" when the appointment is complete</p>
+                    ) : (
+                      <p>Click "Start Job" when you arrive at the appointment location</p>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ) : null}
           </div>
         </div>
 

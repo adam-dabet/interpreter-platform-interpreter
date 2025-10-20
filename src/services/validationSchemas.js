@@ -30,7 +30,18 @@ export const personalInfoSchema = yup.object({
   date_of_birth: yup
     .date()
     .nullable()
+    .transform((value, originalValue) => {
+      // Handle empty string as null
+      if (!originalValue || originalValue === '') return null;
+      return value;
+    })
     .max(new Date(), 'Date of birth cannot be in the future')
+    .test('minimum-age', 'You must be at least 18 years old to apply', function(value) {
+      if (!value) return true; // Optional field, skip validation if empty
+      const eighteenYearsAgo = new Date();
+      eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
+      return value <= eighteenYearsAgo;
+    })
     .min(new Date('1930-01-01'), 'Please enter a valid date of birth'),
   
   business_name: yup
@@ -156,10 +167,6 @@ export const languagesSchema = yup.object({
     .of(
       yup.object({
         language_id: yup.string().required('Language is required'),
-        proficiency_level: yup
-          .string()
-          .oneOf(['beginner', 'intermediate', 'advanced', 'native', 'certified_native'])
-          .required('Proficiency level is required'),
         is_native: yup.boolean().default(false)
       })
     )

@@ -50,63 +50,31 @@ const getTimeString = (h, m, p) => {
 const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => {
   const fileInputRef = useRef(null);
 
-  // Debug: Log the jobData to see what's available
-  console.log('InterpreterCompletionReport jobData:', jobData);
-
-  // Calculate start and end times based on appointment time and actual duration
-  const calculateTimes = () => {
-    console.log('calculateTimes - scheduled_time:', jobData?.scheduled_time);
-    console.log('calculateTimes - actual_duration_minutes:', jobData?.actual_duration_minutes);
-    console.log('calculateTimes - estimated_duration_minutes:', jobData?.estimated_duration_minutes);
-    
+  // Calculate start time based on appointment time (interpreter enters end time manually)
+  const calculateStartTime = () => {
     if (!jobData?.scheduled_time) {
-      console.log('No scheduled_time found');
-      return { startTime: null, endTime: null };
+      return null;
     }
 
     // Parse the scheduled time (format: "HH:MM" or "HH:MM:SS")
     const timeParts = jobData.scheduled_time.split(':');
     const scheduledHour = parseInt(timeParts[0], 10);
     const scheduledMinute = parseInt(timeParts[1], 10);
-    console.log('Parsed scheduled time:', { scheduledHour, scheduledMinute });
-    
-    // Use actual duration if available, otherwise use estimated duration
-    const durationMinutes = jobData.actual_duration_minutes || jobData.estimated_duration_minutes || 60;
-    console.log('Using duration minutes:', durationMinutes);
-    
-    // Calculate end time by adding duration
-    const startMinutes = scheduledHour * 60 + scheduledMinute;
-    const endMinutes = startMinutes + durationMinutes;
-    
-    // Convert back to hours and minutes
-    let endHour = Math.floor(endMinutes / 60);
-    const endMinute = endMinutes % 60;
     
     // Handle 12-hour format
     const startHour12 = scheduledHour === 0 ? 12 : scheduledHour > 12 ? scheduledHour - 12 : scheduledHour;
-    const endHour12 = endHour === 0 ? 12 : endHour > 12 ? endHour - 12 : endHour;
     
-    const result = {
-      startTime: { 
-        hour: startHour12, 
-        minute: scheduledMinute,
-        period: scheduledHour >= 12 ? "PM" : "AM"
-      },
-      endTime: { 
-        hour: endHour12, 
-        minute: endMinute,
-        period: endHour >= 12 ? "PM" : "AM"
-      }
+    return {
+      hour: startHour12, 
+      minute: scheduledMinute,
+      period: scheduledHour >= 12 ? "PM" : "AM"
     };
-    
-    console.log('Calculated times:', result);
-    return result;
   };
 
-  const { startTime, endTime } = calculateTimes();
+  const startTime = calculateStartTime();
 
   const [formData, setFormData] = useState({
-    email: jobData?.interpreter_email || jobData?.email || "",
+    email: jobData?.assigned_interpreter_email || jobData?.interpreter_email || jobData?.email || "",
     order_number: jobData?.job_number || jobId || "",
     result: null,
     file_status: null,
@@ -122,23 +90,28 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
   const [startMinute, setStartMinute] = useState(startTime?.minute ? findOptionByValue(minuteOptions, String(startTime.minute).padStart(2, "0")) : null);
   const [startPeriod, setStartPeriod] = useState(startTime?.period ? findOptionByValue(periodOptions, startTime.period) : null);
 
-  const [endHour, setEndHour] = useState(endTime?.hour ? findOptionByValue(hourOptions, String(endTime.hour).padStart(2, "0")) : null);
-  const [endMinute, setEndMinute] = useState(endTime?.minute ? findOptionByValue(minuteOptions, String(endTime.minute).padStart(2, "0")) : null);
-  const [endPeriod, setEndPeriod] = useState(endTime?.period ? findOptionByValue(periodOptions, endTime.period) : null);
+  const [endHour, setEndHour] = useState(null);
+  const [endMinute, setEndMinute] = useState(null);
+  const [endPeriod, setEndPeriod] = useState(null);
 
-  // Update times when actual duration changes
+  // Update start time when jobData changes (end time is entered manually)
   useEffect(() => {
-    const { startTime, endTime } = calculateTimes();
-    if (startTime && endTime) {
+    if (startTime) {
       setStartHour(findOptionByValue(hourOptions, String(startTime.hour).padStart(2, "0")));
       setStartMinute(findOptionByValue(minuteOptions, String(startTime.minute).padStart(2, "0")));
       setStartPeriod(findOptionByValue(periodOptions, startTime.period));
-      
-      setEndHour(findOptionByValue(hourOptions, String(endTime.hour).padStart(2, "0")));
-      setEndMinute(findOptionByValue(minuteOptions, String(endTime.minute).padStart(2, "0")));
-      setEndPeriod(findOptionByValue(periodOptions, endTime.period));
     }
-  }, [jobData?.actual_duration_minutes, jobData?.scheduled_time]);
+    // End time fields are left empty for interpreter to fill in manually
+  }, [jobData?.scheduled_time]);
+
+  // Update email when jobData changes
+  useEffect(() => {
+    const interpreterEmail = jobData?.assigned_interpreter_email || jobData?.interpreter_email || jobData?.email || "";
+    setFormData(prev => ({
+      ...prev,
+      email: interpreterEmail
+    }));
+  }, [jobData?.assigned_interpreter_email, jobData?.interpreter_email, jobData?.email]);
 
   const [followUpDate, setFollowUpDate] = useState("");
   const [followUpHour, setFollowUpHour] = useState(null);
@@ -155,7 +128,6 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
   const [useSameLocation, setUseSameLocation] = useState(null);
 
   const [files, setFiles] = useState([]);
-  const [status, setStatus] = useState({ type: "", message: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (e) => {
@@ -185,32 +157,118 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setStatus({ message: "", type: "" });
 
-    const data = new FormData();
-    data.append("email", formData.email);
-    data.append("order_number", formData.order_number);
-    data.append("start_time", getTimeString(startHour, startMinute, startPeriod));
-    data.append("end_time", getTimeString(endHour, endMinute, endPeriod));
-    data.append("result", formData.result?.value || "");
-    data.append("file_status", formData.file_status?.value || "");
-    data.append("notes", formData.notes);
-
-    if (formData.result?.value === "Completed with follow up") {
-      data.append("follow_up_date", followUpDate);
-      data.append("follow_up_time", getTimeString(followUpHour, followUpMinute, followUpPeriod));
-      data.append("follow_up_use_same_location", useSameLocation ? "Yes" : "No");
-      data.append("follow_up_street", followUpLocation.street);
-      data.append("follow_up_city", followUpLocation.city);
-      data.append("follow_up_state", followUpLocation.state);
-      data.append("follow_up_zip", followUpLocation.zip);
-      data.append("follow_up_country", followUpLocation.country);
-      data.append("follow_up_available", isAvailable ? "Yes" : "No");
-    }
-
-    files.forEach((file) => data.append("documents", file));
-
+    // Validation
     try {
+      // 1. Validate required fields
+      if (!formData.email || !formData.order_number) {
+        throw new Error("Email and order number are required");
+      }
+
+      if (!formData.result) {
+        throw new Error("Please select a result");
+      }
+
+      if (!formData.file_status) {
+        throw new Error("Please select a file status");
+      }
+
+      // 2. Validate start and end times
+      if (!startHour || !startMinute || !startPeriod) {
+        throw new Error("Please select a start time");
+      }
+
+      if (!endHour || !endMinute || !endPeriod) {
+        throw new Error("Please select an end time");
+      }
+
+      // 3. Validate that end time is after start time
+      const startTimeString = getTimeString(startHour, startMinute, startPeriod);
+      const endTimeString = getTimeString(endHour, endMinute, endPeriod);
+      
+      // Convert to 24-hour format for comparison
+      const convertTo24Hour = (hour, period) => {
+        const h = parseInt(hour.value);
+        if (period.value === "AM") {
+          return h === 12 ? 0 : h;
+        } else {
+          return h === 12 ? 12 : h + 12;
+        }
+      };
+
+      const startHour24 = convertTo24Hour(startHour, startPeriod);
+      const endHour24 = convertTo24Hour(endHour, endPeriod);
+      const startMinutes = startHour24 * 60 + parseInt(startMinute.value);
+      const endMinutes = endHour24 * 60 + parseInt(endMinute.value);
+
+      if (endMinutes <= startMinutes) {
+        throw new Error("End time must be after start time");
+      }
+
+      // 4. Validate follow-up information if "Completed with follow up" is selected
+      if (formData.result?.value === "Completed with follow up") {
+        // Check follow-up date
+        if (!followUpDate) {
+          throw new Error("Follow-up date is required");
+        }
+
+        // Validate follow-up date is not in the past
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selectedDate = new Date(followUpDate);
+        selectedDate.setHours(0, 0, 0, 0);
+
+        if (selectedDate < today) {
+          throw new Error("Follow-up date cannot be in the past");
+        }
+
+        // Check follow-up time
+        if (!followUpHour || !followUpMinute || !followUpPeriod) {
+          throw new Error("Follow-up time is required");
+        }
+
+        // Check location choice
+        if (useSameLocation === null) {
+          throw new Error("Please indicate if the follow-up is at the same location");
+        }
+
+        // If different location, validate location details
+        if (useSameLocation === false) {
+          if (!followUpLocation.street || !followUpLocation.city || !followUpLocation.state || !followUpLocation.zip) {
+            throw new Error("Please provide complete follow-up location details");
+          }
+        }
+
+        // Check availability
+        if (isAvailable === null) {
+          throw new Error("Please indicate if you are available for the follow-up");
+        }
+      }
+
+      // Build form data after validation passes
+      const data = new FormData();
+      data.append("email", formData.email);
+      data.append("order_number", formData.order_number);
+      data.append("start_time", startTimeString);
+      data.append("end_time", endTimeString);
+      data.append("result", formData.result?.value || "");
+      data.append("file_status", formData.file_status?.value || "");
+      data.append("notes", formData.notes);
+
+      if (formData.result?.value === "Completed with follow up") {
+        data.append("follow_up_date", followUpDate);
+        data.append("follow_up_time", getTimeString(followUpHour, followUpMinute, followUpPeriod));
+        data.append("follow_up_use_same_location", useSameLocation ? "Yes" : "No");
+        data.append("follow_up_street", followUpLocation.street);
+        data.append("follow_up_city", followUpLocation.city);
+        data.append("follow_up_state", followUpLocation.state);
+        data.append("follow_up_zip", followUpLocation.zip);
+        data.append("follow_up_country", followUpLocation.country);
+        data.append("follow_up_available", isAvailable ? "Yes" : "No");
+      }
+
+      files.forEach((file) => data.append("documents", file));
+
       const token = localStorage.getItem('interpreterToken');
       const response = await fetch(`${API_BASE}/interpreters/jobs/${jobId}/completion-report`, {
         method: "POST",
@@ -220,11 +278,16 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
         body: data
       });
 
-      if (!response.ok) throw new Error("Submission failed");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Submission failed");
+      }
 
-      setStatus({ type: "success", message: "Submitted successfully!" });
+      toast.success("Completion report submitted successfully!");
+      
+      // Reset form
       setFormData({
-        email: jobData?.interpreter_email || "",
+        email: jobData?.assigned_interpreter_email || jobData?.interpreter_email || jobData?.email || "",
         order_number: jobData?.job_number || jobId || "",
         result: null,
         file_status: null,
@@ -249,255 +312,412 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
         onSubmit();
       }
     } catch (err) {
-      setStatus({ type: "error", message: err.message });
+      console.error("Validation or submission error:", err);
+      toast.error(err.message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="relative">
-      {/* Close Button */}
-      <button
-        type="button"
-        onClick={onCancel}
-        className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 transition-colors"
-      >
-        <X size={24} />
-      </button>
-      
-      <form
-        onSubmit={handleSubmit}
-        className="max-w-3xl mx-auto px-4 sm:px-6 py-10 bg-white rounded-xl shadow-lg space-y-6 mt-10"
-      >
-        <h2 className="text-3xl font-bold text-center text-blue-800">
-          Assignment Completion Report
-        </h2>
-        <p className="text-center text-gray-500 mb-6">
-          Fill out the information below to submit the assignment status.
-        </p>
-
-      <input
-        type="email"
-        name="email"
-        placeholder="Email *"
-        required
-        value={formData.email}
-        onChange={handleInputChange}
-        className="border p-3 rounded w-full"
-      />
-      <input
-        type="text"
-        name="order_number"
-        placeholder="Order number *"
-        required
-        value={formData.order_number}
-        onChange={handleInputChange}
-        className="border p-3 rounded w-full"
-      />
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        {/* Start Time */}
-        <div>
-          <label className="block mb-1 font-semibold">Start Time *</label>
-          <div className="flex gap-2 items-center">
-            <Select options={hourOptions} value={startHour} onChange={setStartHour} placeholder="HH" className="w-24" />
-            <span>:</span>
-            <Select options={minuteOptions} value={startMinute} onChange={setStartMinute} placeholder="MM" className="w-24" />
-            <Select options={periodOptions} value={startPeriod} onChange={setStartPeriod} placeholder="AM/PM" className="w-28" />
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="relative bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Close Button */}
+        <button
+          type="button"
+          onClick={onCancel}
+          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 transition-colors z-10"
+        >
+          <X size={24} />
+        </button>
+        
+        <form
+          onSubmit={handleSubmit}
+          className="p-8 space-y-6"
+        >
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-blue-800 mb-2">
+              Assignment Completion Report
+            </h2>
+            <p className="text-gray-500">
+              Fill out the information below to submit the assignment status.
+            </p>
           </div>
-        </div>
 
-        {/* End Time */}
-        <div>
-          <label className="block mb-1 font-semibold">End Time *</label>
-          <div className="flex gap-2 items-center">
-            <Select options={hourOptions} value={endHour} onChange={setEndHour} placeholder="HH" className="w-24" />
-            <span>:</span>
-            <Select options={minuteOptions} value={endMinute} onChange={setEndMinute} placeholder="MM" className="w-24" />
-            <Select options={periodOptions} value={endPeriod} onChange={setEndPeriod} placeholder="AM/PM" className="w-28" />
-          </div>
-          <p className="text-xs text-gray-500 mt-1">
-            Actual End time. We will pay the minimum agreed rate, but need actual end time for billing purposes.
-          </p>
-        </div>
-      </div>
-
-      {/* Result */}
-      <div>
-        <label className="block mb-1 font-semibold">Result *</label>
-        <Select
-          options={resultOptions}
-          value={formData.result}
-          onChange={(option) => setFormData({ ...formData, result: option })}
-          placeholder="Select result"
-        />
-      </div>
-
-      {/* Follow-up section (only if result = "Completed with follow up") */}
-      {formData.result?.value === "Completed with follow up" && (
-        <div className="animate-fade-in space-y-4 border p-4 rounded bg-gray-50">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block font-semibold mb-1">Follow up date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email *
+              </label>
               <input
-                type="date"
-                value={followUpDate}
-                onChange={(e) => setFollowUpDate(e.target.value)}
-                className="w-full border p-2 rounded"
+                type="email"
+                name="email"
+                required
+                value={formData.email}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+
             <div>
-              <label className="block font-semibold mb-1">Follow up time</label>
-              <div className="flex gap-2 items-center">
-                <Select options={hourOptions} value={followUpHour} onChange={setFollowUpHour} placeholder="HH" className="w-20" />
-                <span>:</span>
-                <Select options={minuteOptions} value={followUpMinute} onChange={setFollowUpMinute} placeholder="MM" className="w-20" />
-                <Select options={periodOptions} value={followUpPeriod} onChange={setFollowUpPeriod} placeholder="AM/PM" className="w-24" />
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Order Number *
+              </label>
+              <input
+                type="text"
+                name="order_number"
+                required
+                value={formData.order_number}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Start Time *
+              </label>
+              <div className="flex space-x-2">
+                <Select
+                  value={startHour}
+                  onChange={setStartHour}
+                  options={hourOptions}
+                  placeholder="Hour"
+                  className="flex-1"
+                  required
+                />
+                <Select
+                  value={startMinute}
+                  onChange={setStartMinute}
+                  options={minuteOptions}
+                  placeholder="Min"
+                  className="flex-1"
+                  required
+                />
+                <Select
+                  value={startPeriod}
+                  onChange={setStartPeriod}
+                  options={periodOptions}
+                  placeholder="AM/PM"
+                  className="flex-1"
+                  required
+                />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                End Time *
+              </label>
+              <div className="flex space-x-2">
+                <Select
+                  value={endHour}
+                  onChange={setEndHour}
+                  options={hourOptions}
+                  placeholder="Hour"
+                  className="flex-1"
+                  required
+                />
+                <Select
+                  value={endMinute}
+                  onChange={setEndMinute}
+                  options={minuteOptions}
+                  placeholder="Min"
+                  className="flex-1"
+                  required
+                />
+                <Select
+                  value={endPeriod}
+                  onChange={setEndPeriod}
+                  options={periodOptions}
+                  placeholder="AM/PM"
+                  className="flex-1"
+                  required
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Actual end time. We will pay the minimum agreed rate, but need actual end time for billing purposes.
+              </p>
             </div>
           </div>
 
           <div>
-            <label className="block font-semibold mb-2">Is the follow-up appointment at the same location?</label>
-            <div className="flex gap-4">
-              <button 
-                type="button" 
-                onClick={() => setUseSameLocation(true)} 
-                className={`w-full p-3 rounded border-2 transition-colors ${
-                  useSameLocation === true 
-                    ? "bg-blue-600 text-white border-blue-600" 
-                    : "bg-white border-gray-300 hover:border-blue-400"
-                }`}
-              >
-                Yes, same location
-              </button>
-              <button 
-                type="button" 
-                onClick={() => setUseSameLocation(false)} 
-                className={`w-full p-3 rounded border-2 transition-colors ${
-                  useSameLocation === false 
-                    ? "bg-blue-600 text-white border-blue-600" 
-                    : "bg-white border-gray-300 hover:border-blue-400"
-                }`}
-              >
-                No, different location
-              </button>
-            </div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Result *
+            </label>
+            <Select
+              value={formData.result}
+              onChange={(option) => setFormData({ ...formData, result: option })}
+              options={resultOptions}
+              placeholder="Select result"
+              required
+            />
           </div>
 
-          {useSameLocation === false && (
-            <div>
-              <label className="block font-semibold mb-2">New Location Details</label>
-              <div className="space-y-4">
-                <AddressAutocomplete
-                  onAddressSelect={handleAddressSelect}
-                  placeholder="Enter the new address"
-                  className="w-full"
-                />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <input 
-                    type="text" 
-                    placeholder="Street" 
-                    value={followUpLocation.street} 
-                    onChange={(e) => setFollowUpLocation({ ...followUpLocation, street: e.target.value })} 
-                    className="border p-2 rounded" 
-                  />
-                  <input 
-                    type="text" 
-                    placeholder="City/Suburb" 
-                    value={followUpLocation.city} 
-                    onChange={(e) => setFollowUpLocation({ ...followUpLocation, city: e.target.value })} 
-                    className="border p-2 rounded" 
-                  />
-                  <input 
-                    type="text" 
-                    placeholder="State" 
-                    value={followUpLocation.state} 
-                    onChange={(e) => setFollowUpLocation({ ...followUpLocation, state: e.target.value })} 
-                    className="border p-2 rounded" 
-                  />
-                  <input 
-                    type="text" 
-                    placeholder="Zip/Postal Code" 
-                    value={followUpLocation.zip} 
-                    onChange={(e) => setFollowUpLocation({ ...followUpLocation, zip: e.target.value })} 
-                    className="border p-2 rounded" 
-                  />
-                  <input 
-                    type="text" 
-                    value="United States" 
-                    readOnly 
-                    className="border p-2 rounded text-gray-400" 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              File Status *
+            </label>
+            <Select
+              value={formData.file_status}
+              onChange={(option) => setFormData({ ...formData, file_status: option })}
+              options={fileStatusOptions}
+              placeholder="Select file status"
+              required
+            />
+          </div>
+
+          {formData.result?.value === "Completed with follow up" && (
+            <div className="space-y-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800">Follow-up Details</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Follow-up Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={followUpDate}
+                    onChange={(e) => setFollowUpDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
                   />
                 </div>
-                <p className="text-xs text-gray-600">
-                  💡 Use the address search above to auto-fill the fields, or enter the address manually below.
-                </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Follow-up Time *
+                  </label>
+                  <div className="flex space-x-2">
+                    <Select
+                      value={followUpHour}
+                      onChange={setFollowUpHour}
+                      options={hourOptions}
+                      placeholder="Hour"
+                      className="flex-1"
+                      required
+                    />
+                    <Select
+                      value={followUpMinute}
+                      onChange={setFollowUpMinute}
+                      options={minuteOptions}
+                      placeholder="Min"
+                      className="flex-1"
+                      required
+                    />
+                    <Select
+                      value={followUpPeriod}
+                      onChange={setFollowUpPeriod}
+                      options={periodOptions}
+                      placeholder="AM/PM"
+                      className="flex-1"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Use Same Location? *
+                </label>
+                <div className="flex space-x-4">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="useSameLocation"
+                      value="yes"
+                      checked={useSameLocation === true}
+                      onChange={() => setUseSameLocation(true)}
+                      className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Yes, same location</span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="useSameLocation"
+                      value="no"
+                      checked={useSameLocation === false}
+                      onChange={() => setUseSameLocation(false)}
+                      className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">No, different location</span>
+                  </label>
+                </div>
+              </div>
+
+              {useSameLocation === false && (
+                <div className="space-y-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    New Location Details *
+                  </label>
+                  <AddressAutocomplete
+                    onAddressSelect={handleAddressSelect}
+                    placeholder="Search for an address..."
+                    className="w-full"
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input
+                      type="text"
+                      placeholder="Street Address"
+                      value={followUpLocation.street}
+                      onChange={(e) => setFollowUpLocation({ ...followUpLocation, street: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="City"
+                      value={followUpLocation.city}
+                      onChange={(e) => setFollowUpLocation({ ...followUpLocation, city: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input
+                      type="text"
+                      placeholder="State"
+                      value={followUpLocation.state}
+                      onChange={(e) => setFollowUpLocation({ ...followUpLocation, state: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="ZIP Code"
+                      value={followUpLocation.zip}
+                      onChange={(e) => setFollowUpLocation({ ...followUpLocation, zip: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="Country"
+                      value={followUpLocation.country}
+                      onChange={(e) => setFollowUpLocation({ ...followUpLocation, country: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      readOnly
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    💡 Use the address search above to auto-fill the fields, or enter the address manually.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Are you available for this follow-up? *
+                </label>
+                <div className="flex space-x-4">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="isAvailable"
+                      value="yes"
+                      checked={isAvailable === true}
+                      onChange={() => setIsAvailable(true)}
+                      className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Yes</span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="isAvailable"
+                      value="no"
+                      checked={isAvailable === false}
+                      onChange={() => setIsAvailable(false)}
+                      className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">No</span>
+                  </label>
+                </div>
               </div>
             </div>
           )}
 
-          <label className="block font-semibold mt-4 mb-1">Are you available for the follow up?</label>
-          <div className="flex gap-4">
-            <button type="button" onClick={() => setIsAvailable(true)} className={`w-full p-2 rounded border ${isAvailable === true ? "bg-blue-600 text-white" : "bg-white"}`}>Yes</button>
-            <button type="button" onClick={() => setIsAvailable(false)} className={`w-full p-2 rounded border ${isAvailable === false ? "bg-blue-600 text-white" : "bg-white"}`}>No</button>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Notes
+            </label>
+            <textarea
+              name="notes"
+              value={formData.notes}
+              onChange={handleInputChange}
+              rows={4}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Additional notes about the assignment..."
+            />
           </div>
-        </div>
-      )}
 
-      {/* File status */}
-      <div>
-        <label className="block mb-1 font-semibold">Status of this file *</label>
-        <Select
-          options={fileStatusOptions}
-          value={formData.file_status}
-          onChange={(option) => setFormData({ ...formData, file_status: option })}
-          placeholder="Select status"
-        />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Upload Documents
+            </label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                multiple
+                className="hidden"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center justify-center w-full py-3 px-4 border border-gray-300 rounded-md bg-white hover:bg-gray-50 transition-colors"
+              >
+                <PlusCircle className="h-5 w-5 mr-2 text-gray-400" />
+                <span className="text-gray-600">Choose files or drag and drop</span>
+              </button>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                PDF, DOC, DOCX, JPG, JPEG, PNG up to 10MB each
+              </p>
+            </div>
+
+            {files.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {files.map((file, index) => (
+                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <span className="text-sm text-gray-700">{file.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(index)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end space-x-4 pt-6 border-t">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Report'}
+            </button>
+          </div>
+        </form>
       </div>
-
-      <textarea
-        name="notes"
-        placeholder="Additional notes (optional)"
-        value={formData.notes}
-        onChange={handleInputChange}
-        rows={4}
-        className="w-full border p-3 rounded"
-      />
-
-      <div>
-        <label className="block mb-2 font-semibold">
-          Upload supporting files (optional)
-        </label>
-        <label className="flex items-center justify-between border p-3 rounded bg-gray-50 hover:bg-gray-100 cursor-pointer">
-          <span>Choose Files</span>
-          <input type="file" multiple className="hidden" ref={fileInputRef} onChange={handleFileChange} />
-          <PlusCircle size={20} className="text-blue-600" />
-        </label>
-
-        {files.length > 0 && (
-          <ul className="mt-3 space-y-2 text-sm text-gray-700">
-            {files.map((file, index) => (
-              <li key={index} className="flex justify-between items-center bg-gray-100 p-2 rounded">
-                <span>{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                <button type="button" onClick={() => removeFile(index)} className="text-red-500 hover:text-red-700 text-sm">Remove</button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <button type="submit" className={`w-full py-3 rounded text-white font-semibold transition ${isSubmitting ? "bg-blue-300" : "bg-blue-700 hover:bg-blue-800"}`} disabled={isSubmitting}>
-        {isSubmitting ? "Submitting..." : "Submit"}
-      </button>
-
-      {status.message && (
-        <div className={`mt-4 p-3 rounded text-center font-medium ${status.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-          {status.message}
-        </div>
-      )}
-      </form>
     </div>
   );
 };

@@ -6,10 +6,9 @@ import { motion } from 'framer-motion';
 import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
-import Checkbox from '../ui/Checkbox';
 import Button from '../ui/Button';
 import { languagesSchema } from '../../services/validationSchemas';
-import { PROFICIENCY_LEVELS, COMMON_LANGUAGES } from '../../utils/constants';
+import { COMMON_LANGUAGES } from '../../utils/constants';
 
 // Custom validation function that only requires the first language
 const customLanguagesSchema = yup.object({
@@ -17,33 +16,32 @@ const customLanguagesSchema = yup.object({
     .array()
     .of(
       yup.object({
-        language_id: yup.string().required('Language is required'),
-        proficiency_level: yup.string().required('Proficiency level is required'),
-        is_native: yup.boolean().default(false)
+        language_id: yup.string().required('Language is required')
       })
     )
     .min(1, 'At least one language is required')
     .test('at-least-one-complete-language', 'At least one complete language entry is required', function(value) {
       if (!value || value.length === 0) return false;
       
-      // Check if the first language has both language_id and proficiency_level
+      // Check if the first language has language_id
       const firstLanguage = value[0];
       return firstLanguage && 
              firstLanguage.language_id && 
-             firstLanguage.language_id.trim() !== '' && 
-             firstLanguage.proficiency_level && 
-             firstLanguage.proficiency_level.trim() !== '';
+             firstLanguage.language_id.trim() !== '';
     }),
 });
 
-const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametricData }) => {
+const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametricData, rejectedFields = [] }) => {
   const [customLanguage, setCustomLanguage] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
+  
+  // Helper to check if field is rejected
+  const isFieldRejected = (fieldName) => rejectedFields.includes(fieldName);
 
   // Ensure all form fields have proper default values to prevent uncontrolled to controlled warnings
   const defaultValues = {
     languages: data.languages?.length > 0 ? data.languages : [
-      { language_id: '', proficiency_level: '', is_native: false }
+      { language_id: '' }
     ]
   };
 
@@ -56,7 +54,7 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
   } = useForm({
     resolver: yupResolver(customLanguagesSchema),
     defaultValues,
-    mode: 'onBlur'
+    mode: 'onChange'
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -85,8 +83,7 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
   const onSubmit = (formData) => {
     // Filter out empty language entries and only submit valid ones
     const validLanguages = formData.languages.filter(lang => 
-      lang.language_id && lang.language_id.trim() && 
-      lang.proficiency_level && lang.proficiency_level.trim()
+      lang.language_id && lang.language_id.trim()
     );
     
     if (validLanguages.length === 0) {
@@ -100,7 +97,7 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
   };
 
   const addLanguage = () => {
-    append({ language_id: '', proficiency_level: '', is_native: false });
+    append({ language_id: '' });
   };
 
   const removeLanguage = (index) => {
@@ -116,9 +113,7 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
         setValue(`languages.${emptyIndex}.language_id`, customLanguage.trim());
       } else {
         append({
-          language_id: customLanguage.trim(),
-          proficiency_level: '',
-          is_native: false,
+          language_id: customLanguage.trim()
         });
       }
       setCustomLanguage('');
@@ -127,7 +122,6 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
   };
 
       const languageOptions = [
-        { value: '', label: 'Select a language...' },
         ...(parametricData?.languages?.map(lang => ({ value: lang.id, label: lang.name })) || []),
         { value: 'other', label: 'Other (specify below)' }
     ];
@@ -161,7 +155,7 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
                 <h3 className="text-sm font-medium text-blue-800">Requirements</h3>
                 <div className="mt-2 text-sm text-blue-700">
                   <ul className="list-disc list-inside space-y-1">
-                    <li>Complete the first language entry (both language and proficiency level)</li>
+                    <li>Select at least one language you can interpret</li>
                     <li>Additional languages are optional</li>
                     <li>You can add or remove extra languages as needed</li>
                   </ul>
@@ -196,76 +190,33 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <Controller
                   name={`languages.${index}.language_id`}
                   control={control}
                   render={({ field }) => (
-                    <Select
-                      {...field}
-                      label="Language"
-                      options={languageOptions}
-                      error={errors.languages?.[index]?.language_id?.message}
-                      onChange={(e) => {
-                        if (e.target.value === 'other') {
-                          setShowCustomInput(true);
-                          field.onChange('');
-                        } else {
-                          field.onChange(e.target.value);
-                        }
-                      }}
-                      required
-                    />
-                  )}
-                />
-
-                <Controller
-                  name={`languages.${index}.proficiency_level`}
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      {...field}
-                      label="Proficiency Level"
-                      options={PROFICIENCY_LEVELS}
-                      error={errors.languages?.[index]?.proficiency_level?.message}
-                      required
-                    />
+                    <div className={isFieldRejected('languages') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                      <Select
+                        {...field}
+                        label="Language"
+                        placeholder="Select a language..."
+                        options={languageOptions}
+                        error={errors.languages?.[index]?.language_id?.message || (isFieldRejected('languages') ? 'This field needs to be updated' : '')}
+                        onChange={(e) => {
+                          if (e.target.value === 'other') {
+                            setShowCustomInput(true);
+                            field.onChange('');
+                          } else {
+                            field.onChange(e.target.value);
+                          }
+                        }}
+                        required
+                      />
+                    </div>
                   )}
                 />
               </div>
 
-
-                <div className="flex items-end pb-2">
-                  <Controller
-                    name={`languages.${index}.is_native`}
-                    control={control}
-                    render={({ field: { value, onChange } }) => (
-                      <Checkbox
-                        label="Native Speaker"
-                        description="This is your native language"
-                        checked={value}
-                        onChange={onChange}
-                      />
-                    )}
-                  />
-                </div>
-
-              {/* Proficiency Description */}
-              {watchedValues.languages?.[index]?.proficiency_level && (
-                <div className="bg-blue-50 p-3 rounded-md">
-                  <p className="text-sm text-blue-800">
-                    <strong>
-                      {PROFICIENCY_LEVELS.find(
-                        level => level.value === watchedValues.languages[index].proficiency_level
-                      )?.label}:
-                    </strong>{' '}
-                    {PROFICIENCY_LEVELS.find(
-                      level => level.value === watchedValues.languages[index].proficiency_level
-                    )?.description}
-                  </p>
-                </div>
-              )}
-              
               {/* Show requirement message only for the first language */}
               {index === 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
@@ -354,7 +305,7 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
               type="submit"
               disabled={!isValid}
             >
-              {isEditing ? 'Save & Return to Review' : 'Continue (requires at least 1 language)'}
+              {isEditing ? 'Save & Return to Review' : 'Next'}
             </Button>
           </div>
         </div>

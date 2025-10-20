@@ -15,14 +15,6 @@ export const SERVICE_TYPES = [
     { value: 'professional', label: 'Professional Certification' },
   ];
   
-  export const PROFICIENCY_LEVELS = [
-    { value: 'beginner', label: 'Beginner', description: 'Basic conversational skills' },
-    { value: 'intermediate', label: 'Intermediate', description: 'Good conversational and written skills' },
-    { value: 'advanced', label: 'Advanced', description: 'Fluent with complex topics' },
-    { value: 'native', label: 'Native', description: 'Native or near-native fluency' },
-    { value: 'certified_native', label: 'Certified Native', description: 'Certified professional proficiency' },
-  ];
-  
   export const COMMON_LANGUAGES = [
     'Spanish', 'French', 'Mandarin', 'Portuguese', 'Arabic', 'Russian',
     'Japanese', 'Korean', 'German', 'Italian', 'Vietnamese', 'Hindi',

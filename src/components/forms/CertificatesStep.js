@@ -6,11 +6,14 @@ import Select from '../ui/Select';
 import FileUpload from '../ui/FileUpload';
 import toast from 'react-hot-toast';
 
-const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData }) => {
+const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, rejectedFields = [] }) => {
     const [isCertified, setIsCertified] = useState(formData.is_certified ?? null); // null, true, false
     const [certificates, setCertificates] = useState(formData.certificates || []);
     const [certificateFiles, setCertificateFiles] = useState(formData.certificateFiles || []);
     const [errors, setErrors] = useState({});
+    
+    // Helper to check if field is rejected
+    const isFieldRejected = (fieldName) => rejectedFields.includes(fieldName);
 
     const handleCertificationStatusChange = (status) => {
         setIsCertified(status);
@@ -33,8 +36,8 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             issuing_organization: '',
             issue_date: '',
             expiry_date: '',
-            certified_states: [], // For State Court Certification
-            issuing_state_id: '', // For Administrative Court Certification
+            issuing_state_id: '', // For both State Court and Administrative Court Certification
+            show_custom_org: false, // For Medical Certification custom organization input
             file: null,
             fileName: ''
         };
@@ -64,24 +67,6 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
         if (errors[`certificate_${certificateId}_${field}`]) {
             setErrors(prev => ({ ...prev, [`certificate_${certificateId}_${field}`]: null }));
         }
-    };
-
-    const handleStateSelection = (certificateId, stateId, isSelected) => {
-        setCertificates(prev => prev.map(cert => {
-            if (cert.id === certificateId) {
-                const currentStates = cert.certified_states || [];
-                let newStates;
-                
-                if (isSelected) {
-                    newStates = [...currentStates, stateId];
-                } else {
-                    newStates = currentStates.filter(id => id !== stateId);
-                }
-                
-                return { ...cert, certified_states: newStates };
-            }
-            return cert;
-        }));
     };
 
     const handleFileUpload = (certificateId, file) => {
@@ -147,23 +132,33 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     newErrors[`certificate_${cert.id}_certificate_number`] = 'Certificate number is required';
                 }
                 
-                if (!cert.expiry_date) {
-                    newErrors[`certificate_${cert.id}_expiry_date`] = 'Expiration date is required';
+                if (!cert.issuing_organization?.trim()) {
+                    newErrors[`certificate_${cert.id}_issuing_organization`] = 'Issuing organization is required';
                 }
                 
-                if (cert.issue_date && cert.expiry_date && new Date(cert.issue_date) >= new Date(cert.expiry_date)) {
-                    newErrors[`certificate_${cert.id}_expiry_date`] = 'Expiry date must be after issue date';
+                if (!cert.expiry_date) {
+                    newErrors[`certificate_${cert.id}_expiry_date`] = 'Expiration date is required';
+                } else {
+                    // Check if certificate is already expired
+                    const expiryDate = new Date(cert.expiry_date);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0); // Reset time to start of day for fair comparison
+                    
+                    if (expiryDate < today) {
+                        newErrors[`certificate_${cert.id}_expiry_date`] = 'Certificate has already expired. Please provide a valid certification.';
+                    }
+                    
+                    // Check if expiry date is after issue date
+                    if (cert.issue_date && new Date(cert.issue_date) >= expiryDate) {
+                        newErrors[`certificate_${cert.id}_expiry_date`] = 'Expiry date must be after issue date';
+                    }
                 }
 
-                // Validate state selection for State Court Certification
+                // Validate state selection for State Court Certification and Administrative Court Certification
                 const certificateType = parametricData?.certificateTypes?.find(ct => ct.id === cert.certificate_type_id);
-                if (certificateType?.code === 'court_certified' && (!cert.certified_states || cert.certified_states.length === 0)) {
-                    newErrors[`certificate_${cert.id}_certified_states`] = 'Please select at least one state where you are certified';
-                }
-
-                // Validate issuing state for Administrative Court Certification
-                if (certificateType?.code === 'ata_certified' && (!cert.issuing_state_id || cert.issuing_state_id === '')) {
-                    newErrors[`certificate_${cert.id}_issuing_state_id`] = 'Please select the issuing state for your Administrative Court certification';
+                if ((certificateType?.code === 'court_certified' || certificateType?.code === 'ata_certified') && 
+                    (!cert.issuing_state_id || cert.issuing_state_id === '')) {
+                    newErrors[`certificate_${cert.id}_issuing_state_id`] = 'Please select the state for this certification';
                 }
             });
         }
@@ -181,7 +176,7 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
 
         // Filter out empty certificates
         const validCertificates = certificates.filter(cert => 
-            cert.certificate_type_id && cert.certificate_number && cert.expiry_date
+            cert.certificate_type_id && cert.certificate_number && cert.issuing_organization && cert.expiry_date
         );
 
         const validFiles = validCertificates.map(cert => cert.file);
@@ -219,7 +214,7 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
 
             {/* Certification Status Selection */}
             <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${isFieldRejected('certificates') ? 'ring-2 ring-red-500 rounded-lg p-2 bg-red-50' : ''}`}>
                     <div
                         className={`border-2 rounded-lg p-6 cursor-pointer transition-all duration-200 ${
                             isCertified === true
@@ -292,7 +287,7 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                         <h4 className="font-medium text-green-900 mb-2">Certification Details</h4>
                         <p className="text-sm text-green-800">
-                            Please provide details for each of your certifications. Certificate number and expiration date are required.
+                            Please provide details for each of your certifications. Certificate number, issuing organization, and expiration date are required.
                         </p>
                     </div>
 
@@ -349,38 +344,88 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                     </div>
 
                                     <div>
-                                        <Input
-                                            label="Issuing Organization"
-                                            type="text"
-                                            value={certificate.issuing_organization}
-                                            onChange={(e) => handleCertificateChange(certificate.id, 'issuing_organization', e.target.value)}
-                                            placeholder="Organization name (optional)"
-                                        />
+                                        {/* Conditional rendering for Medical Certification - show dropdown with custom option */}
+                                        {certificate.certificate_type_id && 
+                                         parametricData?.certificateTypes?.find(ct => ct.id === certificate.certificate_type_id)?.code === 'medical_certified' ? (
+                                            <>
+                                                <Select
+                                                    label="Issuing Organization"
+                                                    value={
+                                                        certificate.show_custom_org 
+                                                            ? 'other'
+                                                            : (certificate.issuing_organization === 'CCHI' || 
+                                                               certificate.issuing_organization === 'NBCMI' || 
+                                                               certificate.issuing_organization === 'CAL-HR(SPB)' 
+                                                                ? certificate.issuing_organization 
+                                                                : (certificate.issuing_organization ? 'other' : ''))
+                                                    }
+                                                    onChange={(e) => {
+                                                        if (e.target.value === 'other') {
+                                                            handleCertificateChange(certificate.id, 'show_custom_org', true);
+                                                            handleCertificateChange(certificate.id, 'issuing_organization', '');
+                                                        } else {
+                                                            handleCertificateChange(certificate.id, 'show_custom_org', false);
+                                                            handleCertificateChange(certificate.id, 'issuing_organization', e.target.value);
+                                                        }
+                                                    }}
+                                                    error={errors[`certificate_${certificate.id}_issuing_organization`]}
+                                                    required
+                                                    placeholder="Select Organization"
+                                                    options={[
+                                                        { value: 'CCHI', label: 'CCHI' },
+                                                        { value: 'NBCMI', label: 'NBCMI' },
+                                                        { value: 'CAL-HR(SPB)', label: 'CAL-HR(SPB)' },
+                                                        { value: 'other', label: 'Other (specify below)' }
+                                                    ]}
+                                                />
+                                                {/* Show custom input if 'other' is selected or if there's a custom value */}
+                                                {(certificate.show_custom_org || 
+                                                  (certificate.issuing_organization && 
+                                                   certificate.issuing_organization !== 'CCHI' && 
+                                                   certificate.issuing_organization !== 'NBCMI' && 
+                                                   certificate.issuing_organization !== 'CAL-HR(SPB)')) && (
+                                                    <div className="mt-3">
+                                                        <Input
+                                                            label="Custom Organization Name"
+                                                            type="text"
+                                                            value={certificate.issuing_organization || ''}
+                                                            onChange={(e) => handleCertificateChange(certificate.id, 'issuing_organization', e.target.value)}
+                                                            error={errors[`certificate_${certificate.id}_issuing_organization`]}
+                                                            placeholder="Enter organization name"
+                                                            required
+                                                        />
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <Input
+                                                label="Issuing Organization"
+                                                type="text"
+                                                value={certificate.issuing_organization || ''}
+                                                onChange={(e) => handleCertificateChange(certificate.id, 'issuing_organization', e.target.value)}
+                                                error={errors[`certificate_${certificate.id}_issuing_organization`]}
+                                                placeholder="Enter organization name"
+                                                required
+                                            />
+                                        )}
                                     </div>
 
                                     {/* State Selection for State Court Certification */}
                                     {certificate.certificate_type_id && 
                                      parametricData?.certificateTypes?.find(ct => ct.id === certificate.certificate_type_id)?.code === 'court_certified' && (
                                         <div className="md:col-span-2">
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                States Where Certified *
-                                            </label>
-                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-3">
-                                                {parametricData?.usStates?.map(state => (
-                                                    <label key={state.id} className="flex items-center space-x-2 text-sm">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={(certificate.certified_states || []).includes(state.id)}
-                                                            onChange={(e) => handleStateSelection(certificate.id, state.id, e.target.checked)}
-                                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                                        />
-                                                        <span className="text-gray-700">{state.name}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                            {errors[`certificate_${certificate.id}_certified_states`] && (
-                                                <p className="text-red-600 text-xs mt-1">{errors[`certificate_${certificate.id}_certified_states`]}</p>
-                                            )}
+                                            <Select
+                                                label="Issuing State"
+                                                value={certificate.issuing_state_id || ''}
+                                                onChange={(e) => handleCertificateChange(certificate.id, 'issuing_state_id', e.target.value ? parseInt(e.target.value) : '')}
+                                                error={errors[`certificate_${certificate.id}_issuing_state_id`]}
+                                                required
+                                                placeholder="Select State"
+                                                options={parametricData?.usStates?.map(state => ({
+                                                    value: state.id,
+                                                    label: state.name
+                                                })) || []}
+                                            />
                                         </div>
                                     )}
 
@@ -394,7 +439,7 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                 onChange={(e) => handleCertificateChange(certificate.id, 'issuing_state_id', e.target.value ? parseInt(e.target.value) : '')}
                                                 error={errors[`certificate_${certificate.id}_issuing_state_id`]}
                                                 required
-                                                placeholder="Select Issuing State"
+                                                placeholder="Select State"
                                                 options={parametricData?.usStates?.map(state => ({
                                                     value: state.id,
                                                     label: state.name

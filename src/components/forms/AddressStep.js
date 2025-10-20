@@ -7,10 +7,13 @@ import LoadingSpinner from '../ui/LoadingSpinner';
 import toast from 'react-hot-toast';
 import googleMapsLoader from '../../utils/googleMapsLoader';
 
-const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, onUpdate }) => {
+const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, onUpdate, rejectedFields = [] }) => {
     // Debug: Log parametric data
     console.log('AddressStep - Received parametric data:', parametricData);
     console.log('AddressStep - US States:', parametricData?.usStates);
+    
+    // Helper to check if field is rejected
+    const isFieldRejected = (fieldName) => rejectedFields.includes(fieldName);
     
     const [addressData, setAddressData] = useState({
         street_address: formData.street_address || '',
@@ -57,6 +60,26 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, par
             initializeMap();
         }
     }, [googleMapsLoaded, addressData.latitude, addressData.longitude]);
+
+    // Check if address was already validated when component mounts (i.e., user is coming back from a later step)
+    useEffect(() => {
+        if (formData.latitude && formData.longitude && formData.place_id && !validationResult) {
+            // Address has coordinates and place_id, meaning it was previously validated
+            setValidationResult({
+                success: true,
+                message: 'Address validated successfully',
+                data: {
+                    formatted_address: formData.formatted_address,
+                    latitude: formData.latitude,
+                    longitude: formData.longitude,
+                    place_id: formData.place_id,
+                    city: formData.city,
+                    state_id: formData.state_id,
+                    zip_code: formData.zip_code
+                }
+            });
+        }
+    }, []); // Only run on mount
 
 
 
@@ -549,15 +572,17 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, par
                         {/* Address Input Section */}
             <div className="space-y-6">
                 <div className="relative">
-                    <Input
-                        label="Street Address"
-                        type="text"
-                        value={addressData.street_address}
-                        onChange={(e) => handleInputChange('street_address', e.target.value)}
-                        error={errors.street_address}
-                        placeholder="123 Main Street"
-                        required
-                    />
+                    <div className={isFieldRejected('street_address') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                        <Input
+                            label="Street Address"
+                            type="text"
+                            value={addressData.street_address}
+                            onChange={(e) => handleInputChange('street_address', e.target.value)}
+                            error={errors.street_address || (isFieldRejected('street_address') ? 'This field needs to be updated' : '')}
+                            placeholder="123 Main Street"
+                            required
+                        />
+                    </div>
                     
                     {/* Address Suggestions */}
                     {showSuggestions && suggestions.length > 0 && (
@@ -580,13 +605,16 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, par
                     )}
                 </div>
 
-                <Input
-                    label="Address Line 2 (Optional)"
-                    type="text"
-                    value={addressData.street_address_2}
-                    onChange={(e) => handleInputChange('street_address_2', e.target.value)}
-                    placeholder="Apartment, suite, unit, etc."
-                />
+                <div className={isFieldRejected('street_address_2') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                    <Input
+                        label="Address Line 2 (Optional)"
+                        type="text"
+                        value={addressData.street_address_2}
+                        onChange={(e) => handleInputChange('street_address_2', e.target.value)}
+                        error={isFieldRejected('street_address_2') ? 'This field needs to be updated' : ''}
+                        placeholder="Apartment, suite, unit, etc."
+                    />
+                </div>
             </div>
 
             {/* Address Validation */}

@@ -20,6 +20,11 @@ const Button = ({
     outline: 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 focus:ring-blue-500',
     danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500 shadow-sm',
     success: 'bg-green-600 hover:bg-green-700 text-white focus:ring-green-500 shadow-sm',
+    inverse: 'bg-white hover:bg-gray-50 text-blue-600 focus:ring-blue-500 shadow-sm border border-blue-200',
+    'outline-inverse': 'border-2 border-white bg-transparent text-white hover:bg-white hover:text-blue-600 focus:ring-white',
+    'outline-danger': 'border border-red-600 bg-white text-red-600 hover:bg-red-600 hover:text-white focus:ring-red-500',
+    warning: 'bg-yellow-600 hover:bg-yellow-700 text-white focus:ring-yellow-500 shadow-sm',
+    orange: 'bg-orange-600 hover:bg-orange-700 text-white focus:ring-orange-500 shadow-sm',
   };
   
   const sizes = {

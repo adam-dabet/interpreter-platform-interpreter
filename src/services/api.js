@@ -99,6 +99,16 @@ export const authAPI = {
   changePassword: (passwordData) => {
     return api.post('/auth/change-password', passwordData);
   },
+  
+  // Forgot password
+  forgotPassword: (email) => {
+    return api.post('/auth/forgot-password', { email });
+  },
+  
+  // Reset password
+  resetPassword: (tokenData) => {
+    return api.post('/auth/reset-password', tokenData);
+  },
 };
 
 // Interpreter API
@@ -110,6 +120,35 @@ export const interpreterAPI = {
         'Content-Type': 'multipart/form-data',
       },
     });
+  },
+  
+  // Get interpreter profile
+  getProfile: () => {
+    return api.get('/interpreters/profile');
+  },
+  
+  // Update interpreter profile (direct update - deprecated in favor of update approval workflow)
+  updateProfile: (profileData) => {
+    return api.put('/interpreters/profile', profileData);
+  },
+  
+  // Submit profile update (requires admin approval)
+  submitProfileUpdate: (profileData) => {
+    return api.post('/interpreters/profile/update', profileData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  
+  // Get pending profile update
+  getPendingUpdate: () => {
+    return api.get('/interpreters/profile/pending-update');
+  },
+  
+  // Cancel pending profile update
+  cancelPendingUpdate: () => {
+    return api.delete('/interpreters/profile/pending-update');
   },
 };
 

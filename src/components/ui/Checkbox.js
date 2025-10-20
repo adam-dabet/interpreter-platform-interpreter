@@ -6,6 +6,7 @@ const Checkbox = forwardRef(({
   error,
   required = false,
   className = '',
+  checked,
   ...props
 }, ref) => {
   return (
@@ -15,6 +16,7 @@ const Checkbox = forwardRef(({
           <input
             ref={ref}
             type="checkbox"
+            checked={checked}
             className={`
               h-4 w-4 rounded border-gray-300 text-blue-600 
               focus:ring-blue-500 focus:ring-2 focus:ring-offset-2

@@ -211,31 +211,31 @@ const InterpreterProfile = () => {
     };
 
     const loadRejectionData = async (token) => {
-        // Check URL params for rejection token
         try {
             console.log('Found rejection token, loading application data...');
-                const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/interpreters/rejection/${token}`);
-                const data = await response.json();
+            const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/interpreters/rejection/${token}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                setIsResubmission(true);
+                setRejectionToken(token);
+                setRejectedFields(data.data.rejected_fields || []);
+                setRejectionNote(data.data.rejection_note || '');
                 
-                if (data.success) {
-                    setIsResubmission(true);
-                    setRejectionToken(token);
-                    setRejectedFields(data.data.rejected_fields || []);
-                    setRejectionNote(data.data.rejection_note || '');
-                    
-                    // Pre-fill form with original data
-                    if (data.data.original_submission_data) {
-                        prefillFormData(data.data.original_submission_data);
-                    }
-                    
-                    toast.success('Application loaded! Please update the highlighted fields.');
-                } else {
-                    toast.error('Invalid or expired rejection link');
+                // Pre-fill form with original data
+                if (data.data.original_submission_data) {
+                    prefillFormData(data.data.original_submission_data);
                 }
-            } catch (error) {
-                console.error('Error loading rejection data:', error);
-                toast.error('Failed to load application data');
+                
+                toast.success('Application loaded! Please update the highlighted fields.');
+            } else {
+                toast.error('Invalid or expired rejection link');
             }
+        } catch (error) {
+            console.error('Error loading rejection data:', error);
+            toast.error('Failed to load application data');
+        } finally {
+            setIsLoading(false);
         }
     };
 

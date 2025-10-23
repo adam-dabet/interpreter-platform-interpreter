@@ -85,6 +85,11 @@ const InterpreterProfile = () => {
     const [rejectionNote, setRejectionNote] = useState('');
     const [rejectionToken, setRejectionToken] = useState(null);
     
+    // Profile completion state (for imported interpreters)
+    const [isProfileCompletion, setIsProfileCompletion] = useState(false);
+    const [completionToken, setCompletionToken] = useState(null);
+    const [importedData, setImportedData] = useState(null);
+    
     const [formData, setFormData] = useState({
         // Personal Information
         first_name: '',
@@ -137,17 +142,78 @@ const InterpreterProfile = () => {
     // Load parametric data on component mount
     useEffect(() => {
         loadParametricData();
-        checkForRejectionToken();
+        checkForTokens();
     }, []);
 
-    const checkForRejectionToken = async () => {
-        // Check URL params for rejection token
+    const checkForTokens = async () => {
         const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get('rejection_token');
         
-        if (token) {
-            try {
-                console.log('Found rejection token, loading application data...');
+        // Check for profile completion token (for imported interpreters)
+        const completionTok = urlParams.get('token');
+        if (completionTok) {
+            await loadProfileCompletionData(completionTok);
+            return; // Don't check for rejection token if completion token exists
+        }
+        
+        // Check for rejection token (existing flow)
+        const rejectionTok = urlParams.get('rejection_token');
+        if (rejectionTok) {
+            await loadRejectionData(rejectionTok);
+        }
+    };
+
+    const loadProfileCompletionData = async (token) => {
+        try {
+            console.log('Found profile completion token, loading imported data...');
+            setIsLoading(true);
+            
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/profile-completion/validate-token/${token}`);
+            const result = await response.json();
+            
+            if (!result.success) {
+                toast.error(result.message || 'Invalid completion link');
+                return;
+            }
+            
+            const data = result.data;
+            console.log('Loaded imported interpreter data:', data);
+            
+            setIsProfileCompletion(true);
+            setCompletionToken(token);
+            setImportedData(data);
+            
+            // Pre-fill form with imported data
+            setFormData(prev => ({
+                ...prev,
+                first_name: data.firstName || '',
+                last_name: data.lastName || '',
+                middle_name: data.middleName || '',
+                email: data.email || '',
+                phone: data.phone || '',
+                street_address: data.address?.street || '',
+                street_address_2: data.address?.street2 || '',
+                city: data.address?.city || '',
+                state_id: data.address?.stateId || '',
+                zip_code: data.address?.zipCode || '',
+                business_name: data.businessName || '',
+                languages: data.languages || [],
+                service_types: data.serviceTypes?.map(st => st.service_type_id) || []
+            }));
+            
+            toast.success('Welcome! Please complete your profile information below.');
+            
+        } catch (error) {
+            console.error('Error loading profile completion data:', error);
+            toast.error('Failed to load your profile data. Please contact support.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const loadRejectionData = async (token) => {
+        // Check URL params for rejection token
+        try {
+            console.log('Found rejection token, loading application data...');
                 const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/interpreters/rejection/${token}`);
                 const data = await response.json();
                 
@@ -399,6 +465,11 @@ const InterpreterProfile = () => {
             if (rejectionToken) {
                 formDataToSubmit.append('rejection_token', rejectionToken);
             }
+            
+            // Add completion token if this is profile completion
+            if (completionToken) {
+                formDataToSubmit.append('completion_token', completionToken);
+            }
 
             // Add all other form fields
             Object.keys(submissionData).forEach(key => {
@@ -437,16 +508,36 @@ const InterpreterProfile = () => {
                 console.log(`${key}:`, value);
             }
 
-            const response = await interpreterAPI.createProfile(formDataToSubmit);
+            // Use appropriate endpoint based on whether this is profile completion or new application
+            let response;
+            if (completionToken) {
+                // Profile completion for imported interpreters
+                response = await fetch(`${process.env.REACT_APP_API_URL}/api/profile-completion/submit/${completionToken}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(submissionData)
+                });
+                const result = await response.json();
+                response = { data: result }; // Normalize response structure
+            } else {
+                // Normal new application
+                response = await interpreterAPI.createProfile(formDataToSubmit);
+            }
             
             if (response.data.success) {
+                const successMessage = isProfileCompletion 
+                    ? 'Profile completed successfully! Your profile is now under review. You will receive an email once approved with instructions to set up your password.'
+                    : 'Interpreter application submitted successfully! We will review your profile and contact you soon.';
+                    
                 setProfileResult({
                     success: true,
-                    message: 'Interpreter profile created successfully!',
+                    message: successMessage,
                     data: response.data.data
                 });
                 
-                toast.success('Profile created successfully!');
+                toast.success(successMessage);
             } else {
                 throw new Error(response.data.message || 'Failed to create profile');
             }

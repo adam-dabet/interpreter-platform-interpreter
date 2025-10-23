@@ -167,7 +167,7 @@ const InterpreterProfile = () => {
             console.log('Found profile completion token, loading imported data...');
             setIsLoading(true);
             
-            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/profile-completion/validate-token/${token}`);
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/profile-completion/validate-token/${token}`);
             const result = await response.json();
             
             if (!result.success) {
@@ -512,7 +512,7 @@ const InterpreterProfile = () => {
             let response;
             if (completionToken) {
                 // Profile completion for imported interpreters
-                response = await fetch(`${process.env.REACT_APP_API_URL}/api/profile-completion/submit/${completionToken}`, {
+                response = await fetch(`${process.env.REACT_APP_API_URL}/profile-completion/submit/${completionToken}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

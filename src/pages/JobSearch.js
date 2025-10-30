@@ -35,6 +35,7 @@ const JobSearch = () => {
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [searchRadius, setSearchRadius] = useState(null); // null = use profile setting
+  const [tempRadius, setTempRadius] = useState(null); // For slider drag preview
   const [filters, setFilters] = useState({
     language: '',
     service_type: '',
@@ -350,18 +351,31 @@ const JobSearch = () => {
                   min="10"
                   max="200"
                   step="5"
-                  value={searchRadius !== null ? searchRadius : profile.service_radius_miles}
-                  onChange={(e) => setSearchRadius(parseInt(e.target.value))}
+                  value={tempRadius !== null ? tempRadius : (searchRadius !== null ? searchRadius : profile.service_radius_miles)}
+                  onChange={(e) => setTempRadius(parseInt(e.target.value))}
+                  onMouseUp={(e) => {
+                    const value = parseInt(e.target.value);
+                    setSearchRadius(value === profile.service_radius_miles ? null : value);
+                    setTempRadius(null);
+                  }}
+                  onTouchEnd={(e) => {
+                    const value = parseInt(e.target.value);
+                    setSearchRadius(value === profile.service_radius_miles ? null : value);
+                    setTempRadius(null);
+                  }}
                   className="w-48 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider:bg-blue-600"
                 />
                 <div className="text-right min-w-[80px]">
                   <span className="text-lg font-semibold text-blue-600">
-                    {searchRadius !== null ? searchRadius : profile.service_radius_miles}
+                    {tempRadius !== null ? tempRadius : (searchRadius !== null ? searchRadius : profile.service_radius_miles)}
                   </span>
                   <span className="text-sm text-gray-600 ml-1">miles</span>
                   {searchRadius !== null && searchRadius !== profile.service_radius_miles && (
                     <button
-                      onClick={() => setSearchRadius(null)}
+                      onClick={() => {
+                        setSearchRadius(null);
+                        setTempRadius(null);
+                      }}
                       className="block mt-1 text-xs text-blue-600 hover:text-blue-800"
                     >
                       Reset to {profile.service_radius_miles}

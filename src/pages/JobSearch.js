@@ -34,6 +34,7 @@ const JobSearch = () => {
   const [mileageRequested, setMileageRequested] = useState(0);
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [searchRadius, setSearchRadius] = useState(null); // null = use profile setting
   const [filters, setFilters] = useState({
     language: '',
     service_type: '',
@@ -45,7 +46,7 @@ const JobSearch = () => {
 
   useEffect(() => {
     loadJobs();
-  }, [filters, currentPage]);
+  }, [filters, currentPage, searchRadius]);
 
   const loadJobs = async () => {
     try {
@@ -66,6 +67,11 @@ const JobSearch = () => {
           service_radius_miles: profile.service_radius_miles,
           location: `${profile.city}, ${profile.state_name}`
         });
+      }
+      
+      // Add radius override if user changed it from profile setting
+      if (searchRadius !== null && profile?.id) {
+        params.radius = searchRadius;
       }
       
       const response = await jobAPI.getAvailableJobs(params);
@@ -317,10 +323,55 @@ const JobSearch = () => {
           {profile?.service_radius_miles && (
             <div className="mt-2 flex items-center text-sm text-gray-500">
               <MapPinIcon className="h-4 w-4 mr-1" />
-              Showing jobs within {profile.service_radius_miles} miles of your location
+              Showing jobs within {searchRadius !== null ? searchRadius : profile.service_radius_miles} miles of your location
             </div>
           )}
         </motion.div>
+
+        {/* Search Radius Control */}
+        {profile?.id && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <MapPinIcon className="h-5 w-5 text-blue-600 mr-2" />
+                <div>
+                  <label className="text-sm font-medium text-gray-900">Search Radius</label>
+                  <p className="text-xs text-gray-600">Adjust how far to search for jobs</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min="10"
+                  max="200"
+                  step="5"
+                  value={searchRadius !== null ? searchRadius : profile.service_radius_miles}
+                  onChange={(e) => setSearchRadius(parseInt(e.target.value))}
+                  className="w-48 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider:bg-blue-600"
+                />
+                <div className="text-right min-w-[80px]">
+                  <span className="text-lg font-semibold text-blue-600">
+                    {searchRadius !== null ? searchRadius : profile.service_radius_miles}
+                  </span>
+                  <span className="text-sm text-gray-600 ml-1">miles</span>
+                  {searchRadius !== null && searchRadius !== profile.service_radius_miles && (
+                    <button
+                      onClick={() => setSearchRadius(null)}
+                      className="block mt-1 text-xs text-blue-600 hover:text-blue-800"
+                    >
+                      Reset to {profile.service_radius_miles}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Search and Filters */}
         <motion.div

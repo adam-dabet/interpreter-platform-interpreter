@@ -11,7 +11,8 @@ import {
   XCircleIcon,
   FunnelIcon,
   GlobeAltIcon,
-  BuildingOfficeIcon
+  BuildingOfficeIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
@@ -545,6 +546,12 @@ const JobSearch = () => {
                           </>
                         )}
                       </div>
+                      {!job.is_remote && job.distance_miles !== null && job.distance_miles !== undefined && (
+                        <div className="flex items-center text-sm text-blue-600">
+                          <ArrowPathIcon className="h-4 w-4 mr-2" />
+                          <span className="font-medium">{job.distance_miles.toFixed(1)} miles away</span>
+                        </div>
+                      )}
                       <div className="flex items-center text-sm text-gray-500">
                         <span className="font-medium">Languages:</span>
                         <span className="ml-1">{job.source_language_name || job.language_name || 'N/A'} → {job.target_language_name || 'English'}</span>

@@ -9,7 +9,8 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ArrowRightIcon,
-  GlobeAltIcon
+  GlobeAltIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import Button from './ui/Button';
 
@@ -260,6 +261,14 @@ const JobCard = ({
           <div className="flex items-start text-sm text-gray-700">
             <MapPinIcon className="h-4 w-4 mr-2 mt-0.5 text-gray-400 flex-shrink-0" />
             <span className="line-clamp-1">{job.location_city}, {job.location_state}</span>
+          </div>
+        )}
+
+        {/* Distance */}
+        {!job.is_remote && job.distance_miles !== null && job.distance_miles !== undefined && (
+          <div className="flex items-center text-sm text-blue-600">
+            <ArrowPathIcon className="h-4 w-4 mr-2 text-blue-400 flex-shrink-0" />
+            <span className="font-medium">{job.distance_miles.toFixed(1)} miles away</span>
           </div>
         )}
 

@@ -16,7 +16,8 @@ export const JOB_STATUSES = {
   COMPLETED: 'completed',                   // 6. Completed (job complete)
   
   // Post-completion workflow
-  COMPLETION_REPORT: 'completion_report',   // 7. Completion report (interpreter fills report)
+  PAID: 'paid',                            // 7. Paid (interpreter has been paid)
+  COMPLETION_REPORT: 'completion_report',   // 8. Completion report (interpreter fills report)
   BILLED: 'billed',                        // 8. Billed (customer billed)
   CLOSED: 'closed',                        // 9. Closed (job closed)
   INTERPRETER_PAID: 'interpreter_paid',     // 10. Interpreter has been paid
@@ -44,6 +45,7 @@ export const JOB_STATUS_LABELS = {
   [JOB_STATUSES.REMINDERS_SENT]: 'Reminders Sent',
   [JOB_STATUSES.IN_PROGRESS]: 'In Progress',
   [JOB_STATUSES.COMPLETED]: 'Completed',
+  [JOB_STATUSES.PAID]: 'Paid',
   [JOB_STATUSES.COMPLETION_REPORT]: 'Completion Report',
   [JOB_STATUSES.BILLED]: 'Billed',
   [JOB_STATUSES.CLOSED]: 'Closed',
@@ -69,6 +71,7 @@ export const JOB_STATUS_COLORS = {
   [JOB_STATUSES.REMINDERS_SENT]: 'text-purple-600 bg-purple-100',
   [JOB_STATUSES.IN_PROGRESS]: 'text-orange-600 bg-orange-100',
   [JOB_STATUSES.COMPLETED]: 'text-teal-600 bg-teal-100',
+  [JOB_STATUSES.PAID]: 'text-green-700 bg-green-200',
   [JOB_STATUSES.COMPLETION_REPORT]: 'text-cyan-600 bg-cyan-100',
   [JOB_STATUSES.BILLED]: 'text-emerald-600 bg-emerald-100',
   [JOB_STATUSES.CLOSED]: 'text-gray-600 bg-gray-100',
@@ -93,6 +96,7 @@ export const JOB_STATUS_OPTIONS = [
   { value: JOB_STATUSES.ASSIGNED, label: 'My Assigned Jobs' },
   { value: JOB_STATUSES.IN_PROGRESS, label: 'In Progress' },
   { value: JOB_STATUSES.COMPLETED, label: 'Completed' },
+  { value: JOB_STATUSES.PAID, label: 'Paid' },
   { value: JOB_STATUSES.COMPLETION_REPORT, label: 'Pending Report' },
   { value: JOB_STATUSES.CLOSED, label: 'Closed' },
   { value: JOB_STATUSES.INTERPRETER_PAID, label: 'Paid' },
@@ -111,6 +115,7 @@ export const ACTIVE_JOB_STATUSES = [
 
 export const COMPLETED_JOB_STATUSES = [
   JOB_STATUSES.COMPLETED,
+  JOB_STATUSES.PAID,
   JOB_STATUSES.COMPLETION_REPORT,
   JOB_STATUSES.BILLED,
   JOB_STATUSES.CLOSED,

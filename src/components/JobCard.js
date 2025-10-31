@@ -50,6 +50,8 @@ const JobCard = ({
 
   // Determine job status and next action
   const getJobStatus = () => {
+    // Check if paid first - this takes precedence for completed jobs
+    if (job.interpreter_paid_at || job.status === 'interpreter_paid') return 'paid';
     if (job.completion_report_submitted) return 'completed';
     if (job.status === 'completed' && !job.completion_report_submitted) return 'needs_report';
     if (job.status === 'in_progress') return 'in_progress';
@@ -92,6 +94,11 @@ const JobCard = ({
       color: 'bg-gray-100 text-gray-800 border-gray-300',
       label: 'Completed',
       icon: <CheckCircleIcon className="h-4 w-4" />
+    },
+    paid: {
+      color: 'bg-green-100 text-green-800 border-green-300',
+      label: 'Paid',
+      icon: <CurrencyDollarIcon className="h-4 w-4" />
     },
     pending: {
       color: 'bg-yellow-100 text-yellow-800 border-yellow-300',
@@ -282,8 +289,16 @@ const JobCard = ({
           <span>{job.service_type_name}</span>
         </div>
 
-        {/* Earnings (if available) */}
-        {job.agreed_rate && (
+        {/* Payment Amount (if paid) */}
+        {job.interpreter_paid_at && job.interpreter_paid_amount && (
+          <div className="flex items-center text-sm font-semibold text-green-600">
+            <CurrencyDollarIcon className="h-4 w-4 mr-1" />
+            Paid: {formatCurrency(job.interpreter_paid_amount)}
+          </div>
+        )}
+        
+        {/* Earnings (if available and not paid) */}
+        {!job.interpreter_paid_at && job.agreed_rate && (
           <div className="flex items-center text-sm font-medium text-green-600">
             <CurrencyDollarIcon className="h-4 w-4 mr-1" />
             {formatCurrency(job.agreed_rate * (job.estimated_duration_minutes / 60))}

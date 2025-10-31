@@ -309,9 +309,16 @@ const JobDashboardNew = () => {
                                 <p className="text-sm text-gray-500 mt-1">{formatDate(job.scheduled_date)}</p>
                               </div>
                               <div className="text-right">
-                                <p className="text-lg font-semibold text-green-600">
-                                  {formatCurrency(job.calculated_earnings)}
-                                </p>
+                                <div className="flex items-center gap-2 justify-end">
+                                  {job.interpreter_paid_at && (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-300">
+                                      Paid
+                                    </span>
+                                  )}
+                                  <p className={`text-lg font-semibold ${job.interpreter_paid_at ? 'text-green-600' : 'text-gray-700'}`}>
+                                    {formatCurrency(job.calculated_earnings)}
+                                  </p>
+                                </div>
                                 <p className="text-sm text-gray-500">{job.calculated_hours} hrs</p>
                               </div>
                             </div>

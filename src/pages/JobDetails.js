@@ -321,16 +321,18 @@ const JobDetails = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Job Description */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="bg-white rounded-lg shadow-sm border p-6"
-            >
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Job Description</h2>
-              <p className="text-gray-700 leading-relaxed">{job.description}</p>
-            </motion.div>
+            {/* Special Requirements / Notes */}
+            {(job.special_requirements || job.notes) && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white rounded-lg shadow-sm border p-6"
+              >
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Special Requirements</h2>
+                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{job.special_requirements || job.notes}</p>
+              </motion.div>
+            )}
 
             {/* Job Details */}
             <motion.div

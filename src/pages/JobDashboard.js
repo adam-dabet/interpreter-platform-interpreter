@@ -21,7 +21,7 @@ const JobDashboardNew = () => {
   const [jobs, setJobs] = useState([]);
   const [earnings, setEarnings] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [earningsPeriod, setEarningsPeriod] = useState('month');
+  const [earningsPeriod, setEarningsPeriod] = useState('all');
   const [earningsLoading, setEarningsLoading] = useState(false);
   const [showCompletionReport, setShowCompletionReport] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -53,9 +53,16 @@ const JobDashboardNew = () => {
     try {
       setEarningsLoading(true);
       const response = await jobAPI.getEarnings({ period });
+      console.log('Earnings response:', {
+        period,
+        summary: response.data?.data?.summary,
+        breakdownCount: response.data?.data?.breakdown?.length,
+        breakdown: response.data?.data?.breakdown
+      });
       setEarnings(response.data.data);
     } catch (error) {
       console.error('Error loading earnings:', error);
+      toast.error('Failed to load earnings');
     } finally {
       setEarningsLoading(false);
     }
@@ -215,11 +222,11 @@ const JobDashboardNew = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Earnings Summary</h3>
               <div className="flex gap-2 mb-6 overflow-x-auto">
                 {[
+                  { id: 'all', name: 'All Time' },
                   { id: 'week', name: 'Last Week' },
                   { id: 'month', name: 'Last Month' },
                   { id: '6months', name: 'Last 6 Months' },
-                  { id: 'year', name: 'Last Year' },
-                  { id: 'all', name: 'All Time' }
+                  { id: 'year', name: 'Last Year' }
                 ].map((period) => (
                   <button
                     key={period.id}
@@ -260,7 +267,7 @@ const JobDashboardNew = () => {
                         <div>
                           <p className="text-sm font-medium text-blue-900">Jobs Completed</p>
                           <p className="text-3xl font-bold text-blue-700 mt-2">
-                            {earnings.summary?.completed_jobs || 0}
+                            {earnings.summary?.completed_jobs || earnings.breakdown?.length || 0}
                           </p>
                         </div>
                         <CheckCircleIcon className="h-12 w-12 text-blue-600 opacity-50" />
@@ -292,39 +299,61 @@ const JobDashboardNew = () => {
                     </div>
                   </div>
 
-                  {/* Recent Jobs */}
-                  {earnings.recent_jobs && earnings.recent_jobs.length > 0 && (
+                  {/* Earnings Breakdown - All Completed Jobs */}
+                  {earnings.breakdown && earnings.breakdown.length > 0 && (
                     <div>
-                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Recent Completed Jobs</h4>
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                        Completed Jobs ({earnings.breakdown.length})
+                      </h4>
                       <div className="bg-gray-50 rounded-lg p-4">
                         <div className="space-y-3">
-                          {earnings.recent_jobs.map((job) => (
-                            <div
-                              key={job.id}
-                              className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-500 cursor-pointer transition-all"
-                              onClick={() => navigate(`/job/${job.id}`)}
-                            >
-                              <div className="flex-1">
-                                <p className="font-medium text-gray-900">{job.job_number || job.title || `Job #${job.id}`}</p>
-                                <p className="text-sm text-gray-500 mt-1">{formatDate(job.scheduled_date)}</p>
-                              </div>
-                              <div className="text-right">
-                                <div className="flex items-center gap-2 justify-end">
-                                  {job.interpreter_paid_at && (
-                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-300">
+                          {earnings.breakdown.map((item) => {
+                            // For jobs marked as paid, use interpreter_paid_amount; otherwise use calculated earnings
+                            const displayAmount = (item.status === 'interpreter_paid' && item.interpreter_paid_amount) 
+                              ? item.interpreter_paid_amount 
+                              : (item.earnings || 0);
+                            
+                            return (
+                              <div
+                                key={item.id || item.job_number}
+                                className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-500 cursor-pointer transition-all"
+                                onClick={() => navigate(`/job/${item.id}`)}
+                              >
+                                <div className="flex-1">
+                                  <p className="font-medium text-gray-900">{item.job_number || item.title || `Job #${item.id}`}</p>
+                                  <p className="text-sm text-gray-500 mt-1">
+                                    {item.scheduled_date ? formatDate(item.scheduled_date) : 'N/A'}
+                                  </p>
+                                  {item.status === 'interpreter_paid' && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-300 mt-1">
                                       Paid
                                     </span>
                                   )}
-                                  <p className={`text-lg font-semibold ${job.interpreter_paid_at ? 'text-green-600' : 'text-gray-700'}`}>
-                                    {formatCurrency(job.calculated_earnings)}
-                                  </p>
                                 </div>
-                                <p className="text-sm text-gray-500">{job.calculated_hours} hrs</p>
+                                <div className="text-right">
+                                  <div className="flex items-center gap-2 justify-end">
+                                    <p className={`text-lg font-semibold ${item.status === 'interpreter_paid' && item.interpreter_paid_amount ? 'text-green-600' : 'text-gray-700'}`}>
+                                      {formatCurrency(displayAmount)}
+                                    </p>
+                                  </div>
+                                  {item.status === 'interpreter_paid' && item.interpreter_paid_amount && (
+                                    <p className="text-xs text-green-600 font-medium mt-1">Actual Payment</p>
+                                  )}
+                                  <p className="text-sm text-gray-500 mt-1">{item.calculated_hours || 0} hrs</p>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
+                    </div>
+                  )}
+                  
+                  {/* Empty state when no breakdown */}
+                  {earnings.breakdown && earnings.breakdown.length === 0 && (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+                      <p className="text-sm text-gray-600">No completed jobs found for this period.</p>
+                      <p className="text-xs text-gray-500 mt-2">Try selecting "All Time" to see all completed jobs.</p>
                     </div>
                   )}
                 </>

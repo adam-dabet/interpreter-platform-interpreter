@@ -212,6 +212,8 @@ const JobDetails = () => {
   };
 
   const calculateEarnings = (job) => {
+    let basePayment = 0;
+    
     // If interpreter has custom service rates, calculate based on those
     if (profile?.service_rates && job.estimated_duration_minutes) {
       const serviceRate = profile.service_rates.find(
@@ -222,26 +224,31 @@ const JobDetails = () => {
         const hours = job.estimated_duration_minutes / 60;
         
         if (serviceRate.rate_unit === 'minutes') {
-          return serviceRate.rate_amount * job.estimated_duration_minutes;
+          basePayment = serviceRate.rate_amount * job.estimated_duration_minutes;
+        } else {
+          basePayment = serviceRate.rate_amount * hours;
         }
-        return serviceRate.rate_amount * hours;
       }
     }
 
     // Otherwise, use the job's total_amount (calculated by backend) if it's greater than 0
-    const totalAmount = parseFloat(job.total_amount) || 0;
-    if (totalAmount > 0) {
-      return totalAmount;
+    if (basePayment === 0) {
+      const totalAmount = parseFloat(job.total_amount) || 0;
+      if (totalAmount > 0) {
+        basePayment = totalAmount;
+      }
     }
 
     // Fallback: calculate from hourly rate and duration
-    if (job.hourly_rate && job.estimated_duration_minutes) {
+    if (basePayment === 0 && job.hourly_rate && job.estimated_duration_minutes) {
       const hours = job.estimated_duration_minutes / 60;
-      return parseFloat(job.hourly_rate) * hours;
+      basePayment = parseFloat(job.hourly_rate) * hours;
     }
     
-    // Final fallback: return 0
-    return 0;
+    // Add mileage reimbursement if available
+    const mileageReimbursement = parseFloat(job.mileage_reimbursement) || 0;
+    
+    return basePayment + mileageReimbursement;
   };
 
   const getPriorityColor = (priority) => {
@@ -456,6 +463,127 @@ const JobDetails = () => {
                 )}
               </div>
             </motion.div>
+
+            {/* Completion Report */}
+            {job.completion_report_submitted && job.completion_report_data && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="bg-white rounded-lg shadow-sm border p-6"
+              >
+                <div className="flex items-center mb-4 bg-green-50 -m-6 p-4 rounded-t-lg border-b border-green-200">
+                  <CheckCircleIcon className="h-6 w-6 text-green-600 mr-3" />
+                  <div>
+                    <h2 className="text-xl font-semibold text-green-900">Completion Report</h2>
+                    <p className="text-sm text-green-700 mt-1">
+                      Submitted on {new Date(job.completion_report_data.submitted_at || job.completion_report_submitted_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                  {job.completion_report_data.start_time && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Start Time</p>
+                      <p className="text-sm text-gray-900 mt-1">{job.completion_report_data.start_time}</p>
+                    </div>
+                  )}
+                  
+                  {job.completion_report_data.end_time && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">End Time</p>
+                      <p className="text-sm text-gray-900 mt-1">{job.completion_report_data.end_time}</p>
+                    </div>
+                  )}
+                  
+                  {job.completion_report_data.start_time && job.completion_report_data.end_time && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Duration</p>
+                      <p className="text-sm text-gray-900 mt-1">
+                        {(() => {
+                          try {
+                            const start = new Date(`2000-01-01 ${job.completion_report_data.start_time}`);
+                            const end = new Date(`2000-01-01 ${job.completion_report_data.end_time}`);
+                            const diffMs = end - start;
+                            const diffMins = Math.round(diffMs / 60000);
+                            const hours = Math.floor(diffMins / 60);
+                            const mins = diffMins % 60;
+                            return `${hours}h ${mins}m`;
+                          } catch (e) {
+                            return 'N/A';
+                          }
+                        })()}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {job.completion_report_data.result && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Result</p>
+                      <p className="text-sm text-gray-900 mt-1 capitalize">
+                        {job.completion_report_data.result.replace(/_/g, ' ')}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {job.completion_report_data.file_status && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">File Status</p>
+                      <p className="text-sm text-gray-900 mt-1 capitalize">
+                        {job.completion_report_data.file_status.replace(/_/g, ' ')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                {job.completion_report_data.notes && (
+                  <div className="mt-6">
+                    <p className="text-sm font-medium text-gray-500">Notes</p>
+                    <p className="text-sm text-gray-900 mt-2">{job.completion_report_data.notes}</p>
+                  </div>
+                )}
+                
+                {job.completion_report_data.follow_up_date && (
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <p className="text-sm font-semibold text-gray-900 mb-4">Follow-up Appointment</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">Date</p>
+                        <p className="text-sm text-gray-900 mt-1">
+                          {new Date(job.completion_report_data.follow_up_date).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </p>
+                      </div>
+                      
+                      {job.completion_report_data.follow_up_time && (
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">Time</p>
+                          <p className="text-sm text-gray-900 mt-1">{job.completion_report_data.follow_up_time}</p>
+                        </div>
+                      )}
+                      
+                      {job.completion_report_data.follow_up_formatted_address && (
+                        <div className="md:col-span-2">
+                          <p className="text-sm font-medium text-gray-500">Location</p>
+                          <p className="text-sm text-gray-900 mt-1">{job.completion_report_data.follow_up_formatted_address}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -496,7 +624,23 @@ const JobDetails = () => {
                             return 'Rate not set';
                           })()}
                         </div>
-                <div className="text-sm text-gray-600">
+                {job.mileage_reimbursement && parseFloat(job.mileage_reimbursement) > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex justify-between items-center text-sm mb-2">
+                      <span className="text-gray-600">Base Rate:</span>
+                      <span className="text-gray-900 font-medium">
+                        {formatCurrency(calculateEarnings(job) - parseFloat(job.mileage_reimbursement))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">Mileage ({job.mileage_requested || 0} mi):</span>
+                      <span className="text-orange-600 font-medium">
+                        {formatCurrency(parseFloat(job.mileage_reimbursement))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <div className="text-sm text-gray-600 mt-4">
                   Duration: {job.estimated_duration_minutes} minutes
                 </div>
               </div>

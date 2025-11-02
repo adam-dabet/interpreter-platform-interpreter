@@ -135,6 +135,55 @@ const JobDetails = () => {
     }
   };
 
+  // New availability indication handlers
+  const handleIndicateAvailability = () => {
+    // For in-person jobs, show mileage modal first
+    if (!job.is_remote) {
+      setShowMileagePrompt(true);
+    } else {
+      // For remote jobs, indicate availability directly
+      confirmAvailability(0);
+    }
+  };
+  
+  const confirmAvailability = async (mileage) => {
+    try {
+      setMileagePromptLoading(true);
+      const response = await jobAPI.indicateAvailability(jobId, parseFloat(mileage) || 0);
+      
+      const message = mileage > 0 
+        ? `Availability indicated with ${mileage} miles mileage request! The admin will review and assign.`
+        : 'Availability indicated! The admin will review responses and assign an interpreter.';
+      
+      toast.success(message);
+      setShowMileagePrompt(false);
+      setMileageRequested(0);
+      await loadJobDetails();
+    } catch (error) {
+      console.error('Error indicating availability:', error);
+      toast.error(error.response?.data?.message || 'Failed to indicate availability');
+    } finally {
+      setMileagePromptLoading(false);
+    }
+  };
+
+  const handleIndicateNotAvailable = async () => {
+    const reason = window.prompt('Please provide a reason (optional):');
+    if (reason === null) return; // User cancelled
+    
+    try {
+      setActionLoading(true);
+      await jobAPI.indicateNotAvailable(jobId, reason || '');
+      toast.success('Response recorded. Thank you for letting us know.');
+      await loadJobDetails();
+    } catch (error) {
+      console.error('Error indicating not available:', error);
+      toast.error(error.response?.data?.message || 'Failed to record response');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleMileageSubmit = async () => {
     // Double-check restriction before submitting
     if (!canAcceptJobs()) {
@@ -144,16 +193,19 @@ const JobDetails = () => {
     
     setMileagePromptLoading(true);
     try {
-      const response = await jobAPI.acceptJob(jobId, { 
-        mileage_requested: mileageRequested 
-      });
-      
-      toast.success('Job accepted successfully! Your mileage request is pending admin approval.');
-      setShowMileagePrompt(false);
-      setMileageRequested(0);
-      
-      // Navigate back to job search
-      navigate('/jobs/search');
+      // Check if this is for availability indication or job acceptance
+      if (job.status === 'finding_interpreter') {
+        await confirmAvailability(mileageRequested);
+      } else {
+        const response = await jobAPI.acceptJob(jobId, { 
+          mileage_requested: mileageRequested 
+        });
+        
+        toast.success('Job accepted successfully! Your mileage request is pending admin approval.');
+        setShowMileagePrompt(false);
+        setMileageRequested(0);
+        navigate('/jobs/search');
+      }
     } catch (error) {
       console.error('Error submitting mileage request:', error);
       toast.error(`Failed to submit mileage request: ${error.response?.data?.message || error.message}`);
@@ -171,14 +223,17 @@ const JobDetails = () => {
     
     setMileagePromptLoading(true);
     try {
-      const response = await jobAPI.acceptJob(jobId, {});
-      
-      toast.success('Job accepted successfully!');
-      setShowMileagePrompt(false);
-      setMileageRequested(0);
-      
-      // Navigate back to job search
-      navigate('/jobs/search');
+      // Check if this is for availability indication or job acceptance
+      if (job.status === 'finding_interpreter') {
+        await confirmAvailability(0);
+      } else {
+        const response = await jobAPI.acceptJob(jobId, {});
+        
+        toast.success('Job accepted successfully!');
+        setShowMileagePrompt(false);
+        setMileageRequested(0);
+        navigate('/jobs/search');
+      }
     } catch (error) {
       console.error('Error accepting job:', error);
       toast.error(`Failed to accept job: ${error.response?.data?.message || error.message}`);
@@ -657,27 +712,51 @@ const JobDetails = () => {
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
               <div className="space-y-3">
-                {job.status === 'finding_interpreter' ? (
+                {job.status === 'finding_interpreter' && !job.assignment_status && (
                   <>
                     <Button
-                      className="w-full"
-                      onClick={() => handleJobAction('accept')}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                      onClick={handleIndicateAvailability}
                       disabled={actionLoading}
                     >
                       <CheckCircleIcon className="h-4 w-4 mr-2" />
-                      {actionLoading ? 'Processing...' : 'Accept Job'}
+                      {actionLoading ? 'Processing...' : "I'm Available"}
                     </Button>
                     <Button
                       variant="outline"
-                      className="w-full"
-                      onClick={() => handleJobAction('decline')}
+                      className="w-full border-red-300 text-red-700 hover:bg-red-50"
+                      onClick={handleIndicateNotAvailable}
                       disabled={actionLoading}
                     >
                       <XCircleIcon className="h-4 w-4 mr-2" />
-                      {actionLoading ? 'Processing...' : 'Decline Job'}
+                      {actionLoading ? 'Processing...' : 'Not Available'}
                     </Button>
                   </>
-                ) : job.status === 'assigned' && job.assigned_interpreter_id ? (
+                )}
+                
+                {job.status === 'finding_interpreter' && job.assignment_status === 'available' && (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center text-green-700">
+                      <CheckCircleIcon className="h-5 w-5 mr-2" />
+                      <span className="text-sm font-medium">
+                        You indicated you're available. Admin will review and assign.
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {job.status === 'finding_interpreter' && job.assignment_status === 'not_available' && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center text-red-700">
+                      <XCircleIcon className="h-5 w-5 mr-2" />
+                      <span className="text-sm font-medium">
+                        You indicated you're not available for this job.
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {job.status === 'assigned' && job.assigned_interpreter_id ? (
                   <div className="text-center py-4">
                     {job.confirmation_status === 'pending' ? (
                       <div>

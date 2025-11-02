@@ -710,7 +710,9 @@ const JobDetails = () => {
               transition={{ delay: 0.5 }}
               className="bg-white rounded-lg shadow-sm border p-6"
             >
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                {job.assignment_status ? 'Status' : 'Actions'}
+              </h3>
               <div className="space-y-3">
                 {job.status === 'finding_interpreter' && !job.assignment_status && (
                   <>
@@ -735,23 +737,36 @@ const JobDetails = () => {
                 )}
                 
                 {job.status === 'finding_interpreter' && job.assignment_status === 'available' && (
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center text-green-700">
-                      <CheckCircleIcon className="h-5 w-5 mr-2" />
-                      <span className="text-sm font-medium">
-                        You indicated you're available. Admin will review and assign.
-                      </span>
+                  <div className="p-5 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                    <div className="flex items-start">
+                      <ClockIcon className="h-6 w-6 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-base font-semibold text-blue-900 mb-1">
+                          Waiting for Admin Assignment
+                        </p>
+                        <p className="text-sm text-blue-700 mb-2">
+                          You've indicated you're available for this job.
+                        </p>
+                        <div className="text-xs text-blue-600 bg-blue-100 rounded px-3 py-2">
+                          💡 The admin team is reviewing available interpreters and will assign this job soon. You'll be notified once assigned.
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
                 
                 {job.status === 'finding_interpreter' && job.assignment_status === 'not_available' && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <div className="flex items-center text-red-700">
-                      <XCircleIcon className="h-5 w-5 mr-2" />
-                      <span className="text-sm font-medium">
-                        You indicated you're not available for this job.
-                      </span>
+                  <div className="p-5 bg-gray-50 border-2 border-gray-300 rounded-lg">
+                    <div className="flex items-start">
+                      <XCircleIcon className="h-6 w-6 text-gray-600 mr-3 flex-shrink-0" />
+                      <div>
+                        <p className="text-base font-semibold text-gray-900 mb-1">
+                          Not Available
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          You've indicated you're not available for this job.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}

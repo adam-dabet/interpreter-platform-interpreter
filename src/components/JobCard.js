@@ -156,6 +156,14 @@ const JobCard = ({
       };
     }
     if (jobStatus === 'available') {
+      // If they've already indicated availability, just show "View"
+      if (job.assignment_status === 'available') {
+        return {
+          label: 'View',
+          onClick: () => navigate(`/job/${job.id}`),
+          variant: 'outline'
+        };
+      }
       return {
         label: 'View & Accept',
         onClick: () => navigate(`/job/${job.id}`),

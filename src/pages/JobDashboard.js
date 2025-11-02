@@ -70,10 +70,19 @@ const JobDashboardNew = () => {
 
   // Filter jobs based on active tab
   const getFilteredJobs = () => {
-    if (activeTab === 'upcoming') {
+    if (activeTab === 'pending') {
+      return jobs.filter(job => 
+        job.assignment_status === 'available' && job.status === 'finding_interpreter'
+      ).sort((a, b) => {
+        const dateA = new Date(`${a.scheduled_date}T${a.scheduled_time}`);
+        const dateB = new Date(`${b.scheduled_date}T${b.scheduled_time}`);
+        return dateA - dateB;
+      });
+    } else if (activeTab === 'upcoming') {
       return jobs.filter(job => {
         const isNotCompleted = !['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid'].includes(job.status);
-        return isNotCompleted;
+        const isNotPending = !(job.assignment_status === 'available' && job.status === 'finding_interpreter');
+        return isNotCompleted && isNotPending;
       }).sort((a, b) => {
         const dateA = new Date(`${a.scheduled_date}T${a.scheduled_time}`);
         const dateB = new Date(`${b.scheduled_date}T${b.scheduled_time}`);
@@ -102,9 +111,14 @@ const JobDashboardNew = () => {
 
   // Calculate tab counts using useMemo
   const tabs = useMemo(() => {
+    const pendingCount = jobs.filter(job => 
+      job.assignment_status === 'available' && job.status === 'finding_interpreter'
+    ).length;
+
     const upcomingCount = jobs.filter(job => {
       const isNotCompleted = !['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid'].includes(job.status);
-      return isNotCompleted;
+      const isNotPending = !(job.assignment_status === 'available' && job.status === 'finding_interpreter');
+      return isNotCompleted && isNotPending;
     }).length;
 
     const completionReportsCount = jobs.filter(job => 
@@ -117,6 +131,12 @@ const JobDashboardNew = () => {
     ).length;
 
     return [
+      { 
+        id: 'pending', 
+        name: 'Pending Assignment', 
+        count: pendingCount,
+        description: 'Jobs waiting for admin to assign you'
+      },
       { 
         id: 'upcoming', 
         name: 'Upcoming Jobs', 

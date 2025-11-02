@@ -75,8 +75,14 @@ const JobSearch = () => {
         params.radius = searchRadius;
       }
       
+      console.log('Calling getAvailableJobs with params:', params);
       const response = await jobAPI.getAvailableJobs(params);
       console.log('Jobs response:', response.data);
+      console.log('Jobs array:', response.data.data.jobs);
+      console.log('Job count:', response.data.data.jobs.length);
+      if (response.data.data.jobs.length > 0) {
+        console.log('Job numbers:', response.data.data.jobs.map(j => j.job_number));
+      }
       setJobs(response.data.data.jobs);
       setTotalPages(response.data.data.pagination.total_pages);
     } catch (error) {
@@ -91,6 +97,15 @@ const JobSearch = () => {
     try {
       let response;
       switch (action) {
+        case 'available':
+          // Show mileage prompt before indicating availability
+          setShowMileagePrompt(true);
+          setSelectedJobId(jobId);
+          return; // Don't proceed with availability yet
+        case 'not_available':
+          response = await jobAPI.indicateNotAvailable(jobId, data.reason || 'Not available');
+          toast.success('Response recorded. Thank you for letting us know.');
+          break;
         case 'accept':
           // Check if user can accept jobs (no overdue reports)
           if (!canAcceptJobs()) {
@@ -123,11 +138,9 @@ const JobSearch = () => {
     
     setMileagePromptLoading(true);
     try {
-      const response = await jobAPI.acceptJob(selectedJobId, { 
-        mileage_requested: mileageRequested 
-      });
+      const response = await jobAPI.indicateAvailability(selectedJobId, mileageRequested);
       
-      toast.success('Job accepted successfully! Your mileage request is pending admin approval.');
+      toast.success('Availability indicated! The admin will review and assign interpreters.');
       setShowMileagePrompt(false);
       setSelectedJobId(null);
       setMileageRequested(0);
@@ -135,8 +148,8 @@ const JobSearch = () => {
       // Reload jobs
       loadJobs();
     } catch (error) {
-      console.error('Error submitting mileage request:', error);
-      toast.error(`Failed to submit mileage request: ${error.response?.data?.message || error.message}`);
+      console.error('Error indicating availability:', error);
+      toast.error(`Failed to indicate availability: ${error.response?.data?.message || error.message}`);
     } finally {
       setMileagePromptLoading(false);
     }
@@ -147,9 +160,9 @@ const JobSearch = () => {
     
     setMileagePromptLoading(true);
     try {
-      const response = await jobAPI.acceptJob(selectedJobId, {});
+      const response = await jobAPI.indicateAvailability(selectedJobId, 0);
       
-      toast.success('Job accepted successfully!');
+      toast.success('Availability indicated! The admin will review and assign interpreters.');
       setShowMileagePrompt(false);
       setSelectedJobId(null);
       setMileageRequested(0);
@@ -157,8 +170,8 @@ const JobSearch = () => {
       // Reload jobs
       loadJobs();
     } catch (error) {
-      console.error('Error accepting job:', error);
-      toast.error(`Failed to accept job: ${error.response?.data?.message || error.message}`);
+      console.error('Error indicating availability:', error);
+      toast.error(`Failed to indicate availability: ${error.response?.data?.message || error.message}`);
     } finally {
       setMileagePromptLoading(false);
     }
@@ -658,13 +671,23 @@ const JobSearch = () => {
                     {/* Action Buttons */}
                     <div className="flex items-center justify-end space-x-2" onClick={(e) => e.stopPropagation()}>
                       {job.status === 'finding_interpreter' && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleJobAction(job.id, 'accept')}
-                        >
-                          <CheckCircleIcon className="h-4 w-4 mr-1" />
-                          Accept
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleJobAction(job.id, 'not_available')}
+                          >
+                            <XCircleIcon className="h-4 w-4 mr-1" />
+                            Not Available
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleJobAction(job.id, 'available')}
+                          >
+                            <CheckCircleIcon className="h-4 w-4 mr-1" />
+                            I'm Available
+                          </Button>
+                        </>
                       )}
                       {job.status === 'assigned' && job.assigned_interpreter_id && (
                         <span className="text-sm text-gray-500 px-3 py-2 bg-gray-100 rounded-md">
@@ -710,7 +733,7 @@ const JobSearch = () => {
                     <div className="text-center mb-6">
                       <CheckCircleIcon className="h-16 w-16 text-blue-600 mx-auto mb-4" />
                       <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                        Mileage Reimbursement
+                        Indicate Your Availability
                       </h2>
                       <p className="text-gray-600 text-sm">
                         Do you need to be reimbursed for mileage to this job location?

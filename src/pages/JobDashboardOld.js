@@ -620,7 +620,12 @@ const JobDashboard = () => {
                         </div>
                         <div className="flex items-center text-sm text-gray-500">
                           <MapPinIcon className="h-4 w-4 mr-2" />
-                          {job.is_remote ? 'Remote' : `${job.location_city}, ${job.location_state}`}
+                          {job.is_remote ? 'Remote' : (
+                            job.location_address || 
+                              (job.location_city && job.location_state 
+                                ? `${job.location_city}, ${job.location_state}` 
+                                : 'Location TBD')
+                          )}
                         </div>
                       </div>
                       

@@ -304,8 +304,13 @@ const DashboardNew = () => {
                 <div className="text-sm space-y-1">
                   <div>{smartAction.job.job_number}</div>
                   <div>{smartAction.job.language_name} • {smartAction.job.service_type_name}</div>
-                  {smartAction.job.location_city && (
-                    <div>{smartAction.job.location_city}, {smartAction.job.location_state}</div>
+                  {!smartAction.job.is_remote && (
+                    <div>
+                      {smartAction.job.location_address || 
+                        (smartAction.job.location_city && smartAction.job.location_state 
+                          ? `${smartAction.job.location_city}, ${smartAction.job.location_state}` 
+                          : 'Location TBD')}
+                    </div>
                   )}
           </div>
             </div>

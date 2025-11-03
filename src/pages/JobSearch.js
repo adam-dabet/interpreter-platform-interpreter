@@ -620,7 +620,10 @@ const JobSearch = () => {
                         ) : (
                           <>
                             <MapPinIcon className="h-4 w-4 mr-2" />
-                            {job.location_city}, {job.location_state}
+                            {job.location_address || 
+                              (job.location_city && job.location_state 
+                                ? `${job.location_city}, ${job.location_state}` 
+                                : 'Location TBD')}
                           </>
                         )}
                       </div>

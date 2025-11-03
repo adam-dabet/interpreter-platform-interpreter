@@ -272,10 +272,15 @@ const JobCard = ({
         </div>
 
         {/* Location */}
-        {!job.is_remote && job.location_city && (
+        {!job.is_remote && (
           <div className="flex items-start text-sm text-gray-700">
             <MapPinIcon className="h-4 w-4 mr-2 mt-0.5 text-gray-400 flex-shrink-0" />
-            <span className="line-clamp-1">{job.location_city}, {job.location_state}</span>
+            <span className="line-clamp-1">
+              {job.location_address || 
+                (job.location_city && job.location_state 
+                  ? `${job.location_city}, ${job.location_state}` 
+                  : 'Location TBD')}
+            </span>
           </div>
         )}
 

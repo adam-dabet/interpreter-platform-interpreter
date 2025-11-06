@@ -7,25 +7,42 @@
  */
 
 /**
- * Parse a date string (YYYY-MM-DD) as a local date, not UTC
+ * Parse a date string (YYYY-MM-DD or ISO) as a local date, not UTC
  * This prevents timezone conversion issues
  */
 export const parseLocalDate = (dateString) => {
   if (!dateString) return null;
   
-  // Split the date string and create a date in local timezone
-  const [year, month, day] = dateString.split('-').map(Number);
+  // Handle if already a Date object
+  if (dateString instanceof Date) return dateString;
+  
+  // Convert to string and extract just the date part (YYYY-MM-DD)
+  // This handles both "2025-11-08" and "2025-11-08T00:00:00.000Z" formats
+  const dateStr = String(dateString).split('T')[0];
+  
+  // Split and validate
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return null;
+  
+  const [year, month, day] = parts.map(Number);
+  
+  // Validate the numbers
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+  if (month < 1 || month > 12) return null;
+  if (day < 1 || day > 31) return null;
+  
+  // Create date in local timezone
   return new Date(year, month - 1, day);
 };
 
 /**
  * Format a date string for display
- * @param {string} dateString - Date in YYYY-MM-DD format
+ * @param {string} dateString - Date in YYYY-MM-DD format or ISO timestamp
  * @param {object} options - Intl.DateTimeFormat options
  */
 export const formatDate = (dateString, options = {}) => {
   const date = parseLocalDate(dateString);
-  if (!date) return 'N/A';
+  if (!date || isNaN(date.getTime())) return 'N/A';
   
   const defaultOptions = {
     weekday: 'long',
@@ -35,7 +52,12 @@ export const formatDate = (dateString, options = {}) => {
     ...options
   };
   
-  return date.toLocaleDateString('en-US', defaultOptions);
+  try {
+    return date.toLocaleDateString('en-US', defaultOptions);
+  } catch (error) {
+    console.error('Error formatting date:', dateString, error);
+    return 'N/A';
+  }
 };
 
 /**

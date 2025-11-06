@@ -250,9 +250,11 @@ const JobCard = ({
             )}
           </div>
           
-          {/* Job Number/Title */}
+          {/* Job Title/Service Type - Don't show job number until assigned */}
           <h3 className="text-base font-semibold text-gray-900">
-            {job.job_number || `Job #${job.id?.substring(0, 8)}`}
+            {jobStatus === 'available' 
+              ? (job.service_type_name || 'Interpretation Service')
+              : (job.job_number || `Job #${job.id?.substring(0, 8)}`)}
           </h3>
         </div>
       </div>

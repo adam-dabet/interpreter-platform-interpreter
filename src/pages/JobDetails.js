@@ -359,7 +359,12 @@ const JobDetails = () => {
                 <ArrowLeftIcon className="h-4 w-4 mr-2" />
                 Back to Job Search
               </button>
-              <h1 className="text-3xl font-bold text-gray-900">{job.job_number || job.title}</h1>
+              {/* Don't show job number for available/unassigned jobs */}
+              <h1 className="text-3xl font-bold text-gray-900">
+                {job.status === 'finding_interpreter' 
+                  ? (job.service_type_name || job.title || 'Job Opportunity')
+                  : (job.job_number || job.title)}
+              </h1>
               <div className="flex items-center mt-2 space-x-2">
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getPriorityColor(job.priority)}`}>
                   {job.priority} Priority

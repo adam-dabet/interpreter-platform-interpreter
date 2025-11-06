@@ -585,7 +585,11 @@ const JobSearch = () => {
                     {/* Job Header */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">{job.job_number || job.title}</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
+                          {job.status === 'finding_interpreter' 
+                            ? (job.service_type_name || 'Job Opportunity')
+                            : (job.job_number || job.title)}
+                        </h3>
                         <div className="flex items-center mt-2 space-x-2">
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(job.priority)}`}>
                             {job.priority} Priority

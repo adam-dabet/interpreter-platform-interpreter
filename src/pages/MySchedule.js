@@ -166,7 +166,9 @@ const MySchedule = () => {
             )}
           </div>
           <h3 className="text-sm font-semibold text-gray-900">
-            {job.job_number || `Job #${job.id.substring(0, 8)}`}
+            {job.status === 'finding_interpreter' 
+              ? (job.service_type_name || 'Job Opportunity')
+              : (job.job_number || `Job #${job.id.substring(0, 8)}`)}
           </h3>
         </div>
       </div>

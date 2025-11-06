@@ -11,6 +11,7 @@ import {
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import axios from 'axios';
+import { formatDate as formatDateUtil, formatTime as formatTimeUtil } from '../utils/dateUtils';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -63,8 +64,9 @@ const ConfirmJob = () => {
     }
   };
 
+  // Use imported date utilities
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return formatDateUtil(dateString, {
       weekday: 'long',
       month: 'long',
       day: 'numeric',
@@ -73,12 +75,7 @@ const ConfirmJob = () => {
   };
 
   const formatTime = (timeString) => {
-    if (!timeString) return 'N/A';
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+    return formatTimeUtil(timeString);
   };
 
   if (loading) {

@@ -20,6 +20,7 @@ import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
 import { useJobRestrictions } from '../contexts/JobRestrictionContext';
+import { formatDate as formatDateUtil, formatTime as formatTimeUtil } from '../utils/dateUtils';
 
 const JobSearch = () => {
   const navigate = useNavigate();
@@ -223,8 +224,9 @@ const JobSearch = () => {
     }
   };
 
+  // Use imported date utilities with custom options for this page
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return formatDateUtil(dateString, {
       weekday: 'short',
       year: 'numeric',
       month: 'short',
@@ -233,11 +235,7 @@ const JobSearch = () => {
   };
 
   const formatTime = (timeString) => {
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+    return formatTimeUtil(timeString);
   };
 
   const formatCurrency = (amount) => {

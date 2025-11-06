@@ -14,6 +14,7 @@ import jobAPI from '../services/jobAPI';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import JobCard from '../components/JobCard';
 import InterpreterCompletionReport from '../components/InterpreterCompletionReport';
+import { formatDate as formatDateUtil, formatCurrency as formatCurrencyUtil } from '../utils/dateUtils';
 
 const JobDashboardNew = () => {
   const navigate = useNavigate();
@@ -164,15 +165,13 @@ const JobDashboardNew = () => {
     ];
   }, [jobs]);
 
+  // Use imported date utilities
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount || 0);
+    return formatCurrencyUtil(amount);
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return formatDateUtil(dateString, {
       weekday: 'short',
       month: 'short',
       day: 'numeric',

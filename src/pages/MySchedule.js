@@ -17,6 +17,7 @@ import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
+import { formatDate as formatDateUtil, formatTime as formatTimeUtil } from '../utils/dateUtils';
 
 const MySchedule = () => {
   const navigate = useNavigate();
@@ -112,8 +113,9 @@ const MySchedule = () => {
     return date.toDateString() === today.toDateString();
   };
 
+  // Use imported date utilities
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return formatDateUtil(dateString, {
       weekday: 'long',
       month: 'long',
       day: 'numeric',
@@ -122,12 +124,7 @@ const MySchedule = () => {
   };
 
   const formatTime = (timeString) => {
-    if (!timeString) return 'N/A';
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+    return formatTimeUtil(timeString);
   };
 
   const getStatusColor = (job) => {

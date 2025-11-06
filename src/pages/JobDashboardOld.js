@@ -20,6 +20,7 @@ import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { formatDate as formatDateUtil, formatTime as formatTimeUtil, formatCurrency as formatCurrencyUtil } from '../utils/dateUtils';
 import InterpreterCompletionReport from '../components/InterpreterCompletionReport';
 import { 
   getJobStatusColor, 
@@ -204,8 +205,9 @@ const JobDashboard = () => {
     }
   };
 
+  // Use imported date utilities
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return formatDateUtil(dateString, {
       weekday: 'short',
       year: 'numeric',
       month: 'short',
@@ -214,18 +216,11 @@ const JobDashboard = () => {
   };
 
   const formatTime = (timeString) => {
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+    return formatTimeUtil(timeString);
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount || 0);
+    return formatCurrencyUtil(amount);
   };
 
   const calculateJobEarnings = (job) => {

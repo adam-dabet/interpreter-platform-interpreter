@@ -13,6 +13,7 @@ import {
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import Button from './ui/Button';
+import { formatDate as formatDateUtil, formatTime as formatTimeUtil, formatCurrency as formatCurrencyUtil, getTimeUntilJob as getTimeUntilJobUtil } from '../utils/dateUtils';
 
 const JobCard = ({ 
   job, 
@@ -24,8 +25,9 @@ const JobCard = ({
 }) => {
   const navigate = useNavigate();
 
+  // Use imported date utilities
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return formatDateUtil(dateString, {
       weekday: 'short',
       month: 'short',
       day: 'numeric'
@@ -33,19 +35,11 @@ const JobCard = ({
   };
 
   const formatTime = (timeString) => {
-    if (!timeString) return 'N/A';
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+    return formatTimeUtil(timeString);
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount || 0);
+    return formatCurrencyUtil(amount);
   };
 
   // Determine job status and next action
@@ -188,32 +182,8 @@ const JobCard = ({
   };
 
   // Time until job
-  const getTimeUntilJob = () => {
-    // Validate required fields
-    if (!job.scheduled_date || !job.scheduled_time) {
-      return null;
-    }
-    
-    const now = new Date();
-    // Extract just the date part from scheduled_date (in case it's a full ISO timestamp)
-    const dateOnly = job.scheduled_date.split('T')[0];
-    const jobDate = new Date(`${dateOnly}T${job.scheduled_time}`);
-    
-    // Check if date is valid
-    if (isNaN(jobDate.getTime())) {
-      return null;
-    }
-    
-    const hoursUntil = (jobDate - now) / (1000 * 60 * 60);
-    
-    if (hoursUntil < 0) return null;
-    if (hoursUntil < 1) return `in ${Math.round(hoursUntil * 60)} minutes`;
-    if (hoursUntil < 24) return `in ${Math.round(hoursUntil)} hours`;
-    const daysUntil = Math.floor(hoursUntil / 24);
-    return `in ${daysUntil} ${daysUntil === 1 ? 'day' : 'days'}`;
-  };
-
-  const timeUntil = getTimeUntilJob();
+  // Use the imported utility for time until job
+  const timeUntil = getTimeUntilJobUtil(job.scheduled_date, job.scheduled_time);
 
   return (
     <motion.div

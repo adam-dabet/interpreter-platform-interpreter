@@ -22,6 +22,7 @@ import {
   MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
+import { formatDate as formatDateUtil, formatTime as formatTimeUtil } from '../utils/dateUtils';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -251,18 +252,14 @@ const Dashboard = () => {
     return alerts;
   };
 
+  // Use imported date utilities
   const formatTime = (timeString) => {
-    if (!timeString) return 'N/A';
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+    return formatTimeUtil(timeString);
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return formatDateUtil(dateString, {
       weekday: 'short',
       month: 'short',
       day: 'numeric'

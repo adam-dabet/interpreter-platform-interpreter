@@ -24,6 +24,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import InterpreterJobWorkflow from '../components/InterpreterJobWorkflow';
 import { useAuth } from '../contexts/AuthContext';
 import { useJobRestrictions } from '../contexts/JobRestrictionContext';
+import { formatDate, formatTime, formatCurrency, getTimeUntilJob } from '../utils/dateUtils';
 
 const JobDetails = () => {
   const { jobId } = useParams();
@@ -242,29 +243,7 @@ const JobDetails = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  const formatTime = (timeString) => {
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount || 0);
-  };
+  // Date/time formatting functions imported from utils/dateUtils.js
 
   const calculateEarnings = (job) => {
     let basePayment = 0;

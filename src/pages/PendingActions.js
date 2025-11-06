@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
+import { formatDate as formatDateUtil, formatTime as formatTimeUtil, getTimeUntilJob as getTimeUntilJobUtil } from '../utils/dateUtils';
 
 const PendingActions = () => {
   const navigate = useNavigate();
@@ -97,8 +98,9 @@ const PendingActions = () => {
                       pendingActions.reportsDue.length + 
                       pendingActions.needsConfirmation.length;
 
+  // Use imported date utilities
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return formatDateUtil(dateString, {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -107,25 +109,12 @@ const PendingActions = () => {
   };
 
   const formatTime = (timeString) => {
-    if (!timeString) return 'N/A';
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+    return formatTimeUtil(timeString);
   };
 
+  // Use imported utility
   const getTimeUntilJob = (job) => {
-    const now = new Date();
-    const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
-    const hoursUntil = (jobDate - now) / (1000 * 60 * 60);
-    
-    if (hoursUntil < 24) {
-      return `in ${Math.round(hoursUntil)} hours`;
-    } else {
-      const daysUntil = Math.floor(hoursUntil / 24);
-      return `in ${daysUntil} ${daysUntil === 1 ? 'day' : 'days'}`;
-    }
+    return getTimeUntilJobUtil(job.scheduled_date, job.scheduled_time) || 'N/A';
   };
 
   const getTimeSinceCompletion = (job) => {

@@ -43,9 +43,9 @@ const MySchedule = () => {
     }
   };
 
-  // Filter jobs for upcoming (not completed)
+  // Filter jobs for upcoming (not completed or cancelled)
   const upcomingJobs = jobs.filter(job => {
-    const isNotCompleted = !['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid'].includes(job.status);
+    const isNotCompleted = !['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid', 'cancelled'].includes(job.status);
     return isNotCompleted;
   }).sort((a, b) => {
     const dateA = new Date(`${a.scheduled_date}T${a.scheduled_time}`);

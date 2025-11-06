@@ -80,7 +80,7 @@ const JobDashboardNew = () => {
       });
     } else if (activeTab === 'upcoming') {
       return jobs.filter(job => {
-        const isNotCompleted = !['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid'].includes(job.status);
+        const isNotCompleted = !['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid', 'cancelled'].includes(job.status);
         const isNotPending = !(job.assignment_status === 'available' && job.status === 'finding_interpreter');
         return isNotCompleted && isNotPending;
       }).sort((a, b) => {

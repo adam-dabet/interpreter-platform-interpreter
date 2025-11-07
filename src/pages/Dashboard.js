@@ -19,6 +19,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
 import JobCard from '../components/JobCard';
 import InterpreterCompletionReport from '../components/InterpreterCompletionReport';
+import { isToday } from '../utils/dateUtils';
 
 const DashboardNew = () => {
   const navigate = useNavigate();
@@ -185,11 +186,10 @@ const DashboardNew = () => {
 
   // Get today's jobs
   const getTodaysJobs = () => {
-    const today = new Date().toDateString();
     return jobs.filter(job => {
       const isNotCompleted = !['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid'].includes(job.status);
-      const isToday = new Date(job.scheduled_date).toDateString() === today;
-      return isNotCompleted && isToday;
+      const jobIsToday = isToday(job.scheduled_date);
+      return isNotCompleted && jobIsToday;
     }).sort((a, b) => {
       const timeA = a.scheduled_time || '00:00';
       const timeB = b.scheduled_time || '00:00';

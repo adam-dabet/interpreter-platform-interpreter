@@ -58,11 +58,14 @@ const MySchedule = () => {
   const groupJobsByDate = () => {
     const grouped = {};
     upcomingJobs.forEach(job => {
-      const date = new Date(job.scheduled_date).toDateString();
-      if (!grouped[date]) {
-        grouped[date] = [];
+      const date = parseLocalDate(job.scheduled_date);
+      if (date) {
+        const dateStr = date.toDateString();
+        if (!grouped[dateStr]) {
+          grouped[dateStr] = [];
+        }
+        grouped[dateStr].push(job);
       }
-      grouped[date].push(job);
     });
     return grouped;
   };

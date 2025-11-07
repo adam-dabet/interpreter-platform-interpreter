@@ -22,7 +22,7 @@ import {
   MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
-import { formatDate as formatDateUtil, formatTime as formatTimeUtil } from '../utils/dateUtils';
+import { formatDate as formatDateUtil, formatTime as formatTimeUtil, isToday, isTomorrow } from '../utils/dateUtils';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -167,14 +167,8 @@ const Dashboard = () => {
         },
         alerts,
         quickStats: {
-          todayJobs: upcomingJobs.filter(job => 
-            new Date(job.scheduled_date).toDateString() === new Date().toDateString()
-          ).length,
-          tomorrowJobs: upcomingJobs.filter(job => {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            return new Date(job.scheduled_date).toDateString() === tomorrow.toDateString();
-          }).length,
+          todayJobs: upcomingJobs.filter(job => isToday(job.scheduled_date)).length,
+          tomorrowJobs: upcomingJobs.filter(job => isTomorrow(job.scheduled_date)).length,
           pendingApplications: 0,
           profileCompleteness
         }

@@ -17,7 +17,7 @@ import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
-import { formatDate as formatDateUtil, formatTime as formatTimeUtil } from '../utils/dateUtils';
+import { formatDate as formatDateUtil, formatTime as formatTimeUtil, parseLocalDate } from '../utils/dateUtils';
 
 const MySchedule = () => {
   const navigate = useNavigate();

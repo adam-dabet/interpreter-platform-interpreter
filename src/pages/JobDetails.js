@@ -415,40 +415,36 @@ const JobDetails = () => {
                       </div>
                     </div>
                   )}
-                  <div className="flex items-center">
+                  <div className="flex items-start">
                     {job.is_remote ? (
-                      <GlobeAltIcon className="h-5 w-5 text-gray-400 mr-3" />
+                      <GlobeAltIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
                     ) : (
-                      <MapPinIcon className="h-5 w-5 text-gray-400 mr-3" />
+                      <MapPinIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
                     )}
                     <div>
                       <p className="text-sm font-medium text-gray-900">Location</p>
                       <p className="text-sm text-gray-600">
                         {job.is_remote ? 'Remote Session' : (job.location_address || `${job.location_city}, ${job.location_state}`)}
                       </p>
+                      {(job.location_contact_name || job.location_contact_phone) && (
+                        <div className="mt-2 pt-2 border-t border-gray-200">
+                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Location Contact</p>
+                          {job.location_contact_name && (
+                            <p className="text-sm text-gray-900">{job.location_contact_name}</p>
+                          )}
+                          {job.location_contact_phone && (
+                            <p className="text-sm text-gray-600">{job.location_contact_phone}</p>
+                          )}
+                        </div>
+                      )}
+                      {!job.location_contact_name && !job.location_contact_phone && job.facility_phone && (
+                        <div className="mt-2 pt-2 border-t border-gray-200">
+                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Facility Phone</p>
+                          <p className="text-sm text-gray-600">{job.facility_phone}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  {job.location_contact_name && (
-                    <div className="flex items-start">
-                      <UserIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Location Contact</p>
-                        <p className="text-sm text-gray-600">{job.location_contact_name}</p>
-                        {(job.location_contact_phone || job.facility_phone) && (
-                          <p className="text-sm text-gray-600">{job.location_contact_phone || job.facility_phone}</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {!job.location_contact_name && job.facility_phone && (
-                    <div className="flex items-start">
-                      <PhoneIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Facility Phone</p>
-                        <p className="text-sm text-gray-600">{job.facility_phone}</p>
-                      </div>
-                    </div>
-                  )}
                 </div>
                 <div className="space-y-4">
                   <div>

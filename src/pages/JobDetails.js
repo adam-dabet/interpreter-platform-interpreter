@@ -395,6 +395,9 @@ const JobDetails = () => {
                     <div>
                       <p className="text-sm font-medium text-gray-900">Time</p>
                       <p className="text-sm text-gray-600">{formatTime(job.scheduled_time)} ({job.estimated_duration_minutes} minutes)</p>
+                      {job.arrival_time && (
+                        <p className="text-sm text-blue-600 font-medium mt-1">Arrival Time: {formatTime(job.arrival_time)}</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center">

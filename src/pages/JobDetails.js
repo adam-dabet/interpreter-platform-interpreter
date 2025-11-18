@@ -426,18 +426,29 @@ const JobDetails = () => {
                       <p className="text-sm text-gray-600">
                         {job.is_remote ? 'Remote Session' : (job.location_address || `${job.location_city}, ${job.location_state}`)}
                       </p>
-                      {(job.location_contact_name || job.location_contact_phone) && (
+                      {/* Location Contact - Show if name exists OR if phone exists and is different from facility phone */}
+                      {((job.location_contact_name && job.location_contact_name.trim()) || 
+                        (job.location_contact_phone && job.location_contact_phone.trim() && 
+                         (!job.facility_phone || job.location_contact_phone.trim() !== job.facility_phone.trim()))) && (
                         <div className="mt-2 pt-2 border-t border-gray-200">
                           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Location Contact</p>
-                          {job.location_contact_name && (
-                            <p className="text-sm text-gray-900">{job.location_contact_name}</p>
+                          {job.location_contact_name && job.location_contact_name.trim() && (
+                            <p className="text-sm text-gray-900">
+                              {job.location_contact_name}
+                              {job.location_contact_title && job.location_contact_title.trim() && ` - ${job.location_contact_title}`}
+                            </p>
                           )}
-                          {job.location_contact_phone && (
+                          {job.location_contact_phone && job.location_contact_phone.trim() && 
+                           (!job.facility_phone || job.location_contact_phone.trim() !== job.facility_phone.trim()) && (
                             <p className="text-sm text-gray-600">{job.location_contact_phone}</p>
                           )}
                         </div>
                       )}
-                      {!job.location_contact_name && !job.location_contact_phone && job.facility_phone && (
+                      {/* Facility Phone - Only show if no location contact name and no location contact phone (or phone equals facility phone) */}
+                      {(!job.location_contact_name || !job.location_contact_name.trim()) && 
+                       (!job.location_contact_phone || !job.location_contact_phone.trim() || 
+                        (job.facility_phone && job.location_contact_phone.trim() === job.facility_phone.trim())) && 
+                       job.facility_phone && (
                         <div className="mt-2 pt-2 border-t border-gray-200">
                           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Facility Phone</p>
                           <p className="text-sm text-gray-600">{job.facility_phone}</p>

@@ -393,13 +393,28 @@ const JobDetails = () => {
                   <div className="flex items-center">
                     <ClockIcon className="h-5 w-5 text-gray-400 mr-3" />
                     <div>
-                      <p className="text-sm font-medium text-gray-900">Time</p>
-                      <p className="text-sm text-gray-600">{formatTime(job.scheduled_time)} ({job.estimated_duration_minutes} minutes)</p>
-                      {job.arrival_time && (
-                        <p className="text-sm text-blue-600 font-medium mt-1">Arrival Time: {formatTime(job.arrival_time)}</p>
-                      )}
+                      <p className="text-sm font-medium text-gray-900">Appointment Time</p>
+                      <p className="text-sm text-gray-600">{formatTime(job.scheduled_time)}</p>
                     </div>
                   </div>
+                  {job.arrival_time && (
+                    <div className="flex items-center">
+                      <ClockIcon className="h-5 w-5 text-gray-400 mr-3" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Arrival Time</p>
+                        <p className="text-sm text-blue-600 font-medium">{formatTime(job.arrival_time)}</p>
+                      </div>
+                    </div>
+                  )}
+                  {job.estimated_duration_minutes && (
+                    <div className="flex items-center">
+                      <ClockIcon className="h-5 w-5 text-gray-400 mr-3" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Reserve Hours</p>
+                        <p className="text-sm text-gray-600">{(job.estimated_duration_minutes / 60).toFixed(1)} hours</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center">
                     {job.is_remote ? (
                       <GlobeAltIcon className="h-5 w-5 text-gray-400 mr-3" />

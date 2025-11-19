@@ -134,7 +134,18 @@ const JobAction = () => {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
+          <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 relative">
+            {/* Close Button */}
+            <button
+              onClick={() => {
+                setShowMileagePrompt(false);
+                setMileageRequested(0);
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <XCircleIcon className="h-6 w-6" />
+            </button>
+            
             <div className="text-center mb-6">
               <CheckCircleIcon className="h-16 w-16 text-blue-600 mx-auto mb-4" />
               <h2 className="text-xl font-semibold text-gray-900 mb-2">

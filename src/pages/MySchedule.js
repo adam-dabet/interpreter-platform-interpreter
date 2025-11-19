@@ -176,7 +176,7 @@ const MySchedule = () => {
       <div className="space-y-2 text-sm text-gray-600">
         <div className="flex items-center">
           <ClockIcon className="h-4 w-4 mr-2 text-gray-400" />
-          {formatTime(job.scheduled_time)} - {job.estimated_duration_minutes} min
+          {formatTime(job.arrival_time || job.scheduled_time)} - {job.estimated_duration_minutes} min
         </div>
         {!job.is_remote && (
           <div className="flex items-start">

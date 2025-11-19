@@ -426,28 +426,22 @@ const JobDetails = () => {
                       <p className="text-sm text-gray-600">
                         {job.is_remote ? 'Remote Session' : (job.location_address || `${job.location_city}, ${job.location_state}`)}
                       </p>
-                      {/* Location Contact - Show if name exists OR if phone exists and is different from facility phone */}
-                      {((job.location_contact_name && job.location_contact_name.trim()) || 
-                        (job.location_contact_phone && job.location_contact_phone.trim() && 
-                         (!job.facility_phone || job.location_contact_phone.trim() !== job.facility_phone.trim()))) && (
+                      {/* Location Contact - Show if name exists */}
+                      {job.location_contact_name && job.location_contact_name.trim() && (
                         <div className="mt-2 pt-2 border-t border-gray-200">
                           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Location Contact</p>
-                          {job.location_contact_name && job.location_contact_name.trim() && (
-                            <p className="text-sm text-gray-900">
-                              {job.location_contact_name}
-                              {job.location_contact_title && job.location_contact_title.trim() && ` - ${job.location_contact_title}`}
-                            </p>
-                          )}
+                          <p className="text-sm text-gray-900">
+                            {job.location_contact_name}
+                            {job.location_contact_title && job.location_contact_title.trim() && ` - ${job.location_contact_title}`}
+                          </p>
                           {job.location_contact_phone && job.location_contact_phone.trim() && 
                            (!job.facility_phone || job.location_contact_phone.trim() !== job.facility_phone.trim()) && (
                             <p className="text-sm text-gray-600">{job.location_contact_phone}</p>
                           )}
                         </div>
                       )}
-                      {/* Facility Phone - Only show if no location contact name and no location contact phone (or phone equals facility phone) */}
+                      {/* Facility Phone - Only show if no location contact name */}
                       {(!job.location_contact_name || !job.location_contact_name.trim()) && 
-                       (!job.location_contact_phone || !job.location_contact_phone.trim() || 
-                        (job.facility_phone && job.location_contact_phone.trim() === job.facility_phone.trim())) && 
                        job.facility_phone && (
                         <div className="mt-2 pt-2 border-t border-gray-200">
                           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Facility Phone</p>
@@ -987,7 +981,18 @@ const JobDetails = () => {
       {/* Mileage Prompt Modal */}
       {showMileagePrompt && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4 relative">
+            {/* Close Button */}
+            <button
+              onClick={() => {
+                setShowMileagePrompt(false);
+                setMileageRequested(0);
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <XCircleIcon className="h-6 w-6" />
+            </button>
+            
             <div className="text-center mb-6">
               <CheckCircleIcon className="h-16 w-16 text-blue-600 mx-auto mb-4" />
               <h2 className="text-xl font-semibold text-gray-900 mb-2">

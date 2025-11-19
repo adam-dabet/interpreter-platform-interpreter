@@ -611,7 +611,7 @@ const JobSearch = () => {
                       </div>
                       <div className="flex items-center text-sm text-gray-500">
                         <ClockIcon className="h-4 w-4 mr-2" />
-                        {formatTime(job.scheduled_time)} ({job.estimated_duration_minutes} min)
+                        {formatTime(job.arrival_time || job.scheduled_time)} ({job.estimated_duration_minutes} min)
                       </div>
                       <div className="flex items-center text-sm text-gray-500">
                         {job.is_remote ? (

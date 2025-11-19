@@ -237,7 +237,7 @@ const JobCard = ({
           <span className="font-medium">{formatDate(job.scheduled_date)}</span>
           <span className="mx-2">•</span>
           <ClockIcon className="h-4 w-4 mr-1 text-gray-400" />
-          <span>{formatTime(job.scheduled_time)}</span>
+          <span>{formatTime(job.arrival_time || job.scheduled_time)}</span>
           {job.estimated_duration_minutes && (
             <span className="text-gray-500 ml-1">({job.estimated_duration_minutes} min)</span>
           )}

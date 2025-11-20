@@ -26,7 +26,7 @@ const Header = () => {
           <Link to="/" className="flex items-center">
             <div className="flex-shrink-0">
               <h1 className="text-2xl font-bold text-blue-600">
-                Interpreter Platform
+                Integrity Providers
               </h1>
             </div>
           </Link>

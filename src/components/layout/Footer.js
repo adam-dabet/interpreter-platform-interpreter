@@ -9,7 +9,7 @@ const Footer = () => {
           {/* Company Info */}
           <div className="col-span-1 md:col-span-2">
             <h3 className="text-xl font-bold text-blue-400 mb-4">
-              Interpreter Platform
+              Integrity Providers
             </h3>
             <p className="text-gray-300 mb-4 max-w-md">
               Connecting communities through professional language interpretation services. 
@@ -91,7 +91,7 @@ const Footer = () => {
         <div className="border-t border-gray-800 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-400 text-sm">
-              © 2024 Interpreter Platform. All rights reserved.
+              © 2024 Integrity Providers. All rights reserved.
             </p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <button className="text-gray-400 hover:text-white text-sm transition-colors">

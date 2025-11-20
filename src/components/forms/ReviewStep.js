@@ -16,7 +16,7 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const termsScrollRef = useRef(null);
 
-  // Handle scroll detection for terms and conditions
+  // Handle scroll detection for interpreter agreement
   useEffect(() => {
     const handleScroll = () => {
       const scrollContainer = termsScrollRef.current;
@@ -52,7 +52,7 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
     const newErrors = {};
     
     if (!agreements.terms_accepted) {
-      newErrors.terms_accepted = 'You must accept the terms and conditions';
+      newErrors.terms_accepted = 'You must accept the interpreter agreement';
     }
     if (!agreements.privacy_policy_accepted) {
       newErrors.privacy_policy_accepted = 'You must accept the privacy policy';
@@ -509,15 +509,15 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
         )}
       </div>
 
-      {/* Terms and Agreements */}
+      {/* Interpreter Agreement */}
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Terms and Agreements</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Interpreter Agreement</h3>
         
-        {/* Scrollable Terms and Conditions */}
+        {/* Scrollable Interpreter Agreement */}
         <div className="mb-4">
-          <h4 className="text-md font-medium text-gray-800 mb-2">Terms and Conditions</h4>
+          <h4 className="text-md font-medium text-gray-800 mb-2">Interpreter Agreement</h4>
           <p className="text-sm text-gray-600 mb-3">
-            Please read the following terms and conditions carefully. You must scroll to the bottom before you can accept.
+            Please read the following interpreter agreement carefully. You must scroll to the bottom before you can accept.
           </p>
           
           <div 
@@ -862,7 +862,7 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
                 {hasScrolledToBottom && (
                   <div className="mt-4 p-3 bg-green-100 border-l-4 border-green-400 rounded">
                     <p className="text-sm text-gray-700 font-medium">
-                      ✓ You have reached the end of the Terms and Conditions. You may now accept the terms below.
+                      ✓ You have reached the end of the Interpreter Agreement. You may now accept the agreement below.
                     </p>
                   </div>
                 )}
@@ -873,10 +873,10 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
         
         <div className="space-y-4">
           <Checkbox
-            label="I accept the Terms and Conditions"
+            label="I accept the Interpreter Agreement"
             description={
               <span>
-                I have read and agree to the Terms and Conditions above.
+                I have read and agree to the Interpreter Agreement above.
               </span>
             }
             checked={agreements.terms_accepted}

@@ -460,6 +460,14 @@ const JobDetails = () => {
                     <p className="text-sm font-medium text-gray-900">Service Type</p>
                     <p className="text-sm text-gray-600">{job.service_type_name}</p>
                   </div>
+                  {job.appointment_type && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Appointment Type</p>
+                      <p className="text-sm text-gray-600">
+                        {job.appointment_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm font-medium text-gray-900">Status</p>
                     <p className="text-sm text-gray-600 capitalize">{job.status}</p>

@@ -17,7 +17,9 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
     // Sync selectedServiceTypes with formData.service_types when it changes (e.g., from prefillFormData)
     useEffect(() => {
         if (formData.service_types && Array.isArray(formData.service_types) && formData.service_types.length > 0) {
-            setSelectedServiceTypes(formData.service_types);
+            // Ensure all IDs are strings for consistency
+            const stringIds = formData.service_types.map(id => String(id));
+            setSelectedServiceTypes(stringIds);
         }
     }, [formData.service_types]);
 
@@ -28,10 +30,15 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             let ratesObject = {};
             
             if (Array.isArray(formData.service_rates)) {
-                // Convert array to object
+                // Convert array to object, handling both string and number IDs
                 formData.service_rates.forEach(rate => {
                     if (rate.service_type_id) {
-                        ratesObject[rate.service_type_id] = rate;
+                        // Use string ID as key for consistency
+                        const key = String(rate.service_type_id);
+                        ratesObject[key] = {
+                            ...rate,
+                            service_type_id: key // Ensure service_type_id is string
+                        };
                     }
                 });
             } else if (typeof formData.service_rates === 'object') {
@@ -41,6 +48,46 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             setServiceRates(ratesObject);
         }
     }, [formData.service_rates, parametricData?.serviceTypes]);
+
+    // Ensure all selected service types have rates (create defaults if missing)
+    useEffect(() => {
+        if (selectedServiceTypes.length > 0 && parametricData?.serviceTypes) {
+            setServiceRates(prev => {
+                const updated = { ...prev };
+                let hasChanges = false;
+
+                selectedServiceTypes.forEach(serviceTypeId => {
+                    const key = String(serviceTypeId);
+                    // If this service type doesn't have a rate, create a default one
+                    if (!updated[key]) {
+                        const serviceType = parametricData.serviceTypes.find(st => 
+                            String(st.id) === key || st.id === serviceTypeId
+                        );
+                        
+                        if (serviceType) {
+                            updated[key] = {
+                                service_type_id: key,
+                                rate_type: 'platform',
+                                rate_amount: getLanguageSpecificRate(serviceType.code, serviceType.platform_rate_amount),
+                                rate_unit: serviceType.platform_rate_unit,
+                                minimum_hours: serviceType.platform_minimum_hours,
+                                interval_minutes: serviceType.platform_interval_minutes,
+                                second_interval_rate_amount: serviceType.platform_second_interval_rate_amount,
+                                second_interval_rate_unit: serviceType.platform_second_interval_rate_unit,
+                                custom_minimum_hours: null,
+                                custom_interval_minutes: null,
+                                custom_second_interval_rate_amount: null,
+                                custom_second_interval_rate_unit: null
+                            };
+                            hasChanges = true;
+                        }
+                    }
+                });
+
+                return hasChanges ? updated : prev;
+            });
+        }
+    }, [selectedServiceTypes, parametricData?.serviceTypes]);
 
     // Safety check for parametricData
     if (!parametricData) {
@@ -123,7 +170,9 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
     };
 
     const handleServiceTypeToggle = (serviceTypeId) => {
-        const serviceType = parametricData?.serviceTypes?.find(st => st.id === serviceTypeId);
+        const serviceType = parametricData?.serviceTypes?.find(st => 
+            String(st.id) === String(serviceTypeId) || st.id === serviceTypeId
+        );
         
         // Check if user can select this service type
         if (serviceType && !hasRequiredCertification(serviceType.code)) {
@@ -132,19 +181,22 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
         }
         
         setSelectedServiceTypes(prev => {
-            if (prev.includes(serviceTypeId)) {
+            const serviceTypeIdStr = String(serviceTypeId);
+            const isSelected = prev.some(id => String(id) === serviceTypeIdStr || id === serviceTypeId);
+            
+            if (isSelected) {
                 // Remove service type and its rate
                 const newRates = { ...serviceRates };
-                delete newRates[serviceTypeId];
+                delete newRates[serviceTypeIdStr];
                 setServiceRates(newRates);
-                return prev.filter(id => id !== serviceTypeId);
+                return prev.filter(id => String(id) !== serviceTypeIdStr && id !== serviceTypeId);
             } else {
                 // Add service type with default platform rate and settings
                 if (serviceType) {
                     setServiceRates(prev => ({
                         ...prev,
-                        [serviceTypeId]: {
-                            service_type_id: serviceTypeId,
+                        [serviceTypeIdStr]: {
+                            service_type_id: serviceTypeIdStr,
                             rate_type: 'platform',
                             rate_amount: getLanguageSpecificRate(serviceType.code, serviceType.platform_rate_amount),
                             rate_unit: serviceType.platform_rate_unit,
@@ -159,7 +211,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                         }
                     }));
                 }
-                return [...prev, serviceTypeId];
+                return [...prev, serviceTypeIdStr];
             }
         });
 
@@ -199,10 +251,11 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
     };
 
     const handleCustomRateChange = (serviceTypeId, field, value) => {
+        const serviceTypeIdStr = String(serviceTypeId);
         setServiceRates(prev => ({
             ...prev,
-            [serviceTypeId]: {
-                ...prev[serviceTypeId],
+            [serviceTypeIdStr]: {
+                ...prev[serviceTypeIdStr],
                 [field]: value
             }
         }));
@@ -217,8 +270,11 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
 
         // Validate service rates
         for (const serviceTypeId of selectedServiceTypes) {
-            const rate = serviceRates[serviceTypeId];
-            const serviceType = parametricData?.serviceTypes?.find(st => st.id === serviceTypeId);
+            const serviceTypeIdStr = String(serviceTypeId);
+            const rate = serviceRates[serviceTypeIdStr];
+            const serviceType = parametricData?.serviceTypes?.find(st => 
+                String(st.id) === serviceTypeIdStr || st.id === serviceTypeId
+            );
             
             if (!rate) {
                 newErrors.service_rates = 'Please set rates for all selected service types';
@@ -272,7 +328,9 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
     const getSelectedServiceTypeNames = () => {
         if (!parametricData?.serviceTypes) return [];
         return parametricData.serviceTypes
-            .filter(st => selectedServiceTypes.includes(st.id))
+            .filter(st => selectedServiceTypes.some(id => 
+                String(id) === String(st.id) || id === st.id
+            ))
             .map(st => st.name);
     };
 
@@ -300,7 +358,10 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     parametricData.serviceTypes
                         .filter(serviceType => serviceType.code !== 'other' && serviceType.name.toLowerCase() !== 'other')
                         .map((serviceType) => {
-                    const isSelected = selectedServiceTypes.includes(serviceType.id);
+                    // Check if selected, handling both string and number IDs
+                    const isSelected = selectedServiceTypes.some(id => 
+                        String(id) === String(serviceType.id) || id === serviceType.id
+                    );
                     
                     return (
                         <div
@@ -372,10 +433,24 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                 {selectedServiceTypes.length > 0 && (
                     <div className="space-y-4">
                         {selectedServiceTypes.map(serviceTypeId => {
-                            const serviceType = parametricData?.serviceTypes?.find(st => st.id === serviceTypeId);
-                            const rate = serviceRates[serviceTypeId];
+                            // Handle both string and number IDs
+                            const serviceType = parametricData?.serviceTypes?.find(st => 
+                                String(st.id) === String(serviceTypeId) || st.id === serviceTypeId
+                            );
+                            const rateKey = String(serviceTypeId);
+                            const rate = serviceRates[rateKey];
                             
-                            if (!serviceType || !rate) return null;
+                            if (!serviceType) return null;
+                            
+                            // If no rate exists, show a message (shouldn't happen due to useEffect, but safety check)
+                            if (!rate) {
+                                return (
+                                    <div key={serviceTypeId} className="border border-gray-200 rounded-lg p-4">
+                                        <h5 className="font-medium text-gray-900">{serviceType.name}</h5>
+                                        <p className="text-sm text-gray-500 mt-2">Loading rate information...</p>
+                                    </div>
+                                );
+                            }
                             
                             return (
                                 <div key={serviceTypeId} className="border border-gray-200 rounded-lg p-4">

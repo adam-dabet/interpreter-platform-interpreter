@@ -87,20 +87,35 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
         
         const userCertificates = formData.certificates || [];
         
+        // Get certificate type codes from parametric data
+        const getCertificateTypeCode = (certificateTypeId) => {
+            if (!certificateTypeId) return null;
+            const certType = parametricData?.certificateTypes?.find(ct => 
+                ct.id === parseInt(certificateTypeId) || ct.id === certificateTypeId
+            );
+            return certType?.code || null;
+        };
+        
         switch (serviceTypeCode) {
             case 'legal':
                 // Legal requires one of the three court certifications
-                return userCertificates.some(cert => 
-                    cert.certificate_type_id && 
-                    [1, 3, 6].includes(cert.certificate_type_id) // State Court, Administrative Court, Federal Court
-                );
+                return userCertificates.some(cert => {
+                    const certCode = getCertificateTypeCode(cert.certificate_type_id);
+                    return certCode && ['court_certified', 'federal_certified', 'ata_certified', 'administrative_court_certified'].includes(certCode);
+                });
             
             case 'medical':
                 // Medical-Legal requires any court certification OR medical certification
-                return userCertificates.some(cert => 
-                    cert.certificate_type_id && 
-                    ([1, 3, 6, 23].includes(cert.certificate_type_id)) // State Court, Administrative Court, Federal Court, OR Medical
-                );
+                return userCertificates.some(cert => {
+                    const certCode = getCertificateTypeCode(cert.certificate_type_id);
+                    return certCode && [
+                        'court_certified', 
+                        'federal_certified', 
+                        'ata_certified', 
+                        'administrative_court_certified',
+                        'medical_certified'
+                    ].includes(certCode);
+                });
             
             default:
                 return true; // Other service types don't require specific certifications

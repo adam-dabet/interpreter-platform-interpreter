@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlusIcon, TrashIcon, DocumentIcon, CloudArrowUpIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -8,9 +8,24 @@ import toast from 'react-hot-toast';
 
 const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, rejectedFields = [], onUpdate }) => {
     const [isCertified, setIsCertified] = useState(formData.is_certified ?? null); // null, true, false
-    const [certificates, setCertificates] = useState(formData.certificates || []);
+    // Ensure each certificate has a unique ID when initializing
+    const initializeCertificates = (certs) => {
+        if (!certs || certs.length === 0) return [];
+        return certs.map((cert, index) => ({
+            ...cert,
+            id: cert.id || `cert_${index}_${Date.now()}_${Math.random()}`
+        }));
+    };
+    const [certificates, setCertificates] = useState(() => initializeCertificates(formData.certificates));
     const [certificateFiles, setCertificateFiles] = useState(formData.certificateFiles || []);
     const [errors, setErrors] = useState({});
+    
+    // Update certificates when formData changes (e.g., when editing from review)
+    useEffect(() => {
+        if (formData.certificates) {
+            setCertificates(initializeCertificates(formData.certificates));
+        }
+    }, [formData.certificates]);
     
     // Helper to check if field is rejected
     const isFieldRejected = (fieldName) => rejectedFields.includes(fieldName);

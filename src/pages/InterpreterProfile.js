@@ -300,12 +300,14 @@ const InterpreterProfile = () => {
             
             // Certificates - with all metadata
             is_certified: certificates && certificates.length > 0 ? true : (certificates?.length === 0 ? false : null),
-            certificates: certificates?.map(cert => ({
+            certificates: certificates?.map((cert, index) => ({
+                id: cert.id || `existing_${index}_${Date.now()}`, // Ensure unique ID for each certificate
                 certificate_type_id: String(cert.certificate_type_id),
                 certificate_number: cert.certificate_number || '',
                 issuing_organization: cert.issuing_organization || '',
                 issue_date: cert.issue_date || '',
                 expiry_date: cert.expiry_date || '',
+                issuing_state_id: cert.issuing_state_id || '',
                 certificate_type_name: cert.certificate_type_name || '',
                 file_path: cert.file_path || '',
                 file_name: cert.file_name || '',

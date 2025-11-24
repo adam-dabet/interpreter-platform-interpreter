@@ -323,7 +323,19 @@ const ProfileEdit = () => {
         setFormData(prev => ({ ...prev, ...updates }));
     }, []);
 
-    const handleNext = async () => {
+    const handleNext = async (stepData) => {
+        // If stepData is provided, update formData first
+        if (stepData) {
+            updateFormData(stepData);
+        }
+        
+        // If editing from review, navigate back to review step
+        if (isEditingFromReview) {
+            setIsEditingFromReview(false);
+            setCurrentStep(INTERPRETER_STEPS.length);
+            return;
+        }
+        
         const nextStep = currentStep + 1;
         if (nextStep <= INTERPRETER_STEPS.length) {
             setCurrentStep(nextStep);
@@ -584,7 +596,7 @@ const ProfileEdit = () => {
                                     isLastStep={currentStep === INTERPRETER_STEPS.length}
                                     isFirstStep={currentStep === 1}
                                     parametricData={parametricData}
-                                    isEditing={false}
+                                    isEditing={isEditingFromReview}
                                     rejectedFields={[]}
                                     isResubmission={false}
                                 />

@@ -6,7 +6,7 @@ import Select from '../ui/Select';
 import FileUpload from '../ui/FileUpload';
 import toast from 'react-hot-toast';
 
-const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, rejectedFields = [] }) => {
+const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, rejectedFields = [], onUpdate }) => {
     const [isCertified, setIsCertified] = useState(formData.is_certified ?? null); // null, true, false
     const [certificates, setCertificates] = useState(formData.certificates || []);
     const [certificateFiles, setCertificateFiles] = useState(formData.certificateFiles || []);
@@ -181,11 +181,21 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
 
         const validFiles = validCertificates.map(cert => cert.file);
 
-        onNext({
+        const certificateData = {
             is_certified: isCertified,
             certificates: validCertificates,
             certificateFiles: validFiles
-        });
+        };
+
+        // If editing, update formData and return to review
+        if (isEditing && onUpdate) {
+            onUpdate(certificateData);
+            toast.success('Certificate changes saved!');
+            // Navigate back to review step - onNext will handle navigation when isEditingFromReview is true
+            onNext();
+        } else {
+            onNext(certificateData);
+        }
     };
 
     const getCertificateTypeName = (typeId) => {

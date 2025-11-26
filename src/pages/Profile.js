@@ -309,25 +309,53 @@ const Profile = () => {
         </div>
     );
 
-    const renderServiceTypes = () => (
-        <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-gray-900">Service Types & Rates</h3>
-            {profile?.service_types && profile.service_types.length > 0 ? (
+    const renderServiceTypes = () => {
+        const normalizedServiceRates = Array.isArray(profile?.service_rates)
+            ? profile.service_rates.filter(Boolean)
+            : [];
+        const normalizedServiceTypes = Array.isArray(profile?.service_types)
+            ? profile.service_types.filter(Boolean)
+            : [];
+        
+        const displayServices = normalizedServiceRates.length > 0
+            ? normalizedServiceRates
+            : normalizedServiceTypes;
+
+        if (displayServices.length === 0) {
+            return (
+                <div className="space-y-6">
+                    <h3 className="text-xl font-semibold text-gray-900">Service Types & Rates</h3>
+                    <p className="text-sm text-gray-500">No service types added yet</p>
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-6">
+                <h3 className="text-xl font-semibold text-gray-900">Service Types & Rates</h3>
                 <div className="space-y-3">
-                    {profile.service_types.map((service, index) => {
-                        const serviceId = service?.id ?? service?.service_type_id;
-                        const rate = serviceId != null
-                            ? profile.service_rates?.find(r => String(r.service_type_id) === String(serviceId))
-                            : null;
+                    {displayServices.map((service, index) => {
+                        const serviceId = service?.service_type_id ?? service?.id ?? service?.service_type?.id;
+                        const rate = normalizedServiceRates.length > 0
+                            ? service
+                            : normalizedServiceRates.find(r => 
+                                serviceId != null &&
+                                String(r?.service_type_id) === String(serviceId)
+                            );
+                        const serviceName = service?.service_type_name || service?.name || service?.title || 'Unknown Service';
+                        const serviceCode = service?.service_type_code || service?.code || service?.identifier || '';
+                        
                         return (
-                            <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div key={serviceId || index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                                 <div>
                                     <span className="text-sm font-medium text-gray-900">
-                                        {service.name || 'Unknown Service'}
+                                        {serviceName}
                                     </span>
-                                    <p className="text-xs text-gray-500">{service.code || ''}</p>
+                                    {serviceCode && (
+                                        <p className="text-xs text-gray-500">{serviceCode}</p>
+                                    )}
                                 </div>
-                                {rate ? (
+                                {rate && rate.rate_amount != null ? (
                                     <div className="text-right">
                                         <span className="text-sm font-medium text-gray-900">
                                             ${rate.rate_amount}/{rate.rate_unit || 'hour'}
@@ -343,11 +371,9 @@ const Profile = () => {
                         );
                     })}
                 </div>
-            ) : (
-                <p className="text-sm text-gray-500">No service types added yet</p>
-            )}
-        </div>
-    );
+            </div>
+        );
+    };
 
     const renderW9Form = () => (
         <div className="space-y-6">

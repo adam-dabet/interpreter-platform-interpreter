@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeftIcon,
@@ -26,9 +26,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useJobRestrictions } from '../contexts/JobRestrictionContext';
 import { formatDate, formatTime, formatCurrency, getTimeUntilJob } from '../utils/dateUtils';
 
+const LAST_LIST_ROUTE_KEY = 'interpreterLastJobListRoute';
+const DEFAULT_RETURN_PATH = '/jobs';
+
 const JobDetails = () => {
   const { jobId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { canAcceptJobs, showJobAcceptanceBlocked } = useJobRestrictions();
   const { profile } = useAuth();
   const [job, setJob] = useState(null);
@@ -40,6 +44,26 @@ const JobDetails = () => {
   const [showMileagePrompt, setShowMileagePrompt] = useState(false);
   const [mileageRequested, setMileageRequested] = useState(0);
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
+
+  const getStoredReturnPath = useCallback(() => {
+    const statePath = location.state?.returnTo;
+    if (statePath) {
+      return statePath;
+    }
+
+    if (typeof window !== 'undefined') {
+      const savedRoute = localStorage.getItem(LAST_LIST_ROUTE_KEY);
+      if (savedRoute) {
+        return savedRoute;
+      }
+    }
+
+    return DEFAULT_RETURN_PATH;
+  }, [location.state]);
+
+  const navigateBackToPreviousPage = useCallback(() => {
+    navigate(getStoredReturnPath());
+  }, [getStoredReturnPath, navigate]);
 
   useEffect(() => {
     loadJobDetails();
@@ -94,8 +118,8 @@ const JobDetails = () => {
           return;
       }
       
-      // Navigate back to job search (only for accept/decline)
-      navigate('/jobs/search');
+      // Navigate back to the previous page (only for accept/decline)
+      navigateBackToPreviousPage();
     } catch (error) {
       console.error(`Error ${action}ing job:`, error);
       const errorMessage = error.response?.data?.message || `Failed to ${action} job`;
@@ -122,9 +146,9 @@ const JobDetails = () => {
         // Refresh job details
         await loadJobDetails();
         
-        // If declined, navigate back to job search
+        // If declined, navigate back to their previous page
         if (confirmationStatus === 'declined') {
-          navigate('/jobs/search');
+          navigateBackToPreviousPage();
         }
       }
     } catch (error) {
@@ -205,7 +229,7 @@ const JobDetails = () => {
         toast.success('Job accepted successfully! Your mileage request is pending admin approval.');
         setShowMileagePrompt(false);
         setMileageRequested(0);
-        navigate('/jobs/search');
+        navigateBackToPreviousPage();
       }
     } catch (error) {
       console.error('Error submitting mileage request:', error);
@@ -233,7 +257,7 @@ const JobDetails = () => {
         toast.success('Job accepted successfully!');
         setShowMileagePrompt(false);
         setMileageRequested(0);
-        navigate('/jobs/search');
+        navigateBackToPreviousPage();
       }
     } catch (error) {
       console.error('Error accepting job:', error);
@@ -311,9 +335,9 @@ const JobDetails = () => {
           <p className="text-gray-600 mt-2">The job you're looking for doesn't exist or has been removed.</p>
           <Button
             className="mt-4"
-            onClick={() => navigate('/jobs/search')}
+            onClick={navigateBackToPreviousPage}
           >
-            Back to Job Search
+            Back to Previous Page
           </Button>
         </div>
       </div>
@@ -332,11 +356,11 @@ const JobDetails = () => {
           <div className="flex items-center justify-between">
             <div>
               <button
-                onClick={() => navigate('/jobs/search')}
+                onClick={navigateBackToPreviousPage}
                 className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
               >
                 <ArrowLeftIcon className="h-4 w-4 mr-2" />
-                Back to Job Search
+                Back to Previous Page
               </button>
               {/* Don't show job number for available/unassigned jobs */}
               <h1 className="text-3xl font-bold text-gray-900">

@@ -16,6 +16,8 @@ import JobCard from '../components/JobCard';
 import InterpreterCompletionReport from '../components/InterpreterCompletionReport';
 import { formatDate as formatDateUtil, formatCurrency as formatCurrencyUtil } from '../utils/dateUtils';
 
+const COMPLETED_JOB_STATUSES = ['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid'];
+
 const JobDashboardNew = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('upcoming');
@@ -179,6 +181,224 @@ const JobDashboardNew = () => {
     });
   };
 
+  const getComparableJobDate = (job) => {
+    const dateSource = job?.interpreter_paid_at || job?.completed_at || job?.scheduled_date || job?.accepted_at;
+    if (!dateSource) {
+      return null;
+    }
+
+    const parsedDate = new Date(dateSource);
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+  };
+
+  const isWithinSelectedPeriod = (job, period) => {
+    if (period === 'all') {
+      return true;
+    }
+
+    const jobDate = getComparableJobDate(job);
+    if (!jobDate) {
+      return false;
+    }
+
+    const now = new Date();
+    const diffMs = now - jobDate;
+    const periodMap = {
+      week: 7,
+      month: 30,
+      '6months': 182,
+      year: 365
+    };
+    const allowedDays = periodMap[period];
+
+    if (!allowedDays) {
+      return true;
+    }
+
+    return diffMs <= allowedDays * 24 * 60 * 60 * 1000;
+  };
+
+  const calculateJobHours = (job) => {
+    if (job?.calculated_hours) {
+      return parseFloat(job.calculated_hours) || 0;
+    }
+
+    if (job?.actual_duration_minutes) {
+      return parseFloat(job.actual_duration_minutes) / 60;
+    }
+
+    if (job?.estimated_duration_minutes) {
+      return parseFloat(job.estimated_duration_minutes) / 60;
+    }
+
+    return job?.duration_hours || 0;
+  };
+
+  const calculateJobEarnings = (job) => {
+    const interpreterPaidAmount = parseFloat(job?.interpreter_paid_amount);
+    if (job?.status === 'interpreter_paid' && !Number.isNaN(interpreterPaidAmount)) {
+      return interpreterPaidAmount;
+    }
+
+    if (!Number.isNaN(interpreterPaidAmount) && interpreterPaidAmount > 0) {
+      return interpreterPaidAmount;
+    }
+
+    const backendAmount = parseFloat(job?.earnings || job?.total_amount || job?.calculated_earnings);
+    if (!Number.isNaN(backendAmount) && backendAmount > 0) {
+      return backendAmount;
+    }
+
+    if (job?.actual_duration_minutes && (job?.agreed_rate || job?.hourly_rate)) {
+      const hours = parseFloat(job.actual_duration_minutes) / 60;
+      const rate = parseFloat(job.agreed_rate || job.hourly_rate) || 0;
+      return hours * rate;
+    }
+
+    if (job?.estimated_duration_minutes && (job?.agreed_rate || job?.hourly_rate)) {
+      const hours = parseFloat(job.estimated_duration_minutes) / 60;
+      const rate = parseFloat(job.agreed_rate || job.hourly_rate) || 0;
+      return hours * rate;
+    }
+
+    return parseFloat(job?.agreed_rate || job?.hourly_rate || 0) || 0;
+  };
+
+  const getJobHoursValue = (job) => {
+    const hoursValue = job?.calculated_hours !== undefined
+      ? parseFloat(job.calculated_hours)
+      : calculateJobHours(job);
+    return Number.isNaN(hoursValue) ? 0 : hoursValue;
+  };
+
+  const getJobEarningsMeta = (job) => {
+    const paidAmount = parseFloat(job?.interpreter_paid_amount);
+    const hasPaidAmount = !Number.isNaN(paidAmount);
+    const isPaidStatus = job?.status === 'interpreter_paid';
+    const treatAsPaid = isPaidStatus && hasPaidAmount;
+
+    let amount = 0;
+    if (treatAsPaid) {
+      amount = paidAmount;
+    } else if (hasPaidAmount && paidAmount > 0) {
+      amount = paidAmount;
+    } else {
+      const earningsValue = parseFloat(job?.earnings);
+      if (!Number.isNaN(earningsValue) && earningsValue > 0) {
+        amount = earningsValue;
+      } else {
+        amount = calculateJobEarnings(job);
+      }
+    }
+
+    return {
+      amount: Number.isNaN(amount) ? 0 : amount,
+      isPaid: treatAsPaid
+    };
+  };
+
+  const fallbackEarningsRows = useMemo(() => {
+    return jobs
+      .filter((job) => COMPLETED_JOB_STATUSES.includes(job.status) || job.completion_report_submitted)
+      .filter((job) => isWithinSelectedPeriod(job, earningsPeriod))
+      .map((job) => ({
+        id: job.id,
+        job_number: job.job_number,
+        title: job.title,
+        scheduled_date: job.scheduled_date,
+        completed_at: job.completed_at,
+        interpreter_paid_at: job.interpreter_paid_at,
+        status: job.status,
+        interpreter_paid_amount: job.interpreter_paid_amount,
+        calculated_hours: calculateJobHours(job),
+        earnings: calculateJobEarnings(job),
+        isFallback: true
+      }));
+  }, [jobs, earningsPeriod]);
+
+  const earningsBreakdownRows = useMemo(() => {
+    if (earnings?.breakdown?.length) {
+      return earnings.breakdown;
+    }
+    return fallbackEarningsRows;
+  }, [earnings, fallbackEarningsRows]);
+
+  const aggregatedRowTotals = useMemo(() => {
+    return earningsBreakdownRows.reduce(
+      (acc, row) => {
+        const { amount } = getJobEarningsMeta(row);
+        const hours = getJobHoursValue(row);
+        return {
+          amount: acc.amount + amount,
+          hours: acc.hours + hours
+        };
+      },
+      { amount: 0, hours: 0 }
+    );
+  }, [earningsBreakdownRows]);
+
+  const derivedSummary = useMemo(() => {
+    const fallbackCompletedJobs = earningsBreakdownRows.length;
+    const fallbackTotalEarnings = aggregatedRowTotals.amount;
+    const fallbackTotalHours = aggregatedRowTotals.hours;
+    const fallbackAverage = fallbackCompletedJobs > 0 ? fallbackTotalEarnings / fallbackCompletedJobs : 0;
+
+    const totalEarningsFromApi = parseFloat(earnings?.summary?.total_earnings);
+    const totalHoursFromApi = parseFloat(earnings?.summary?.total_hours);
+    const averageFromApi = parseFloat(earnings?.summary?.average_per_job);
+    const completedJobsFromApi = earnings?.summary?.completed_jobs;
+
+    return {
+      totalEarnings: !Number.isNaN(totalEarningsFromApi) && totalEarningsFromApi > 0
+        ? totalEarningsFromApi
+        : fallbackTotalEarnings,
+      completedJobs: completedJobsFromApi || fallbackCompletedJobs,
+      totalHours: !Number.isNaN(totalHoursFromApi) && totalHoursFromApi > 0
+        ? totalHoursFromApi
+        : fallbackTotalHours,
+      averagePerJob: !Number.isNaN(averageFromApi) && averageFromApi > 0
+        ? averageFromApi
+        : fallbackAverage
+    };
+  }, [aggregatedRowTotals, earnings, earningsBreakdownRows]);
+
+  const getStatusBadgeClasses = (status) => {
+    switch (status) {
+      case 'interpreter_paid':
+        return 'bg-green-100 text-green-800 border border-green-200';
+      case 'billed':
+      case 'closed':
+        return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+      case 'completion_report':
+        return 'bg-amber-50 text-amber-700 border border-amber-200';
+      case 'completed':
+        return 'bg-blue-50 text-blue-700 border border-blue-200';
+      default:
+        return 'bg-gray-50 text-gray-600 border border-gray-200';
+    }
+  };
+
+  const getStatusLabel = (status) => {
+    if (!status) {
+      return 'Unknown';
+    }
+
+    switch (status) {
+      case 'interpreter_paid':
+        return 'Paid';
+      case 'billed':
+        return 'Billed';
+      case 'closed':
+        return 'Closed';
+      case 'completion_report':
+        return 'Report Submitted';
+      case 'completed':
+        return 'Completed';
+      default:
+        return status.replace(/_/g, ' ');
+    }
+  };
+
   const filteredJobs = getFilteredJobs();
 
   if (loading) {
@@ -274,7 +494,7 @@ const JobDashboardNew = () => {
                         <div>
                           <p className="text-sm font-medium text-green-900">Total Earnings</p>
                           <p className="text-3xl font-bold text-green-700 mt-2">
-                            {formatCurrency(earnings.summary?.total_earnings || 0)}
+                            {formatCurrency(derivedSummary.totalEarnings || 0)}
                           </p>
                         </div>
                         <CurrencyDollarIcon className="h-12 w-12 text-green-600 opacity-50" />
@@ -286,7 +506,7 @@ const JobDashboardNew = () => {
                         <div>
                           <p className="text-sm font-medium text-blue-900">Jobs Completed</p>
                           <p className="text-3xl font-bold text-blue-700 mt-2">
-                            {earnings.summary?.completed_jobs || earnings.breakdown?.length || 0}
+                            {derivedSummary.completedJobs || 0}
                           </p>
                         </div>
                         <CheckCircleIcon className="h-12 w-12 text-blue-600 opacity-50" />
@@ -298,7 +518,7 @@ const JobDashboardNew = () => {
                         <div>
                           <p className="text-sm font-medium text-purple-900">Total Hours</p>
                           <p className="text-3xl font-bold text-purple-700 mt-2">
-                            {parseFloat(earnings.summary?.total_hours || 0).toFixed(1)}
+                            {parseFloat(derivedSummary.totalHours || 0).toFixed(1)}
                           </p>
                         </div>
                         <ClockIcon className="h-12 w-12 text-purple-600 opacity-50" />
@@ -310,7 +530,7 @@ const JobDashboardNew = () => {
                         <div>
                           <p className="text-sm font-medium text-orange-900">Avg Per Job</p>
                           <p className="text-3xl font-bold text-orange-700 mt-2">
-                            {formatCurrency(earnings.summary?.average_per_job || 0)}
+                            {formatCurrency(derivedSummary.averagePerJob || 0)}
                           </p>
                         </div>
                         <CurrencyDollarIcon className="h-12 w-12 text-orange-600 opacity-50" />
@@ -319,48 +539,62 @@ const JobDashboardNew = () => {
                   </div>
 
                   {/* Earnings Breakdown - All Completed Jobs */}
-                  {earnings.breakdown && earnings.breakdown.length > 0 && (
+                  {earningsBreakdownRows.length > 0 && (
                     <div>
                       <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                        Completed Jobs ({earnings.breakdown.length})
+                        Completed Jobs ({earningsBreakdownRows.length})
                       </h4>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <div className="space-y-3">
-                          {earnings.breakdown.map((item) => {
-                            // For jobs marked as paid, use interpreter_paid_amount; otherwise use calculated earnings
-                            const displayAmount = (item.status === 'interpreter_paid' && item.interpreter_paid_amount) 
-                              ? item.interpreter_paid_amount 
-                              : (item.earnings || 0);
-                            
+                      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                        <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200">
+                          <span className="col-span-4">Job</span>
+                          <span className="col-span-3">Date</span>
+                          <span className="col-span-2 text-center">Hours</span>
+                          <span className="col-span-3 text-right">Earnings</span>
+                        </div>
+                        <div>
+                          {earningsBreakdownRows.map((item) => {
+                            const { amount: displayAmount, isPaid } = getJobEarningsMeta(item);
+                            const hoursValue = getJobHoursValue(item);
+                            const dateToShow = item.interpreter_paid_at || item.completed_at || item.scheduled_date;
+
                             return (
-                              <div
+                              <button
+                                type="button"
                                 key={item.id || item.job_number}
-                                className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-500 cursor-pointer transition-all"
-                                onClick={() => navigate(`/job/${item.id}`)}
+                                className="w-full border-t border-gray-100 hover:bg-blue-50 transition-colors px-4 py-4 md:px-6 md:py-5 text-left"
+                                onClick={() => item.id && navigate(`/job/${item.id}`)}
                               >
-                                <div className="flex-1">
-                                  <p className="font-medium text-gray-900">{item.job_number || item.title || `Job #${item.id}`}</p>
-                                  <p className="text-sm text-gray-500 mt-1">
-                                    {item.scheduled_date ? formatDate(item.scheduled_date) : 'N/A'}
-                                  </p>
-                                  {item.status === 'interpreter_paid' && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-300 mt-1">
-                                      Paid
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-right">
-                                  <div className="flex items-center gap-2 justify-end">
-                                    <p className={`text-lg font-semibold ${item.status === 'interpreter_paid' && item.interpreter_paid_amount ? 'text-green-600' : 'text-gray-700'}`}>
-                                      {formatCurrency(displayAmount)}
+                                <div className="flex flex-col gap-4 md:grid md:grid-cols-12 md:items-center md:gap-4">
+                                  <div className="col-span-4">
+                                    <p className="font-semibold text-gray-900">
+                                      {item.job_number || item.title || `Job #${item.id}`}
+                                    </p>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClasses(item.status)}`}>
+                                        {getStatusLabel(item.status)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="col-span-3">
+                                    <p className="text-sm text-gray-600">
+                                      {dateToShow ? formatDate(dateToShow) : 'Date TBD'}
                                     </p>
                                   </div>
-                                  {item.status === 'interpreter_paid' && item.interpreter_paid_amount && (
-                                    <p className="text-xs text-green-600 font-medium mt-1">Actual Payment</p>
-                                  )}
-                                  <p className="text-sm text-gray-500 mt-1">{item.calculated_hours || 0} hrs</p>
+                                  <div className="col-span-2 text-sm text-gray-600 md:text-center">
+                                    {hoursValue ? `${parseFloat(hoursValue).toFixed(1)} hrs` : '—'}
+                                  </div>
+                                  <div className="col-span-3 flex flex-col items-start md:items-end">
+                                    <p className={`text-lg font-semibold ${isPaid ? 'text-green-600' : 'text-gray-900'}`}>
+                                      {formatCurrency(displayAmount)}
+                                    </p>
+                                    {isPaid && (
+                                      <span className="text-xs text-green-600 font-medium">
+                                        Actual Payment
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
+                              </button>
                             );
                           })}
                         </div>
@@ -369,7 +603,7 @@ const JobDashboardNew = () => {
                   )}
                   
                   {/* Empty state when no breakdown */}
-                  {earnings.breakdown && earnings.breakdown.length === 0 && (
+                  {earningsBreakdownRows.length === 0 && (
                     <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
                       <p className="text-sm text-gray-600">No completed jobs found for this period.</p>
                       <p className="text-xs text-gray-500 mt-2">Try selecting "All Time" to see all completed jobs.</p>

@@ -116,6 +116,12 @@ const Profile = () => {
         );
     }
 
+    const formatDateDisplay = (dateValue) => {
+        if (!dateValue) return 'Not specified';
+        const parsed = new Date(dateValue);
+        return Number.isNaN(parsed.getTime()) ? 'Not specified' : parsed.toLocaleDateString();
+    };
+
     const renderStepContent = () => {
         switch (currentStep) {
             case 1:
@@ -262,13 +268,24 @@ const Profile = () => {
                                 <h4 className="text-sm font-medium text-gray-900">
                                     {cert.certificate_type_name || 'Unknown Certificate'}
                                 </h4>
-                                <p className="text-xs text-gray-500">
-                                    {cert.issuing_organization || 'Not specified'}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                    Issued: {cert.issue_date ? new Date(cert.issue_date).toLocaleDateString() : 'Not specified'} | 
-                                    Expires: {cert.expiry_date ? new Date(cert.expiry_date).toLocaleDateString() : 'Not specified'}
-                                </p>
+                                <div className="mt-2 space-y-1 text-xs text-gray-600">
+                                    <p>
+                                        <span className="font-medium text-gray-700">Number:</span>{' '}
+                                        {cert.certificate_number || 'Not specified'}
+                                    </p>
+                                    <p>
+                                        <span className="font-medium text-gray-700">Issuer:</span>{' '}
+                                        {cert.issuing_organization || 'Not specified'}
+                                    </p>
+                                    <p>
+                                        <span className="font-medium text-gray-700">Issued:</span>{' '}
+                                        {formatDateDisplay(cert.issue_date)}
+                                    </p>
+                                    <p>
+                                        <span className="font-medium text-gray-700">Expires:</span>{' '}
+                                        {formatDateDisplay(cert.expiry_date)}
+                                    </p>
+                                </div>
                             </div>
                             <span className={`text-xs px-2 py-1 rounded-full ${
                                 cert.verification_status === 'verified' 
@@ -298,7 +315,10 @@ const Profile = () => {
             {profile?.service_types && profile.service_types.length > 0 ? (
                 <div className="space-y-3">
                     {profile.service_types.map((service, index) => {
-                        const rate = profile.service_rates?.find(r => r.service_type_id === service.id);
+                        const serviceId = service?.id ?? service?.service_type_id;
+                        const rate = serviceId != null
+                            ? profile.service_rates?.find(r => String(r.service_type_id) === String(serviceId))
+                            : null;
                         return (
                             <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                                 <div>
@@ -307,7 +327,7 @@ const Profile = () => {
                                     </span>
                                     <p className="text-xs text-gray-500">{service.code || ''}</p>
                                 </div>
-                                {rate && (
+                                {rate ? (
                                     <div className="text-right">
                                         <span className="text-sm font-medium text-gray-900">
                                             ${rate.rate_amount}/{rate.rate_unit || 'hour'}
@@ -316,6 +336,8 @@ const Profile = () => {
                                             {rate.rate_type === 'custom' ? 'Custom Rate' : 'Platform Rate'}
                                         </p>
                                     </div>
+                                ) : (
+                                    <p className="text-xs text-gray-500">Rate not set</p>
                                 )}
                             </div>
                         );

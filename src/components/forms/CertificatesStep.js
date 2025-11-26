@@ -8,12 +8,27 @@ import toast from 'react-hot-toast';
 
 const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, rejectedFields = [], onUpdate }) => {
     const [isCertified, setIsCertified] = useState(formData.is_certified ?? null); // null, true, false
+
+    const normalizeDateValue = (value) => {
+        if (!value) return '';
+        if (value instanceof Date && !Number.isNaN(value.getTime())) {
+            return value.toISOString().split('T')[0];
+        }
+        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            return value;
+        }
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString().split('T')[0];
+    };
+
     // Ensure each certificate has a unique ID when initializing
     const initializeCertificates = (certs) => {
         if (!certs || certs.length === 0) return [];
         return certs.map((cert, index) => ({
             ...cert,
-            id: cert.id || `cert_${index}_${Date.now()}_${Math.random()}`
+            id: cert.id || `cert_${index}_${Date.now()}_${Math.random()}`,
+            issue_date: normalizeDateValue(cert.issue_date),
+            expiry_date: normalizeDateValue(cert.expiry_date)
         }));
     };
     const [certificates, setCertificates] = useState(() => initializeCertificates(formData.certificates));
@@ -477,7 +492,7 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                         <Input
                                             label="Issue Date"
                                             type="date"
-                                            value={certificate.issue_date}
+                                            value={certificate.issue_date || ''}
                                             onChange={(e) => handleCertificateChange(certificate.id, 'issue_date', e.target.value)}
                                             placeholder="Issue date (optional)"
                                         />
@@ -487,7 +502,7 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                         <Input
                                             label="Expiration Date"
                                             type="date"
-                                            value={certificate.expiry_date}
+                                            value={certificate.expiry_date || ''}
                                             onChange={(e) => handleCertificateChange(certificate.id, 'expiry_date', e.target.value)}
                                             error={errors[`certificate_${certificate.id}_expiry_date`]}
                                             placeholder="Expiration date"

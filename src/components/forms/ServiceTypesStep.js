@@ -10,9 +10,23 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
     const [selectedServiceTypes, setSelectedServiceTypes] = useState(formData.service_types || []);
     const [serviceRates, setServiceRates] = useState({});
     const [errors, setErrors] = useState({});
+    const [showPreferredProviderModal, setShowPreferredProviderModal] = useState(false);
     
     // Helper to check if field is rejected
     const isFieldRejected = (fieldName) => rejectedFields.includes(fieldName);
+
+    // Show preferred provider modal on first load (only once)
+    useEffect(() => {
+        const hasSeenModal = sessionStorage.getItem('hasSeenPreferredProviderModal');
+        if (!hasSeenModal && !isEditing) {
+            // Delay showing modal slightly so user can see the page first
+            const timer = setTimeout(() => {
+                setShowPreferredProviderModal(true);
+                sessionStorage.setItem('hasSeenPreferredProviderModal', 'true');
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [isEditing]);
 
     // Sync selectedServiceTypes with formData.service_types when it changes (e.g., from prefillFormData)
     useEffect(() => {
@@ -222,7 +236,14 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
     };
 
     const handleRateTypeChange = (serviceTypeId, rateType) => {
-        const serviceType = parametricData?.serviceTypes?.find(st => st.id === serviceTypeId);
+        // Show modal reminder if switching to custom rate
+        if (rateType === 'custom') {
+            setShowPreferredProviderModal(true);
+        }
+
+        const serviceType = parametricData?.serviceTypes?.find(st => 
+            String(st.id) === String(serviceTypeId) || st.id === serviceTypeId
+        );
         setServiceRates(prev => ({
             ...prev,
             [serviceTypeId]: {
@@ -336,14 +357,88 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
 
     return (
         <div className="space-y-6">
+            {/* Preferred Provider Information Modal */}
+            {showPreferredProviderModal && (
+                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                    <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        {/* Background overlay */}
+                        <div 
+                            className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+                            aria-hidden="true"
+                            onClick={() => setShowPreferredProviderModal(false)}
+                        ></div>
+
+                        {/* Modal panel */}
+                        <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                            <div>
+                                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-purple-100">
+                                    <CheckIcon className="h-6 w-6 text-purple-600" aria-hidden="true" />
+                                </div>
+                                <div className="mt-3 text-center sm:mt-5">
+                                    <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                        💜 Become a Preferred Provider!
+                                    </h3>
+                                    <div className="mt-4 text-left space-y-3">
+                                        <p className="text-sm text-gray-600">
+                                            By choosing our <strong className="text-purple-600">platform rates</strong> or setting competitive rates, you can become a <strong className="text-purple-600">Preferred Provider</strong> and enjoy exclusive benefits:
+                                        </p>
+                                        <div className="bg-purple-50 border-l-4 border-purple-500 p-4 rounded-r">
+                                            <ul className="space-y-2 text-sm text-gray-700">
+                                                <li className="flex items-start">
+                                                    <CheckIcon className="h-5 w-5 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
+                                                    <span><strong>Self-assign to jobs</strong> - No waiting for admin approval!</span>
+                                                </li>
+                                                <li className="flex items-start">
+                                                    <CheckIcon className="h-5 w-5 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
+                                                    <span><strong>Faster job acceptance</strong> - Be first in line for opportunities</span>
+                                                </li>
+                                                <li className="flex items-start">
+                                                    <CheckIcon className="h-5 w-5 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
+                                                    <span><strong>More job offers</strong> - Stand out to employers</span>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                            <p className="text-xs text-amber-800">
+                                                <strong>Important:</strong> If you increase your rates later, you'll need admin review to regain preferred provider status. Keep your rates competitive!
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="mt-5 sm:mt-6">
+                                <button
+                                    type="button"
+                                    className="inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 bg-purple-600 text-base font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 sm:text-sm"
+                                    onClick={() => setShowPreferredProviderModal(false)}
+                                >
+                                    Got it! Let's choose my rates
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Service Types & Rates
-                </h3>
-                <p className="text-gray-600 mb-6">
-                    Choose the types of interpretation services you provide and set your rates. 
-                    <span className="text-blue-600 font-medium"> You're more likely to receive jobs if you agree to our set rates!</span>
-                </p>
+                <div className="flex items-start justify-between">
+                    <div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            Service Types & Rates
+                        </h3>
+                        <p className="text-gray-600 mb-6">
+                            Choose the types of interpretation services you provide and set your rates. 
+                            <span className="text-purple-600 font-medium"> Use platform rates to become a Preferred Provider and self-assign to jobs!</span>
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowPreferredProviderModal(true)}
+                        className="flex-shrink-0 text-purple-600 hover:text-purple-700 text-sm font-medium underline"
+                    >
+                        Learn More
+                    </button>
+                </div>
             </div>
 
             {(errors.service_types || isFieldRejected('service_types')) && (

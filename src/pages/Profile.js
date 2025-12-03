@@ -469,13 +469,26 @@ const Profile = () => {
                 {/* Status */}
                 <div>
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Account Status</h4>
-                    <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                        profile?.profile_status === 'approved' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                        {profile?.profile_status || 'Pending'}
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                            profile?.profile_status === 'approved' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                            {profile?.profile_status || 'Pending'}
+                        </span>
+                        {profile?.is_preferred_provider && (
+                            <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                                <CheckCircleIcon className="h-3 w-3 mr-1" />
+                                Preferred Provider
+                            </span>
+                        )}
+                    </div>
+                    {profile?.is_preferred_provider && (
+                        <p className="mt-2 text-xs text-gray-600">
+                            You can self-assign to jobs when you mark availability
+                        </p>
+                    )}
                 </div>
             </div>
         </div>

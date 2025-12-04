@@ -176,11 +176,19 @@ const JobDetails = () => {
       setMileagePromptLoading(true);
       const response = await jobAPI.indicateAvailability(jobId, parseFloat(mileage) || 0);
       
-      const message = mileage > 0 
-        ? `Availability indicated with ${mileage} miles mileage request! The admin will review and assign.`
-        : 'Availability indicated! The admin will review responses and assign an interpreter.';
+      // Check if auto-assigned as preferred provider
+      if (response.data?.auto_assigned) {
+        const message = mileage > 0 
+          ? `🎉 Congratulations! As a preferred provider, you have been automatically assigned to this job! Mileage requested: ${mileage} miles.`
+          : '🎉 Congratulations! As a preferred provider, you have been automatically assigned to this job!';
+        toast.success(message, { duration: 6000 });
+      } else {
+        const message = mileage > 0 
+          ? `Availability indicated with ${mileage} miles mileage request! The admin will review and assign.`
+          : 'Availability indicated! The admin will review responses and assign an interpreter.';
+        toast.success(message);
+      }
       
-      toast.success(message);
       setShowMileagePrompt(false);
       setMileageRequested(0);
       await loadJobDetails();

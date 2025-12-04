@@ -338,9 +338,16 @@ const DashboardNew = () => {
       <div className="max-w-7xl mx-auto">
         {/* Welcome Header */}
         <div className="mb-6">
-          <h1 className="text-4xl font-bold text-gray-900">
-            Welcome back, {profile?.first_name || user?.first_name || 'there'}!
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-4xl font-bold text-gray-900">
+              Welcome back, {profile?.first_name || user?.first_name || 'there'}!
+            </h1>
+            {profile?.is_preferred_provider && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+                ⭐ Preferred Provider
+              </span>
+            )}
+          </div>
           <p className="text-lg text-gray-600 mt-2">
             {new Date().toLocaleDateString('en-US', {
               weekday: 'long',

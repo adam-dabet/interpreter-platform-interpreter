@@ -16,6 +16,9 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
   const [showCompletionReport, setShowCompletionReport] = useState(false);
   const [isEndingJob, setIsEndingJob] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [showUnassignModal, setShowUnassignModal] = useState(false);
+  const [unassignReason, setUnassignReason] = useState('');
+  const [isUnassigning, setIsUnassigning] = useState(false);
   
   // Calculate actual duration from magic link timestamps if available
   const calculateActualDuration = () => {
@@ -153,6 +156,57 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
 
   const canEndJob = () => {
     return job.status === 'in_progress' && job.job_started_at;
+  };
+
+  const canUnassign = () => {
+    // Can only unassign if job is assigned or reminders_sent and at least 48 hours away
+    if (!['assigned', 'reminders_sent'].includes(job.status)) {
+      return { allowed: false, reason: 'not-in-correct-status' };
+    }
+
+    const now = new Date();
+    const jobDateTime = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
+    const hoursUntilJob = (jobDateTime - now) / (1000 * 60 * 60);
+
+    if (hoursUntilJob <= 48) {
+      return { allowed: false, reason: 'too-close' };
+    }
+
+    return { allowed: true };
+  };
+
+  const handleUnassign = async () => {
+    try {
+      setIsUnassigning(true);
+      const token = localStorage.getItem('interpreterToken');
+      
+      const response = await fetch(`${API_BASE}/jobs/${job.id}/unassign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          unassign_reason: unassignReason || 'Provider requested to unassign'
+        })
+      });
+
+      if (response.ok) {
+        toast.success('Successfully unassigned from this job');
+        setShowUnassignModal(false);
+        setUnassignReason('');
+        // Redirect or update the job list
+        window.location.href = '/jobs';
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to unassign from job');
+      }
+    } catch (error) {
+      console.error('Error unassigning from job:', error);
+      toast.error('Failed to unassign from job');
+    } finally {
+      setIsUnassigning(false);
+    }
   };
 
   const handleEndJob = async () => {
@@ -436,6 +490,33 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
         
         <div className="space-y-4">
+          {/* Unassign Button or Message */}
+          {['assigned', 'reminders_sent'].includes(job.status) && (() => {
+            const unassignCheck = canUnassign();
+            if (unassignCheck.allowed) {
+              return (
+                <button
+                  onClick={() => setShowUnassignModal(true)}
+                  className="w-full flex items-center justify-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
+                  Unassign from Job
+                </button>
+              );
+            } else if (unassignCheck.reason === 'too-close') {
+              return (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-start">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 mr-2 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-yellow-800">
+                      <strong>Cannot Unassign:</strong> This job is less than 2 days away. If you can no longer make this appointment, please call us at <strong>(555) 123-4567</strong> immediately.
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+          })()}
+
           {/* End Job Button */}
           {canEndJob() && (
             <button
@@ -486,6 +567,58 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
           )}
         </div>
       </div>
+
+
+      {/* Unassign Modal */}
+      {showUnassignModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-start mb-4">
+              <ExclamationTriangleIcon className="h-6 w-6 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Unassign from Job</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Are you sure you want to unassign yourself from this job? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reason (optional)
+              </label>
+              <textarea
+                value={unassignReason}
+                onChange={(e) => setUnassignReason(e.target.value)}
+                placeholder="Please provide a reason for unassigning..."
+                rows="3"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                maxLength={500}
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowUnassignModal(false);
+                  setUnassignReason('');
+                }}
+                disabled={isUnassigning}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUnassign}
+                disabled={isUnassigning}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {isUnassigning ? 'Unassigning...' : 'Unassign'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {/* Completion Report Modal */}

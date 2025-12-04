@@ -24,6 +24,7 @@ import jobAPI from '../services/jobAPI';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import InterpreterJobWorkflow from '../components/InterpreterJobWorkflow';
+import AppointmentChangeModal from '../components/AppointmentChangeModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useJobRestrictions } from '../contexts/JobRestrictionContext';
 import { formatDate, formatTime, formatCurrency, getTimeUntilJob } from '../utils/dateUtils';
@@ -46,6 +47,8 @@ const JobDetails = () => {
   const [showMileagePrompt, setShowMileagePrompt] = useState(false);
   const [mileageRequested, setMileageRequested] = useState(0);
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
+  const [showAppointmentChangeModal, setShowAppointmentChangeModal] = useState(false);
+  const [appointmentChanges, setAppointmentChanges] = useState(null);
 
   const getStoredReturnPath = useCallback(() => {
     const statePath = location.state?.returnTo;
@@ -70,6 +73,35 @@ const JobDetails = () => {
   useEffect(() => {
     loadJobDetails();
   }, [jobId]);
+
+  // Check for appointment change notification from push
+  useEffect(() => {
+    if (location.state?.showAppointmentChange && job) {
+      const changes = location.state.changes;
+      const jobWithChanges = {
+        ...job,
+        newDate: location.state.newDate,
+        newTime: location.state.newTime,
+        newDuration: location.state.newDuration
+      };
+      setAppointmentChanges(changes);
+      setShowAppointmentChangeModal(true);
+      // Clear the state
+      window.history.replaceState({}, document.title);
+    }
+  }, [job, location.state]);
+
+  // Auto-show modal if job has pending schedule change confirmation
+  useEffect(() => {
+    if (job && 
+        job.confirmation_status === 'pending' && 
+        job.confirmation_reason === 'schedule_change' &&
+        !sessionStorage.getItem(`appointment_change_shown_${job.id}`)) {
+      // Show modal with changes
+      setShowAppointmentChangeModal(true);
+      sessionStorage.setItem(`appointment_change_shown_${job.id}`, 'true');
+    }
+  }, [job]);
 
   const loadJobDetails = async () => {
     try {
@@ -1141,6 +1173,18 @@ const JobDetails = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Appointment Change Modal */}
+      {showAppointmentChangeModal && job && (
+        <AppointmentChangeModal
+          job={job}
+          changes={appointmentChanges}
+          onClose={() => setShowAppointmentChangeModal(false)}
+          onConfirm={(confirmed) => {
+            loadJobDetails();
+          }}
+        />
       )}
     </div>
   );

@@ -282,11 +282,16 @@ const JobCard = ({
           </div>
         )}
         
-        {/* Earnings (if available and not paid) */}
-        {!job.interpreter_paid_at && job.agreed_rate && (
-          <div className="flex items-center text-sm font-medium text-green-600">
+        {/* Estimated Earnings (if available and not paid) */}
+        {!job.interpreter_paid_at && (job.agreed_rate || job.hourly_rate) && (
+          <div className="flex items-center text-sm font-medium text-blue-600">
             <CurrencyDollarIcon className="h-4 w-4 mr-1" />
-            {formatCurrency(job.agreed_rate * (job.estimated_duration_minutes / 60))}
+            <span>
+              Estimated: {formatCurrency(
+                ((job.agreed_rate || job.hourly_rate) * 
+                  ((job.actual_duration_minutes || job.estimated_duration_minutes || 0) / 60)) || 0
+              )}
+            </span>
           </div>
         )}
       </div>

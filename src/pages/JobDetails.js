@@ -15,7 +15,9 @@ import {
   PhoneIcon,
   EnvelopeIcon,
   PlayIcon,
-  StopIcon
+  StopIcon,
+  ExclamationTriangleIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';

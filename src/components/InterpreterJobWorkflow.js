@@ -271,6 +271,31 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
 
   return (
     <div className="space-y-6">
+      {/* Next Steps - Submit Completion Report (Prominent when job is completed) */}
+      {canSubmitCompletionReport() && (
+        <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-6 shadow-sm">
+          <div className="flex items-start mb-4">
+            <ExclamationTriangleIcon className="h-6 w-6 text-orange-600 mr-3 flex-shrink-0 mt-1" />
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-orange-900 mb-1">Next Steps</h3>
+              <p className="text-xl font-semibold text-orange-800">Submit Completion Report</p>
+            </div>
+          </div>
+          
+          <p className="text-sm text-orange-700 mb-4">
+            Your job is complete! Please submit your completion report to finalize this assignment and ensure timely payment.
+          </p>
+          
+          <button
+            onClick={() => setShowCompletionReport(true)}
+            className="w-full flex items-center justify-center px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+          >
+            <DocumentTextIcon className="h-5 w-5 mr-2" />
+            Submit Completion Report Now
+          </button>
+        </div>
+      )}
+
       {/* Workflow Status */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Job Progress</h3>
@@ -433,7 +458,7 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
 
       {/* Action Buttons */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Next Steps</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
         
         <div className="space-y-4">
           {/* End Job Button */}
@@ -445,17 +470,6 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
             >
               <StopIcon className="h-5 w-5 mr-2" />
               {isEndingJob ? 'Ending Job...' : 'End Job'}
-            </button>
-          )}
-
-          {/* Completion Report */}
-          {canSubmitCompletionReport() && (
-            <button
-              onClick={() => setShowCompletionReport(true)}
-              className="w-full flex items-center justify-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <DocumentTextIcon className="h-5 w-5 mr-2" />
-              Submit Completion Report
             </button>
           )}
 
@@ -472,14 +486,6 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="text-sm text-blue-800">
                 <strong>Job In Progress:</strong> Click "End Job" when the assignment is complete.
-              </div>
-            </div>
-          )}
-
-          {job.status === 'completed' && !job.completion_report_submitted && (
-            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-              <div className="text-sm text-orange-800">
-                <strong>Job Completed:</strong> Please submit your completion report above to finalize the assignment.
               </div>
             </div>
           )}

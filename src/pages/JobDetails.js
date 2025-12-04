@@ -399,33 +399,35 @@ const JobDetails = () => {
             transition={{ delay: 0.1 }}
             className="bg-orange-50 border-2 border-orange-300 rounded-lg p-6 shadow-sm mb-6"
           >
-            <div className="flex items-start">
+            <div className="flex items-start mb-2">
               <ExclamationTriangleIcon className="h-6 w-6 text-orange-600 mr-3 flex-shrink-0 mt-1" />
               <div className="flex-1">
                 <h3 className="text-lg font-bold text-orange-900 mb-1">Next Steps</h3>
-                <p className="text-xl font-semibold text-orange-800 mb-3">Submit Completion Report</p>
-                <p className="text-sm text-orange-700 mb-4">
-                  Your job is complete! Please submit your completion report to finalize this assignment and ensure timely payment.
-                </p>
-                <button
-                  onClick={() => {
-                    // Scroll to the workflow section where the completion report form is
-                    const workflowElement = document.getElementById('job-workflow-section');
-                    if (workflowElement) {
-                      workflowElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                    // Trigger the completion report modal if it exists in the workflow
-                    const completionReportButton = document.querySelector('[data-completion-report-trigger]');
-                    if (completionReportButton) {
-                      completionReportButton.click();
-                    }
-                  }}
-                  className="w-full sm:w-auto flex items-center justify-center px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
-                >
-                  <DocumentTextIcon className="h-5 w-5 mr-2" />
-                  Submit Completion Report Now
-                </button>
+                <p className="text-xl font-semibold text-orange-800">Submit Completion Report</p>
               </div>
+            </div>
+            <p className="text-sm text-orange-700 text-center mb-4">
+              Your job is complete! Please submit your completion report to finalize this assignment and ensure timely payment.
+            </p>
+            <div className="flex justify-center">
+              <button
+                onClick={() => {
+                  // Scroll to the workflow section where the completion report form is
+                  const workflowElement = document.getElementById('job-workflow-section');
+                  if (workflowElement) {
+                    workflowElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                  // Trigger the completion report modal if it exists in the workflow
+                  const completionReportButton = document.querySelector('[data-completion-report-trigger]');
+                  if (completionReportButton) {
+                    completionReportButton.click();
+                  }
+                }}
+                className="flex items-center justify-center px-8 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+              >
+                <DocumentTextIcon className="h-5 w-5 mr-2" />
+                Submit Completion Report Now
+              </button>
             </div>
           </motion.div>
         )}

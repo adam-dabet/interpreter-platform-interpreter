@@ -271,31 +271,6 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
 
   return (
     <div className="space-y-6">
-      {/* Next Steps - Submit Completion Report (Prominent when job is completed) */}
-      {canSubmitCompletionReport() && (
-        <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-6 shadow-sm">
-          <div className="flex items-start mb-4">
-            <ExclamationTriangleIcon className="h-6 w-6 text-orange-600 mr-3 flex-shrink-0 mt-1" />
-            <div className="flex-1">
-              <h3 className="text-lg font-bold text-orange-900 mb-1">Next Steps</h3>
-              <p className="text-xl font-semibold text-orange-800">Submit Completion Report</p>
-            </div>
-          </div>
-          
-          <p className="text-sm text-orange-700 mb-4">
-            Your job is complete! Please submit your completion report to finalize this assignment and ensure timely payment.
-          </p>
-          
-          <button
-            onClick={() => setShowCompletionReport(true)}
-            className="w-full flex items-center justify-center px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
-          >
-            <DocumentTextIcon className="h-5 w-5 mr-2" />
-            Submit Completion Report Now
-          </button>
-        </div>
-      )}
-
       {/* Workflow Status */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Job Progress</h3>
@@ -470,6 +445,18 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
             >
               <StopIcon className="h-5 w-5 mr-2" />
               {isEndingJob ? 'Ending Job...' : 'End Job'}
+            </button>
+          )}
+
+          {/* Completion Report Button */}
+          {canSubmitCompletionReport() && (
+            <button
+              onClick={() => setShowCompletionReport(true)}
+              data-completion-report-trigger="true"
+              className="w-full flex items-center justify-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <DocumentTextIcon className="h-5 w-5 mr-2" />
+              Submit Completion Report
             </button>
           )}
 

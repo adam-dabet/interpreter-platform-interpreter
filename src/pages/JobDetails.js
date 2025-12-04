@@ -389,6 +389,45 @@ const JobDetails = () => {
           </div>
         </motion.div>
 
+        {/* Next Steps - Submit Completion Report (Prominent when job is completed) */}
+        {job.status === 'completed' && !job.completion_report_submitted && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-orange-50 border-2 border-orange-300 rounded-lg p-6 shadow-sm mb-6"
+          >
+            <div className="flex items-start">
+              <ExclamationTriangleIcon className="h-6 w-6 text-orange-600 mr-3 flex-shrink-0 mt-1" />
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-orange-900 mb-1">Next Steps</h3>
+                <p className="text-xl font-semibold text-orange-800 mb-3">Submit Completion Report</p>
+                <p className="text-sm text-orange-700 mb-4">
+                  Your job is complete! Please submit your completion report to finalize this assignment and ensure timely payment.
+                </p>
+                <button
+                  onClick={() => {
+                    // Scroll to the workflow section where the completion report form is
+                    const workflowElement = document.getElementById('job-workflow-section');
+                    if (workflowElement) {
+                      workflowElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    // Trigger the completion report modal if it exists in the workflow
+                    const completionReportButton = document.querySelector('[data-completion-report-trigger]');
+                    if (completionReportButton) {
+                      completionReportButton.click();
+                    }
+                  }}
+                  className="w-full sm:w-auto flex items-center justify-center px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+                >
+                  <DocumentTextIcon className="h-5 w-5 mr-2" />
+                  Submit Completion Report Now
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
@@ -944,7 +983,7 @@ const JobDetails = () => {
 
         {/* Job Workflow - Only show for assigned jobs */}
         {job.assigned_interpreter_id && (
-          <div className="mt-8">
+          <div id="job-workflow-section" className="mt-8">
             <InterpreterJobWorkflow 
               job={job} 
               onJobUpdate={(updatedJob) => {

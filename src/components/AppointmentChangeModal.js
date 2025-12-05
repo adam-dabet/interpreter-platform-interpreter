@@ -74,7 +74,7 @@ const AppointmentChangeModal = ({ job, changes, onClose, onConfirm }) => {
           </div>
 
           {/* Changes */}
-          {changes && changes.length > 0 && (
+          {changes && changes.length > 0 ? (
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">What Changed:</h3>
               <div className="space-y-2">
@@ -94,15 +94,82 @@ const AppointmentChangeModal = ({ job, changes, onClose, onConfirm }) => {
                 ))}
               </div>
             </div>
+          ) : (
+            <div className="mb-6">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-900">
+                  <strong>Note:</strong> The appointment details have been updated. Please review the current schedule below.
+                </p>
+              </div>
+            </div>
           )}
 
-          {/* New Schedule Summary */}
+          {/* Current/Updated Schedule Summary */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h3 className="text-sm font-semibold text-blue-900 mb-2">Updated Schedule:</h3>
-            <div className="space-y-1 text-sm text-blue-800">
-              {job.newDate && <div><ClockIcon className="h-4 w-4 inline mr-1" />Date: {job.newDate}</div>}
-              {job.newTime && <div><ClockIcon className="h-4 w-4 inline mr-1" />Time: {job.newTime}</div>}
-              {job.newDuration && <div><ClockIcon className="h-4 w-4 inline mr-1" />Duration: {job.newDuration}</div>}
+            <h3 className="text-sm font-semibold text-blue-900 mb-3">Current Schedule:</h3>
+            <div className="space-y-2 text-sm text-blue-800">
+              {(job.newDate || job.scheduled_date) && (
+                <div className="flex items-start">
+                  <ClockIcon className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Date</div>
+                    <div>{job.newDate || new Date(job.scheduled_date).toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}</div>
+                  </div>
+                </div>
+              )}
+              {(job.newTime || job.scheduled_time) && (
+                <div className="flex items-start">
+                  <ClockIcon className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Time</div>
+                    <div>{job.newTime || (() => {
+                      const [hours, minutes] = (job.scheduled_time || '').split(':');
+                      const hour = parseInt(hours);
+                      const ampm = hour >= 12 ? 'PM' : 'AM';
+                      const displayHour = hour % 12 || 12;
+                      return `${displayHour}:${minutes} ${ampm}`;
+                    })()}</div>
+                  </div>
+                </div>
+              )}
+              {job.arrival_time && (
+                <div className="flex items-start">
+                  <ClockIcon className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Arrival Time</div>
+                    <div>{(() => {
+                      const [hours, minutes] = (job.arrival_time || '').split(':');
+                      const hour = parseInt(hours);
+                      const ampm = hour >= 12 ? 'PM' : 'AM';
+                      const displayHour = hour % 12 || 12;
+                      return `${displayHour}:${minutes} ${ampm}`;
+                    })()}</div>
+                  </div>
+                </div>
+              )}
+              {(job.newDuration || job.estimated_duration_minutes) && (
+                <div className="flex items-start">
+                  <ClockIcon className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Duration</div>
+                    <div>{job.newDuration || `${(job.estimated_duration_minutes / 60).toFixed(1)} hours`}</div>
+                  </div>
+                </div>
+              )}
+              {job.location_address && (
+                <div className="flex items-start">
+                  <ClockIcon className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Location</div>
+                    <div>{job.is_remote ? 'Remote Session' : `${job.location_address}${job.location_city ? ', ' + job.location_city : ''}${job.location_state ? ', ' + job.location_state : ''}`}</div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

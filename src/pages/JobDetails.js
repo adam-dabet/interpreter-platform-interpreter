@@ -27,7 +27,7 @@ import InterpreterJobWorkflow from '../components/InterpreterJobWorkflow';
 import AppointmentChangeModal from '../components/AppointmentChangeModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useJobRestrictions } from '../contexts/JobRestrictionContext';
-import { formatDate, formatTime, formatCurrency, getTimeUntilJob } from '../utils/dateUtils';
+import { formatDate, formatTime, formatCurrency, getTimeUntilJob, parseLocalDate } from '../utils/dateUtils';
 
 const LAST_LIST_ROUTE_KEY = 'interpreterLastJobListRoute';
 const DEFAULT_RETURN_PATH = '/jobs';
@@ -359,6 +359,23 @@ const JobDetails = () => {
       case 'low': return 'text-gray-600 bg-gray-100';
       default: return 'text-gray-600 bg-gray-100';
     }
+  };
+
+  // Check if job is in less than 2 days
+  const isJobInLessThan2Days = (job) => {
+    if (!job.scheduled_date) return false;
+    
+    const jobDate = parseLocalDate(job.scheduled_date);
+    if (!jobDate) return false;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    jobDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = jobDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays >= 0 && diffDays < 2;
   };
 
   if (loading) {
@@ -947,6 +964,26 @@ const JobDetails = () => {
                     <p className="text-sm text-gray-500">
                       This job is not available for acceptance
                     </p>
+                  </div>
+                )}
+
+                {/* Urgent Call Notice - Show if interpreter is assigned and job is in less than 2 days */}
+                {job.assigned_interpreter_id && isJobInLessThan2Days(job) && (
+                  <div className="mt-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg">
+                    <div className="flex items-start">
+                      <ExclamationTriangleIcon className="h-5 w-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-red-900 mb-1">
+                          Cannot Make This Appointment?
+                        </p>
+                        <p className="text-sm text-red-800">
+                          If you cannot make this appointment, please call us immediately at{' '}
+                          <a href="tel:888-418-2565" className="font-semibold underline hover:text-red-900">
+                            888-418-2565
+                          </a>
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

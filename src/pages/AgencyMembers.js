@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import axios from 'axios';
 import { 
   UserPlusIcon, 
   UsersIcon, 
@@ -17,8 +16,7 @@ import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
 import { interpreterAPI } from '../services/api';
-
-const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001/api';
+import api from '../services/jobAPI';
 
 const AgencyMembers = () => {
   const navigate = useNavigate();
@@ -55,8 +53,8 @@ const AgencyMembers = () => {
   const loadParametricData = useCallback(async () => {
     try {
       const [languagesRes, certificationsRes] = await Promise.all([
-        axios.get(`${API_BASE}/parametric/languages`),
-        axios.get(`${API_BASE}/parametric/service-types`)
+        api.get('/parametric/languages'),
+        api.get('/parametric/service-types')
       ]);
       
       if (languagesRes.data.success) {
@@ -68,6 +66,7 @@ const AgencyMembers = () => {
       }
     } catch (error) {
       console.error('Error loading parametric data:', error);
+      toast.error('Failed to load languages and certifications');
     }
   }, []);
 

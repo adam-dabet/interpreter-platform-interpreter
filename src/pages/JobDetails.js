@@ -269,10 +269,49 @@ const JobDetails = () => {
     }
   };
 
+  const submitJobAcceptance = async () => {
+    try {
+      setMileagePromptLoading(true);
+      const response = await jobAPI.acceptJob(jobId, {
+        agreed_rate: job.hourly_rate,
+        mileage_requested: mileageRequested || 0,
+        team_member_id: selectedTeamMember
+      });
+      
+      if (response.data.success) {
+        if (mileageRequested > 0) {
+          toast.success('Job accepted! Your mileage request has been submitted for approval.');
+        } else {
+          toast.success('Job accepted successfully!');
+        }
+        setShowMileagePrompt(false);
+        setShowTeamMemberModal(false);
+        setMileageRequested(0);
+        setSelectedTeamMember(null);
+        navigateBackToPreviousPage();
+      } else {
+        toast.error(response.data.message || 'Failed to accept job');
+      }
+    } catch (error) {
+      console.error('Error accepting job:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to accept job';
+      toast.error(errorMessage);
+    } finally {
+      setMileagePromptLoading(false);
+    }
+  };
+
   const handleMileageSubmit = async () => {
     // Double-check restriction before submitting
     if (!canAcceptJobs()) {
       showJobAcceptanceBlocked();
+      return;
+    }
+    
+    // If agency with team members, show team member selection
+    if (profile?.is_agency && teamMembers.length > 0) {
+      setShowMileagePrompt(false);
+      setShowTeamMemberModal(true);
       return;
     }
     
@@ -282,14 +321,7 @@ const JobDetails = () => {
       if (job.status === 'finding_interpreter') {
         await confirmAvailability(mileageRequested);
       } else {
-        const response = await jobAPI.acceptJob(jobId, { 
-          mileage_requested: mileageRequested 
-        });
-        
-        toast.success('Job accepted successfully! Your mileage request is pending admin approval.');
-        setShowMileagePrompt(false);
-        setMileageRequested(0);
-        navigateBackToPreviousPage();
+        await submitJobAcceptance();
       }
     } catch (error) {
       console.error('Error submitting mileage request:', error);
@@ -306,18 +338,23 @@ const JobDetails = () => {
       return;
     }
     
+    // Reset mileage to 0 for team member flow
+    setMileageRequested(0);
+    
+    // If agency with team members, show team member selection
+    if (profile?.is_agency && teamMembers.length > 0) {
+      setShowMileagePrompt(false);
+      setShowTeamMemberModal(true);
+      return;
+    }
+    
     setMileagePromptLoading(true);
     try {
       // Check if this is for availability indication or job acceptance
       if (job.status === 'finding_interpreter') {
         await confirmAvailability(0);
       } else {
-        const response = await jobAPI.acceptJob(jobId, {});
-        
-        toast.success('Job accepted successfully!');
-        setShowMileagePrompt(false);
-        setMileageRequested(0);
-        navigateBackToPreviousPage();
+        await submitJobAcceptance();
       }
     } catch (error) {
       console.error('Error accepting job:', error);

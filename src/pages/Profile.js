@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { CheckCircleIcon, MapPinIcon, UserIcon, DocumentTextIcon, LanguageIcon, BriefcaseIcon, DocumentIcon, PencilIcon, ClockIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, MapPinIcon, UserIcon, DocumentTextIcon, LanguageIcon, BriefcaseIcon, DocumentIcon, PencilIcon, ClockIcon, XMarkIcon, UsersIcon } from '@heroicons/react/24/outline';
 import ProgressBar from '../components/ui/ProgressBar';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -500,13 +500,33 @@ const Profile = () => {
                 {/* Header */}
                 <div className="mb-8 flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
-                        <p className="mt-2 text-sm text-gray-600">View your interpreter profile information</p>
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
+                            {profile?.is_agency && (
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
+                                    <BriefcaseIcon className="h-4 w-4 mr-1" />
+                                    Agency
+                                </span>
+                            )}
+                        </div>
+                        <p className="mt-2 text-sm text-gray-600">
+                            {profile?.is_agency 
+                                ? 'View your agency profile information' 
+                                : 'View your interpreter profile information'}
+                        </p>
                     </div>
-                    <Button onClick={handleEditProfile}>
-                        <PencilIcon className="h-4 w-4 mr-2" />
-                        Edit Profile
-                    </Button>
+                    <div className="flex items-center gap-3">
+                        {profile?.is_agency && (
+                            <Button variant="outline" onClick={() => navigate('/profile/agency-members')}>
+                                <UsersIcon className="h-4 w-4 mr-2" />
+                                Manage Team
+                            </Button>
+                        )}
+                        <Button onClick={handleEditProfile}>
+                            <PencilIcon className="h-4 w-4 mr-2" />
+                            Edit Profile
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Pending Update Banner */}

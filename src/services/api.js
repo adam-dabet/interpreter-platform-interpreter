@@ -150,6 +150,19 @@ export const interpreterAPI = {
   cancelPendingUpdate: () => {
     return api.delete('/interpreters/profile/pending-update');
   },
+  
+  // Agency member management
+  getAgencyMembers: () => {
+    return api.get('/interpreters/agency-members');
+  },
+  
+  inviteAgencyMember: (email) => {
+    return api.post('/interpreters/agency-members/invite', { email });
+  },
+  
+  removeAgencyMember: (memberId) => {
+    return api.delete(`/interpreters/agency-members/${memberId}`);
+  },
 };
 
 // Parametric Data API

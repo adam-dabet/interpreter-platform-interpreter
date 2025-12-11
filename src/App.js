@@ -17,6 +17,7 @@ import JobTimer from './pages/JobTimer';
 import JobAction from './pages/JobAction';
 import Profile from './pages/Profile';
 import ProfileEdit from './pages/ProfileEdit';
+import AgencyMembers from './pages/AgencyMembers';
 import MySchedule from './pages/MySchedule';
 import PendingActions from './pages/PendingActions';
 import ConfirmJob from './pages/ConfirmJob';
@@ -62,6 +63,7 @@ function App() {
             <Route path="/jobs/:jobId/:action/:interpreterId" element={<ProtectedRoute><JobAction /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><Profile /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/profile/edit" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><ProfileEdit /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
+            <Route path="/profile/agency-members" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><AgencyMembers /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
           </Routes>
         </div>
       </AuthProvider>

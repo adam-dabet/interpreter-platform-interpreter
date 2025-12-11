@@ -155,11 +155,11 @@ export const interpreterAPI = {
   getAgencyMembers: () => {
     return api.get('/interpreters/agency-members');
   },
-  
-  inviteAgencyMember: (email) => {
-    return api.post('/interpreters/agency-members/invite', { email });
+
+  createTeamMember: (memberData) => {
+    return api.post('/interpreters/agency-members/create', memberData);
   },
-  
+
   removeAgencyMember: (memberId) => {
     return api.delete(`/interpreters/agency-members/${memberId}`);
   },

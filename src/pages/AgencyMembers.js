@@ -2,11 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 import { 
   UserPlusIcon, 
   UsersIcon, 
   XMarkIcon, 
-  EnvelopeIcon,
   TrashIcon,
   ArrowLeftIcon,
   CheckCircleIcon,
@@ -18,15 +18,24 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
 import { interpreterAPI } from '../services/api';
 
+const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001/api';
+
 const AgencyMembers = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [sending, setSending] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [languages, setLanguages] = useState([]);
+  const [certifications, setCertifications] = useState([]);
+  const [saving, setSaving] = useState(false);
   const [removingId, setRemovingId] = useState(null);
+  const [newMember, setNewMember] = useState({
+    first_name: '',
+    last_name: '',
+    languages: [],
+    certifications: []
+  });
 
   const loadMembers = useCallback(async () => {
     try {
@@ -43,6 +52,25 @@ const AgencyMembers = () => {
     }
   }, []);
 
+  const loadParametricData = useCallback(async () => {
+    try {
+      const [languagesRes, certificationsRes] = await Promise.all([
+        axios.get(`${API_BASE}/parametric/languages`),
+        axios.get(`${API_BASE}/parametric/service-types`)
+      ]);
+      
+      if (languagesRes.data.success) {
+        setLanguages(languagesRes.data.data);
+      }
+      
+      if (certificationsRes.data.success) {
+        setCertifications(certificationsRes.data.data);
+      }
+    } catch (error) {
+      console.error('Error loading parametric data:', error);
+    }
+  }, []);
+
   useEffect(() => {
     // Redirect non-agency users
     if (profile && !profile.is_agency) {
@@ -51,39 +79,68 @@ const AgencyMembers = () => {
       return;
     }
     loadMembers();
-  }, [profile, navigate, loadMembers]);
+    loadParametricData();
+  }, [profile, navigate, loadMembers, loadParametricData]);
 
-  const handleInviteMember = async (e) => {
+  const handleAddMember = async (e) => {
     e.preventDefault();
     
-    if (!inviteEmail.trim()) {
-      toast.error('Please enter an email address');
+    if (!newMember.first_name.trim() || !newMember.last_name.trim()) {
+      toast.error('Please enter first and last name');
       return;
     }
 
-    if (!/\S+@\S+\.\S+/.test(inviteEmail)) {
-      toast.error('Please enter a valid email address');
+    if (newMember.languages.length === 0) {
+      toast.error('Please select at least one language');
+      return;
+    }
+
+    if (newMember.certifications.length === 0) {
+      toast.error('Please select at least one certification');
       return;
     }
 
     try {
-      setSending(true);
-      const response = await interpreterAPI.inviteAgencyMember(inviteEmail);
+      setSaving(true);
+      const response = await interpreterAPI.createTeamMember(newMember);
       
       if (response.data.success) {
-        toast.success(`Invitation sent to ${inviteEmail}`);
-        setShowInviteModal(false);
-        setInviteEmail('');
+        toast.success('Team member added successfully');
+        setShowAddModal(false);
+        setNewMember({
+          first_name: '',
+          last_name: '',
+          languages: [],
+          certifications: []
+        });
         loadMembers(); // Refresh the list
       } else {
-        toast.error(response.data.message || 'Failed to send invitation');
+        toast.error(response.data.message || 'Failed to add team member');
       }
     } catch (error) {
-      console.error('Error sending invitation:', error);
-      toast.error(error.message || 'Failed to send invitation');
+      console.error('Error adding team member:', error);
+      toast.error(error.response?.data?.message || 'Failed to add team member');
     } finally {
-      setSending(false);
+      setSaving(false);
     }
+  };
+
+  const handleLanguageToggle = (languageId) => {
+    setNewMember(prev => ({
+      ...prev,
+      languages: prev.languages.includes(languageId)
+        ? prev.languages.filter(id => id !== languageId)
+        : [...prev.languages, languageId]
+    }));
+  };
+
+  const handleCertificationToggle = (certId) => {
+    setNewMember(prev => ({
+      ...prev,
+      certifications: prev.certifications.includes(certId)
+        ? prev.certifications.filter(id => id !== certId)
+        : [...prev.certifications, certId]
+    }));
   };
 
   const handleRemoveMember = async (memberId, memberName) => {
@@ -171,9 +228,9 @@ const AgencyMembers = () => {
                 Manage interpreters in your agency
               </p>
             </div>
-            <Button onClick={() => setShowInviteModal(true)}>
+            <Button onClick={() => setShowAddModal(true)}>
               <UserPlusIcon className="h-4 w-4 mr-2" />
-              Invite Interpreter
+              Add Team Member
             </Button>
           </div>
         </div>
@@ -226,14 +283,14 @@ const AgencyMembers = () => {
               <UsersIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-4 text-lg font-medium text-gray-900">No members yet</h3>
               <p className="mt-2 text-sm text-gray-500">
-                Invite interpreters to join your agency by clicking the button above.
+                Add team members to your agency by clicking the button above.
               </p>
               <Button 
-                onClick={() => setShowInviteModal(true)}
+                onClick={() => setShowAddModal(true)}
                 className="mt-6"
               >
                 <UserPlusIcon className="h-4 w-4 mr-2" />
-                Invite Your First Interpreter
+                Add Your First Team Member
               </Button>
             </div>
           ) : (
@@ -294,9 +351,9 @@ const AgencyMembers = () => {
         </div>
       </div>
 
-      {/* Invite Modal */}
+      {/* Add Team Member Modal */}
       <AnimatePresence>
-        {showInviteModal && (
+        {showAddModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -306,47 +363,103 @@ const AgencyMembers = () => {
             <div className="flex min-h-screen items-center justify-center p-4">
               <div 
                 className="fixed inset-0 bg-black bg-opacity-50"
-                onClick={() => setShowInviteModal(false)}
+                onClick={() => !saving && setShowAddModal(false)}
               />
               <motion.div
                 initial={{ scale: 0.95, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.95, opacity: 0 }}
-                className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+                className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Invite Interpreter</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Add Team Member</h3>
                   <button
-                    onClick={() => setShowInviteModal(false)}
+                    onClick={() => !saving && setShowAddModal(false)}
                     className="text-gray-400 hover:text-gray-500"
+                    disabled={saving}
                   >
                     <XMarkIcon className="h-5 w-5" />
                   </button>
                 </div>
                 
                 <p className="text-sm text-gray-600 mb-4">
-                  Enter the email address of the interpreter you'd like to invite to your agency.
-                  They will receive an email with instructions to join.
+                  Add a team member who can perform jobs on behalf of your agency.
                 </p>
 
-                <form onSubmit={handleInviteMember}>
-                  <div className="mb-4">
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <EnvelopeIcon className="h-5 w-5 text-gray-400" />
-                      </div>
+                <form onSubmit={handleAddMember}>
+                  {/* Name Fields */}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-1">
+                        First Name *
+                      </label>
                       <input
-                        type="email"
-                        id="email"
-                        value={inviteEmail}
-                        onChange={(e) => setInviteEmail(e.target.value)}
-                        placeholder="interpreter@example.com"
-                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        disabled={sending}
+                        type="text"
+                        id="first_name"
+                        value={newMember.first_name}
+                        onChange={(e) => setNewMember(prev => ({ ...prev, first_name: e.target.value }))}
+                        placeholder="John"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        disabled={saving}
+                        required
                       />
+                    </div>
+                    <div>
+                      <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mb-1">
+                        Last Name *
+                      </label>
+                      <input
+                        type="text"
+                        id="last_name"
+                        value={newMember.last_name}
+                        onChange={(e) => setNewMember(prev => ({ ...prev, last_name: e.target.value }))}
+                        placeholder="Doe"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        disabled={saving}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Languages */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Languages * (select at least one)
+                    </label>
+                    <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
+                      {languages.map(lang => (
+                        <label key={lang.id} className="flex items-center py-2 hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={newMember.languages.includes(lang.id)}
+                            onChange={() => handleLanguageToggle(lang.id)}
+                            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                            disabled={saving}
+                          />
+                          <span className="ml-3 text-sm text-gray-700">{lang.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Certifications */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Certifications * (select at least one)
+                    </label>
+                    <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
+                      {certifications.map(cert => (
+                        <label key={cert.id} className="flex items-center py-2 hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={newMember.certifications.includes(cert.id)}
+                            onChange={() => handleCertificationToggle(cert.id)}
+                            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                            disabled={saving}
+                          />
+                          <span className="ml-3 text-sm text-gray-700">{cert.name}</span>
+                        </label>
+                      ))}
                     </div>
                   </div>
 
@@ -355,26 +468,31 @@ const AgencyMembers = () => {
                       type="button"
                       variant="outline"
                       onClick={() => {
-                        setShowInviteModal(false);
-                        setInviteEmail('');
+                        setShowAddModal(false);
+                        setNewMember({
+                          first_name: '',
+                          last_name: '',
+                          languages: [],
+                          certifications: []
+                        });
                       }}
-                      disabled={sending}
+                      disabled={saving}
                     >
                       Cancel
                     </Button>
                     <Button
                       type="submit"
-                      disabled={sending || !inviteEmail.trim()}
+                      disabled={saving}
                     >
-                      {sending ? (
+                      {saving ? (
                         <>
                           <LoadingSpinner size="sm" className="mr-2" />
-                          Sending...
+                          Adding...
                         </>
                       ) : (
                         <>
-                          <EnvelopeIcon className="h-4 w-4 mr-2" />
-                          Send Invitation
+                          <UserPlusIcon className="h-4 w-4 mr-2" />
+                          Add Team Member
                         </>
                       )}
                     </Button>

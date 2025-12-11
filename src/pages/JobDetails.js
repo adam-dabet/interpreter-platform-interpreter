@@ -49,6 +49,9 @@ const JobDetails = () => {
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
   const [showAppointmentChangeModal, setShowAppointmentChangeModal] = useState(false);
   const [appointmentChanges, setAppointmentChanges] = useState(null);
+  const [showTeamMemberModal, setShowTeamMemberModal] = useState(false);
+  const [selectedTeamMember, setSelectedTeamMember] = useState(null);
+  const [teamMembers, setTeamMembers] = useState([]);
 
   const getStoredReturnPath = useCallback(() => {
     const statePath = location.state?.returnTo;
@@ -72,7 +75,21 @@ const JobDetails = () => {
 
   useEffect(() => {
     loadJobDetails();
-  }, [jobId]);
+    if (profile?.is_agency) {
+      loadTeamMembers();
+    }
+  }, [jobId, profile]);
+
+  const loadTeamMembers = async () => {
+    try {
+      const response = await interpreterAPI.getAgencyMembers();
+      if (response.data.success) {
+        setTeamMembers(response.data.data.members || []);
+      }
+    } catch (error) {
+      console.error('Error loading team members:', error);
+    }
+  };
 
   // Check for appointment change notification from push
   useEffect(() => {
@@ -1207,6 +1224,67 @@ const JobDetails = () => {
                   {mileagePromptLoading ? 'Submitting...' : 'Request Mileage'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Team Member Selection Modal */}
+      {showTeamMemberModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Select Team Member
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Which team member will perform this job?
+            </p>
+            
+            <div className="space-y-2 max-h-64 overflow-y-auto mb-6">
+              {teamMembers.map(member => (
+                <label
+                  key={member.id}
+                  className="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    name="team_member"
+                    value={member.id}
+                    checked={selectedTeamMember === member.id}
+                    onChange={(e) => setSelectedTeamMember(parseInt(e.target.value))}
+                    className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                  />
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-900">
+                      {member.first_name} {member.last_name}
+                    </p>
+                    {member.languages && member.languages !== 'N/A' && (
+                      <p className="text-xs text-gray-500">{member.languages}</p>
+                    )}
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  setShowTeamMemberModal(false);
+                  setShowMileagePrompt(true);
+                  setSelectedTeamMember(null);
+                }}
+                disabled={mileagePromptLoading}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Back
+              </button>
+              <button
+                onClick={submitJobAcceptance}
+                disabled={mileagePromptLoading || !selectedTeamMember}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {mileagePromptLoading ? 'Submitting...' : 'Accept Job'}
+              </button>
             </div>
           </div>
         </div>

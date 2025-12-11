@@ -67,7 +67,8 @@ const INTERPRETER_STEPS = [
 ];
 
 const InterpreterProfile = () => {
-    const [currentStep, setCurrentStep] = useState(1);
+    const [currentStep, setCurrentStep] = useState(0); // Start at 0 for registration type selection
+    const [registrationType, setRegistrationType] = useState(null); // 'individual' or 'agency'
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isEditingFromReview, setIsEditingFromReview] = useState(false);
@@ -134,7 +135,10 @@ const InterpreterProfile = () => {
         // W-9 Form
         w9_entry_method: '',
         w9_file: null,
-        w9_data: null
+        w9_data: null,
+        
+        // Agency flag
+        is_agency: false
     });
 
     const [profileResult, setProfileResult] = useState(null);
@@ -152,6 +156,9 @@ const InterpreterProfile = () => {
         const completionTok = urlParams.get('token');
         if (completionTok) {
             await loadProfileCompletionData(completionTok);
+            // Skip registration type selection for profile completion
+            setRegistrationType('individual');
+            setCurrentStep(1);
             return; // Don't check for rejection token if completion token exists
         }
         
@@ -159,7 +166,20 @@ const InterpreterProfile = () => {
         const rejectionTok = urlParams.get('rejection_token');
         if (rejectionTok) {
             await loadRejectionData(rejectionTok);
+            // Skip registration type selection for resubmission
+            setRegistrationType('individual');
+            setCurrentStep(1);
         }
+    };
+    
+    const handleSelectRegistrationType = (type) => {
+        setRegistrationType(type);
+        setFormData(prev => ({
+            ...prev,
+            is_agency: type === 'agency'
+        }));
+        setCurrentStep(1);
+        setVisitedSteps(new Set([1]));
     };
 
     const loadProfileCompletionData = async (token) => {
@@ -394,6 +414,10 @@ const InterpreterProfile = () => {
         if (isEditingFromReview) {
             setIsEditingFromReview(false);
             setCurrentStep(INTERPRETER_STEPS.length);
+        } else if (currentStep === 1 && !isResubmission && !isProfileCompletion) {
+            // Go back to registration type selection (only for new applications)
+            setCurrentStep(0);
+            setRegistrationType(null);
         } else {
             setCurrentStep(prev => Math.max(prev - 1, 1));
         }
@@ -582,7 +606,8 @@ const InterpreterProfile = () => {
             parametricData,
             isEditing: isEditingFromReview, // User is editing only if they came from review step
             rejectedFields: rejectedFields || [], // Pass rejected fields for highlighting
-            isResubmission
+            isResubmission,
+            registrationType // Pass registration type for conditional rendering
         };
 
         console.log('Rendering step with props:', {
@@ -614,6 +639,73 @@ const InterpreterProfile = () => {
                     <LoadingSpinner size="lg" />
                     <p className="mt-4 text-gray-600">Loading form data...</p>
                 </div>
+            </div>
+        );
+    }
+
+    // Registration Type Selection Screen (Step 0)
+    if (currentStep === 0) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <div className="max-w-4xl mx-auto px-4 py-8">
+                    <div className="text-center mb-8">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                            Join Our Network
+                        </h1>
+                        <p className="text-gray-600">
+                            How would you like to register?
+                        </p>
+                    </div>
+
+                    <div className="max-w-2xl mx-auto">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Individual Option */}
+                            <motion.button
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1 }}
+                                onClick={() => handleSelectRegistrationType('individual')}
+                                className="bg-white rounded-2xl shadow-lg border-2 border-gray-200 p-8 hover:border-blue-500 hover:shadow-xl transition-all duration-200 text-left group"
+                            >
+                                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-blue-200 transition-colors">
+                                    <UserIcon className="w-8 h-8 text-blue-600" />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                    Individual Interpreter
+                                </h3>
+                                <p className="text-gray-600">
+                                    I'm an independent interpreter looking to join the network and receive job assignments.
+                                </p>
+                            </motion.button>
+
+                            {/* Agency Option */}
+                            <motion.button
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                onClick={() => handleSelectRegistrationType('agency')}
+                                className="bg-white rounded-2xl shadow-lg border-2 border-gray-200 p-8 hover:border-purple-500 hover:shadow-xl transition-all duration-200 text-left group"
+                            >
+                                <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-purple-200 transition-colors">
+                                    <BriefcaseIcon className="w-8 h-8 text-purple-600" />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                    Agency / Organization
+                                </h3>
+                                <p className="text-gray-600">
+                                    I represent an agency or organization with multiple interpreters.
+                                </p>
+                            </motion.button>
+                        </div>
+
+                        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <p className="text-sm text-blue-800">
+                                <strong>Note:</strong> Agencies can add individual interpreters to their roster after registration is approved.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <Toaster position="top-right" />
             </div>
         );
     }
@@ -666,12 +758,19 @@ const InterpreterProfile = () => {
                 {/* Header */}
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                        {isResubmission ? 'Update Your Application' : 'Create Interpreter Profile'}
+                        {isResubmission 
+                            ? 'Update Your Application' 
+                            : registrationType === 'agency' 
+                                ? 'Register Your Agency' 
+                                : 'Create Interpreter Profile'
+                        }
                     </h1>
                     <p className="text-gray-600">
                         {isResubmission 
                             ? 'Please review and update the highlighted fields below'
-                            : 'Complete your professional interpreter profile to join our network'
+                            : registrationType === 'agency'
+                                ? 'Complete your agency profile to join our network'
+                                : 'Complete your professional interpreter profile to join our network'
                         }
                     </p>
                 </div>

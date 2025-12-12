@@ -475,6 +475,28 @@ const JobDetails = () => {
     return hoursUntilJob >= 0 && hoursUntilJob < 48;
   };
 
+  // Check if interpreter can start the job (within 2 hours before appointment)
+  const canStartJob = (job) => {
+    if (!job.scheduled_date || !job.scheduled_time) return false;
+    
+    const jobDate = parseLocalDate(job.scheduled_date);
+    if (!jobDate) return false;
+    
+    // Use arrival_time if available, otherwise use scheduled_time
+    const timeToUse = job.arrival_time || job.scheduled_time;
+    const timeParts = timeToUse.split(':');
+    const hours = parseInt(timeParts[0], 10);
+    const minutes = parseInt(timeParts[1], 10);
+    jobDate.setHours(hours, minutes, 0, 0);
+    
+    const now = new Date();
+    const hoursUntilJob = (jobDate - now) / (1000 * 60 * 60);
+    
+    // Can start job only within 2 hours before the appointment time
+    // Allow up to 12 hours after for jobs that are running late
+    return hoursUntilJob <= 2 && hoursUntilJob >= -12;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1144,7 +1166,7 @@ const JobDetails = () => {
 
                   {/* Start/End Job Buttons */}
                   <div className="space-y-3">
-                    {(job.status === 'assigned' || job.status === 'reminders_sent') && (
+                    {(job.status === 'assigned' || job.status === 'reminders_sent') && canStartJob(job) && (
                       <Button
                         className="w-full"
                         onClick={() => handleJobAction('start')}
@@ -1153,6 +1175,14 @@ const JobDetails = () => {
                         <PlayIcon className="h-4 w-4 mr-2" />
                         {actionLoading ? 'Starting...' : 'Start Job'}
                       </Button>
+                    )}
+                    
+                    {(job.status === 'assigned' || job.status === 'reminders_sent') && !canStartJob(job) && (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="text-sm text-blue-800">
+                          <strong>Start Job:</strong> The "Start Job" button will appear 2 hours before your {job.arrival_time ? 'arrival' : 'appointment'} time.
+                        </div>
+                      </div>
                     )}
                     
                     {job.status === 'in_progress' && (

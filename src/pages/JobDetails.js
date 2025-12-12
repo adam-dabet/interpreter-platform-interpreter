@@ -76,11 +76,6 @@ const JobDetails = () => {
 
   useEffect(() => {
     loadJobDetails();
-    console.log('DEBUG: Profile check:', {
-      profile,
-      isAgency: profile?.is_agency,
-      willLoadTeamMembers: profile?.is_agency
-    });
     if (profile?.is_agency) {
       loadTeamMembers();
     }
@@ -88,13 +83,9 @@ const JobDetails = () => {
 
   const loadTeamMembers = async () => {
     try {
-      console.log('DEBUG: Loading team members...');
       const response = await interpreterAPI.getAgencyMembers();
-      console.log('DEBUG: Team members response:', response.data);
       if (response.data.success) {
-        const members = response.data.data.members || [];
-        console.log('DEBUG: Setting team members:', members);
-        setTeamMembers(members);
+        setTeamMembers(response.data.data.members || []);
       }
     } catch (error) {
       console.error('Error loading team members:', error);
@@ -346,12 +337,6 @@ const JobDetails = () => {
     }
     
     // For availability indication flow
-    console.log('DEBUG handleMileageSubmit availability flow:', {
-      isAgency: profile?.is_agency,
-      teamMembersLength: teamMembers.length,
-      teamMembers
-    });
-    
     if (profile?.is_agency && teamMembers.length > 0) {
       setShowMileagePrompt(false);
       setShowTeamMemberModal(true);
@@ -401,13 +386,6 @@ const JobDetails = () => {
     }
     
     // For availability indication flow
-    console.log('DEBUG handleNoMileage availability flow:', {
-      isAgency: profile?.is_agency,
-      teamMembersLength: teamMembers.length,
-      teamMembers,
-      profile
-    });
-    
     if (profile?.is_agency && teamMembers.length > 0) {
       setShowMileagePrompt(false);
       setShowTeamMemberModal(true);
@@ -953,6 +931,36 @@ const JobDetails = () => {
                 </div>
               </div>
             </motion.div>
+
+            {/* Assigned Team Member Info (for agencies) */}
+            {profile?.is_agency && job.assigned_interpreter_id && job.team_member_first_name && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+                className="bg-white rounded-lg shadow-sm border p-6"
+              >
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <UserIcon className="h-5 w-5 mr-2 text-blue-600" />
+                  Assigned Team Member
+                </h3>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <div className="bg-blue-600 p-2 rounded-full mr-3">
+                      <UserIcon className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-base font-semibold text-gray-900">
+                        {job.team_member_first_name} {job.team_member_last_name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Team member performing this job
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             {/* Action Buttons */}
             <motion.div

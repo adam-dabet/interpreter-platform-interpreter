@@ -234,8 +234,8 @@ const JobDashboard = () => {
     return hourlyRate * hours;
   };
 
-  // Check if job is more than 24 hours away
-  const isJobMoreThan24HoursAway = (job) => {
+  // Check if job is more than 48 hours (2 days) away
+  const isJobMoreThan48HoursAway = (job) => {
     try {
       // Check if we have the required date/time fields
       if (!job.scheduled_date || !job.scheduled_time) {
@@ -263,7 +263,8 @@ const JobDashboard = () => {
 
       const hoursUntilJob = (jobDateTime - now) / (1000 * 60 * 60);
       
-      return hoursUntilJob > 24;
+      // Unassign is only allowed if more than 48 hours (2 days) away
+      return hoursUntilJob > 48;
     } catch (error) {
       console.error('Error checking job timing:', error, {
         jobId: job.id,
@@ -695,7 +696,7 @@ const JobDashboard = () => {
                           <CheckCircleIcon className="h-4 w-4 mr-1" />
                           Complete Job
                         </Button>
-                        {isJobMoreThan24HoursAway(job) ? (
+                        {isJobMoreThan48HoursAway(job) ? (
                           <Button
                             size="sm"
                             variant="outline"
@@ -711,7 +712,7 @@ const JobDashboard = () => {
                           </Button>
                         ) : (
                           <span className="text-xs text-gray-500">
-                            (Cannot unassign - less than 24 hours away)
+                            (Cannot unassign - less than 2 days away)
                           </span>
                         )}
                       </>

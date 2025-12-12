@@ -455,21 +455,24 @@ const JobDetails = () => {
     }
   };
 
-  // Check if job is in less than 2 days
+  // Check if job is in less than 2 days (48 hours)
   const isJobInLessThan2Days = (job) => {
-    if (!job.scheduled_date) return false;
+    if (!job.scheduled_date || !job.scheduled_time) return false;
     
     const jobDate = parseLocalDate(job.scheduled_date);
     if (!jobDate) return false;
     
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    jobDate.setHours(0, 0, 0, 0);
+    // Parse the scheduled time and set it on the job date
+    const timeParts = job.scheduled_time.split(':');
+    const hours = parseInt(timeParts[0], 10);
+    const minutes = parseInt(timeParts[1], 10);
+    jobDate.setHours(hours, minutes, 0, 0);
     
-    const diffTime = jobDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const now = new Date();
+    const hoursUntilJob = (jobDate - now) / (1000 * 60 * 60);
     
-    return diffDays >= 0 && diffDays < 2;
+    // Return true if less than 48 hours (2 days) away
+    return hoursUntilJob >= 0 && hoursUntilJob < 48;
   };
 
   if (loading) {

@@ -218,15 +218,20 @@ const JobDetails = () => {
     if (!job.is_remote) {
       setShowMileagePrompt(true);
     } else {
-      // For remote jobs, indicate availability directly
-      confirmAvailability(0);
+      // For remote jobs, check if agency with team members
+      if (profile?.is_agency && teamMembers.length > 0) {
+        setShowTeamMemberModal(true);
+      } else {
+        // Indicate availability directly for non-agencies or agencies without team members
+        confirmAvailability(0);
+      }
     }
   };
   
   const confirmAvailability = async (mileage) => {
     try {
       setMileagePromptLoading(true);
-      const response = await jobAPI.indicateAvailability(jobId, parseFloat(mileage) || 0);
+      const response = await jobAPI.indicateAvailability(jobId, parseFloat(mileage) || 0, selectedTeamMember);
       
       // Check if auto-assigned as preferred provider
       if (response.data?.auto_assigned) {
@@ -242,7 +247,9 @@ const JobDetails = () => {
       }
       
       setShowMileagePrompt(false);
+      setShowTeamMemberModal(false);
       setMileageRequested(0);
+      setSelectedTeamMember(null);
       await loadJobDetails();
     } catch (error) {
       console.error('Error indicating availability:', error);
@@ -302,13 +309,34 @@ const JobDetails = () => {
   };
 
   const handleMileageSubmit = async () => {
-    // Double-check restriction before submitting
-    if (!canAcceptJobs()) {
-      showJobAcceptanceBlocked();
+    // For job acceptance flow
+    if (job.status !== 'finding_interpreter') {
+      // Double-check restriction before submitting
+      if (!canAcceptJobs()) {
+        showJobAcceptanceBlocked();
+        return;
+      }
+      
+      // If agency with team members, show team member selection
+      if (profile?.is_agency && teamMembers.length > 0) {
+        setShowMileagePrompt(false);
+        setShowTeamMemberModal(true);
+        return;
+      }
+      
+      setMileagePromptLoading(true);
+      try {
+        await submitJobAcceptance();
+      } catch (error) {
+        console.error('Error submitting job acceptance:', error);
+        toast.error(`Failed to submit: ${error.response?.data?.message || error.message}`);
+      } finally {
+        setMileagePromptLoading(false);
+      }
       return;
     }
     
-    // If agency with team members, show team member selection
+    // For availability indication flow
     if (profile?.is_agency && teamMembers.length > 0) {
       setShowMileagePrompt(false);
       setShowTeamMemberModal(true);
@@ -317,31 +345,47 @@ const JobDetails = () => {
     
     setMileagePromptLoading(true);
     try {
-      // Check if this is for availability indication or job acceptance
-      if (job.status === 'finding_interpreter') {
-        await confirmAvailability(mileageRequested);
-      } else {
-        await submitJobAcceptance();
-      }
+      await confirmAvailability(mileageRequested);
     } catch (error) {
-      console.error('Error submitting mileage request:', error);
-      toast.error(`Failed to submit mileage request: ${error.response?.data?.message || error.message}`);
+      console.error('Error indicating availability:', error);
+      toast.error(`Failed to indicate availability: ${error.response?.data?.message || error.message}`);
     } finally {
       setMileagePromptLoading(false);
     }
   };
 
   const handleNoMileage = async () => {
-    // Double-check restriction before submitting
-    if (!canAcceptJobs()) {
-      showJobAcceptanceBlocked();
+    // Reset mileage to 0
+    setMileageRequested(0);
+    
+    // For job acceptance flow
+    if (job.status !== 'finding_interpreter') {
+      // Double-check restriction before submitting
+      if (!canAcceptJobs()) {
+        showJobAcceptanceBlocked();
+        return;
+      }
+      
+      // If agency with team members, show team member selection
+      if (profile?.is_agency && teamMembers.length > 0) {
+        setShowMileagePrompt(false);
+        setShowTeamMemberModal(true);
+        return;
+      }
+      
+      setMileagePromptLoading(true);
+      try {
+        await submitJobAcceptance();
+      } catch (error) {
+        console.error('Error accepting job:', error);
+        toast.error(`Failed to accept job: ${error.response?.data?.message || error.message}`);
+      } finally {
+        setMileagePromptLoading(false);
+      }
       return;
     }
     
-    // Reset mileage to 0 for team member flow
-    setMileageRequested(0);
-    
-    // If agency with team members, show team member selection
+    // For availability indication flow
     if (profile?.is_agency && teamMembers.length > 0) {
       setShowMileagePrompt(false);
       setShowTeamMemberModal(true);
@@ -350,15 +394,10 @@ const JobDetails = () => {
     
     setMileagePromptLoading(true);
     try {
-      // Check if this is for availability indication or job acceptance
-      if (job.status === 'finding_interpreter') {
-        await confirmAvailability(0);
-      } else {
-        await submitJobAcceptance();
-      }
+      await confirmAvailability(0);
     } catch (error) {
-      console.error('Error accepting job:', error);
-      toast.error(`Failed to accept job: ${error.response?.data?.message || error.message}`);
+      console.error('Error indicating availability:', error);
+      toast.error(`Failed to indicate availability: ${error.response?.data?.message || error.message}`);
     } finally {
       setMileagePromptLoading(false);
     }
@@ -1317,11 +1356,18 @@ const JobDetails = () => {
                 Back
               </button>
               <button
-                onClick={submitJobAcceptance}
+                onClick={() => {
+                  // Check if this is for availability indication or job acceptance
+                  if (job.status === 'finding_interpreter') {
+                    confirmAvailability(mileageRequested);
+                  } else {
+                    submitJobAcceptance();
+                  }
+                }}
                 disabled={mileagePromptLoading || !selectedTeamMember}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {mileagePromptLoading ? 'Submitting...' : 'Accept Job'}
+                {mileagePromptLoading ? 'Submitting...' : (job.status === 'finding_interpreter' ? 'Indicate Available' : 'Accept Job')}
               </button>
             </div>
           </div>

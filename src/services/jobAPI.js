@@ -9,7 +9,7 @@ const jobAPI = {
   unassignJob: (jobId, data = {}) => api.post(`/jobs/${jobId}/unassign`, data),
   confirmAvailability: (jobId, data = {}) => api.post(`/jobs/${jobId}/confirm-availability`, data),
   // New availability indication methods
-  indicateAvailability: (jobId, mileage_requested = 0) => api.post(`/jobs/${jobId}/indicate-available`, { mileage_requested }),
+  indicateAvailability: (jobId, mileage_requested = 0, team_member_id = null) => api.post(`/jobs/${jobId}/indicate-available`, { mileage_requested, team_member_id }),
   indicateNotAvailable: (jobId, reason = '') => api.post(`/jobs/${jobId}/indicate-not-available`, { reason }),
   startJob: (jobId, locationData = {}) => api.post(`/interpreters/jobs/${jobId}/start`, locationData),
   endJob: (jobId) => api.post(`/interpreters/jobs/${jobId}/end`),

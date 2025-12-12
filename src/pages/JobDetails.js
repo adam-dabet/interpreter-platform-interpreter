@@ -76,6 +76,11 @@ const JobDetails = () => {
 
   useEffect(() => {
     loadJobDetails();
+    console.log('DEBUG: Profile check:', {
+      profile,
+      isAgency: profile?.is_agency,
+      willLoadTeamMembers: profile?.is_agency
+    });
     if (profile?.is_agency) {
       loadTeamMembers();
     }
@@ -83,9 +88,13 @@ const JobDetails = () => {
 
   const loadTeamMembers = async () => {
     try {
+      console.log('DEBUG: Loading team members...');
       const response = await interpreterAPI.getAgencyMembers();
+      console.log('DEBUG: Team members response:', response.data);
       if (response.data.success) {
-        setTeamMembers(response.data.data.members || []);
+        const members = response.data.data.members || [];
+        console.log('DEBUG: Setting team members:', members);
+        setTeamMembers(members);
       }
     } catch (error) {
       console.error('Error loading team members:', error);
@@ -392,6 +401,13 @@ const JobDetails = () => {
     }
     
     // For availability indication flow
+    console.log('DEBUG handleNoMileage availability flow:', {
+      isAgency: profile?.is_agency,
+      teamMembersLength: teamMembers.length,
+      teamMembers,
+      profile
+    });
+    
     if (profile?.is_agency && teamMembers.length > 0) {
       setShowMileagePrompt(false);
       setShowTeamMemberModal(true);

@@ -16,7 +16,7 @@ import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
 import { interpreterAPI } from '../services/api';
-import api from '../services/jobAPI';
+import api from '../services/api';
 
 const AgencyMembers = () => {
   const navigate = useNavigate();

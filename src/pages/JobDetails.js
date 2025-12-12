@@ -337,6 +337,12 @@ const JobDetails = () => {
     }
     
     // For availability indication flow
+    console.log('DEBUG handleMileageSubmit availability flow:', {
+      isAgency: profile?.is_agency,
+      teamMembersLength: teamMembers.length,
+      teamMembers
+    });
+    
     if (profile?.is_agency && teamMembers.length > 0) {
       setShowMileagePrompt(false);
       setShowTeamMemberModal(true);

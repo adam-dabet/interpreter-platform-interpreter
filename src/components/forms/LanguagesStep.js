@@ -1,14 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion } from 'framer-motion';
 import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import Input from '../ui/Input';
-import Select from '../ui/Select';
+import SearchableSelect from '../ui/SearchableSelect';
 import Button from '../ui/Button';
 import { languagesSchema } from '../../services/validationSchemas';
-import { COMMON_LANGUAGES } from '../../utils/constants';
 
 // Custom validation function that only requires the first language
 const customLanguagesSchema = yup.object({
@@ -32,9 +30,6 @@ const customLanguagesSchema = yup.object({
 });
 
 const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametricData, rejectedFields = [] }) => {
-  const [customLanguage, setCustomLanguage] = useState('');
-  const [showCustomInput, setShowCustomInput] = useState(false);
-  
   // Helper to check if field is rejected
   const isFieldRejected = (fieldName) => rejectedFields.includes(fieldName);
 
@@ -106,25 +101,11 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
     }
   };
 
-  const addCustomLanguage = () => {
-    if (customLanguage.trim()) {
-      const emptyIndex = fields.findIndex(field => !field.language_id);
-      if (emptyIndex >= 0) {
-        setValue(`languages.${emptyIndex}.language_id`, customLanguage.trim());
-      } else {
-        append({
-          language_id: customLanguage.trim()
-        });
-      }
-      setCustomLanguage('');
-      setShowCustomInput(false);
-    }
-  };
-
-      const languageOptions = [
-        ...(parametricData?.languages?.map(lang => ({ value: lang.id, label: lang.name })) || []),
-        { value: 'other', label: 'Other (specify below)' }
-    ];
+  // Map all languages from parametric data to options format
+  // Filter out 'agency' language if it exists
+  const languageOptions = (parametricData?.languages || [])
+    .filter(lang => lang.name && lang.name.toLowerCase() !== 'agency')
+    .map(lang => ({ value: String(lang.id), label: lang.name }));
 
 
 
@@ -196,20 +177,14 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
                   control={control}
                   render={({ field }) => (
                     <div className={isFieldRejected('languages') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
-                      <Select
-                        {...field}
+                      <SearchableSelect
+                        value={field.value}
+                        onChange={(value) => field.onChange(value)}
                         label="Language"
-                        placeholder="Select a language..."
+                        placeholder="Search and select a language..."
+                        searchPlaceholder="Search languages..."
                         options={languageOptions}
                         error={errors.languages?.[index]?.language_id?.message || (isFieldRejected('languages') ? 'This field needs to be updated' : '')}
-                        onChange={(e) => {
-                          if (e.target.value === 'other') {
-                            setShowCustomInput(true);
-                            field.onChange('');
-                          } else {
-                            field.onChange(e.target.value);
-                          }
-                        }}
                         required
                       />
                     </div>
@@ -228,43 +203,6 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
             </motion.div>
           ))}
         </div>
-
-        {/* Custom Language Input */}
-        {showCustomInput && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="border border-blue-200 rounded-lg p-4 bg-blue-50"
-          >
-            <h4 className="text-md font-medium text-blue-900 mb-3">Add Custom Language</h4>
-            <div className="flex space-x-3">
-              <Input
-                value={customLanguage}
-                onChange={(e) => setCustomLanguage(e.target.value)}
-                placeholder="Enter language name"
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                onClick={addCustomLanguage}
-                disabled={!customLanguage.trim()}
-              >
-                Add
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowCustomInput(false);
-                  setCustomLanguage('');
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          </motion.div>
-        )}
 
         {/* Add Language Button */}
         <div className="text-center">

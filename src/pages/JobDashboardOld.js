@@ -294,7 +294,8 @@ const JobDashboard = () => {
     } else if (activeTab === 'completion_reports') {
       const completionReportJobs = jobs.filter(job => {
         // Show jobs that need completion reports (completed but not submitted)
-        const needsReport = job.status === 'completed' && !job.completion_report_submitted;
+        // Only check jobs where the interpreter actually accepted the assignment
+        const needsReport = job.status === 'completed' && !job.completion_report_submitted && job.assignment_status === 'accepted';
         
         if (needsReport) {
         } else {

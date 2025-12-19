@@ -92,8 +92,9 @@ const JobDashboardNew = () => {
         return dateA - dateB;
       });
     } else if (activeTab === 'completion_reports') {
+      // Only show jobs where the interpreter actually accepted the assignment
       return jobs.filter(job => 
-        job.status === 'completed' && !job.completion_report_submitted
+        job.status === 'completed' && !job.completion_report_submitted && job.assignment_status === 'accepted'
       ).sort((a, b) => {
         const dateA = new Date(a.completed_at || a.scheduled_date);
         const dateB = new Date(b.completed_at || b.scheduled_date);

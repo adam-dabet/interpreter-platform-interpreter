@@ -332,7 +332,7 @@ const JobDashboard = () => {
     }).length;
 
     const completionReportsCount = jobs.filter(job => 
-      job.status === 'completed' && !job.completion_report_submitted
+      job.status === 'completed' && !job.completion_report_submitted && job.assignment_status === 'accepted'
     ).length;
 
     const pastJobsCount = jobs.filter(job => 

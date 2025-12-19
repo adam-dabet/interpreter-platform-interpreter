@@ -1,14 +1,21 @@
 # Nixpacks Configuration for Railway - React Frontend
 
+[providers]
+node = "20"
+
 [phases.setup]
 nixPkgs = ["nodejs_20"]
+aptPkgs = []
 
 [phases.install]
-cmds = ["npm install"]
+cmds = ["npm ci --legacy-peer-deps || npm install --legacy-peer-deps"]
 
 [phases.build]
 cmds = ["npm run build"]
 
 [start]
-cmd = "node_modules/.bin/serve -s build -l $PORT"
+cmd = "node server.js"
+
+[variables]
+NODE_ENV = "production"
 

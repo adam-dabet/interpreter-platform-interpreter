@@ -1,8 +1,47 @@
 import axios from 'axios';
 
+// Determine API base URL
+// In production, if REACT_APP_API_URL is not set, try to infer from the current hostname
+const getApiBaseURL = () => {
+  // If explicitly set, use it
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // In production, try to detect the backend URL based on hostname
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    
+    // If we're on providers.theintegritycompanyinc.com, backend should be at backend.theintegritycompanyinc.com
+    if (hostname === 'providers.theintegritycompanyinc.com') {
+      return 'https://backend.theintegritycompanyinc.com/api';
+    }
+    
+    // If we're on admin.theintegritycompanyinc.com, backend should be at backend.theintegritycompanyinc.com
+    if (hostname === 'admin.theintegritycompanyinc.com') {
+      return 'https://backend.theintegritycompanyinc.com/api';
+    }
+    
+    // If we're on portal.theintegritycompanyinc.com, backend should be at backend.theintegritycompanyinc.com
+    if (hostname === 'portal.theintegritycompanyinc.com') {
+      return 'https://backend.theintegritycompanyinc.com/api';
+    }
+    
+    // If we're on a Railway domain, try to infer backend URL
+    if (hostname.includes('.up.railway.app')) {
+      // For Railway deployments, try to construct backend URL
+      // This is a fallback - REACT_APP_API_URL should be set in Railway
+      return '/api';
+    }
+  }
+  
+  // Default fallback for local development
+  return '/api';
+};
+
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || '/api',
+  baseURL: getApiBaseURL(),
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

@@ -11,6 +11,42 @@ export const useAuth = () => {
   return context;
 };
 
+// Helper function to get API base URL (same logic as api.js)
+const getApiBaseURL = () => {
+  // If explicitly set, use it
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // In production, try to detect the backend URL based on hostname
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    
+    // If we're on providers.theintegritycompanyinc.com, backend should be at backend.theintegritycompanyinc.com
+    if (hostname === 'providers.theintegritycompanyinc.com') {
+      return 'https://backend.theintegritycompanyinc.com/api';
+    }
+    
+    // If we're on admin.theintegritycompanyinc.com, backend should be at backend.theintegritycompanyinc.com
+    if (hostname === 'admin.theintegritycompanyinc.com') {
+      return 'https://backend.theintegritycompanyinc.com/api';
+    }
+    
+    // If we're on portal.theintegritycompanyinc.com, backend should be at backend.theintegritycompanyinc.com
+    if (hostname === 'portal.theintegritycompanyinc.com') {
+      return 'https://backend.theintegritycompanyinc.com/api';
+    }
+    
+    // If we're on a Railway domain, try to infer backend URL
+    if (hostname.includes('.up.railway.app')) {
+      return '/api';
+    }
+  }
+  
+  // Default fallback for local development
+  return '/api';
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -61,8 +97,12 @@ export const AuthProvider = ({ children }) => {
     
     try {
       console.log('loadProfile called with token:', token ? 'Token exists' : 'No token');
+      const baseURL = getApiBaseURL();
+      const apiUrl = `${baseURL}/interpreters/profile`;
+      console.log('Loading profile from:', apiUrl);
+      
       const response = await interpreterTokenHandler.fetchWithExpirationHandling(
-        `${process.env.REACT_APP_API_URL}/interpreters/profile`,
+        apiUrl,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -76,7 +116,7 @@ export const AuthProvider = ({ children }) => {
       if (response.ok) {
         const result = await response.json();
         console.log('Profile response data:', result);
-        const freshProfile = result.data;
+        const freshProfile = result.data || result;
         
         // Update local storage and state
         localStorage.setItem('interpreterProfile', JSON.stringify(freshProfile));
@@ -84,6 +124,13 @@ export const AuthProvider = ({ children }) => {
       } else {
         const errorText = await response.text();
         console.error('Profile response error:', errorText);
+        // Try to parse as JSON if possible
+        try {
+          const errorJson = JSON.parse(errorText);
+          console.error('Profile error details:', errorJson);
+        } catch (e) {
+          // Not JSON, that's fine
+        }
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -123,9 +170,11 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (profileData) => {
     try {
       console.log('updateProfile called with data:', profileData);
+      const baseURL = getApiBaseURL();
+      const apiUrl = `${baseURL}/interpreters/profile`;
       
       const response = await interpreterTokenHandler.fetchWithExpirationHandling(
-        `${process.env.REACT_APP_API_URL}/interpreters/profile`,
+        apiUrl,
         {
           method: 'PUT',
           headers: {
@@ -166,7 +215,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     // Ensure we use the correct API base URL
-    const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+    const baseURL = getApiBaseURL();
     const fullUrl = url.startsWith('http') ? url : `${baseURL}${url}`;
 
     return interpreterTokenHandler.fetchWithExpirationHandling(fullUrl, {

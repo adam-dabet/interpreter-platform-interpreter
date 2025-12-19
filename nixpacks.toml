@@ -1,7 +1,12 @@
 # Nixpacks Configuration for Railway - React Frontend
+# Explicitly disable static site detection and Caddy
 
 [providers]
 node = "20"
+
+[staticAssets]
+# Explicitly disable static site serving
+outputDir = ""
 
 [phases.setup]
 nixPkgs = ["nodejs_20"]
@@ -18,4 +23,5 @@ cmd = "node server.js"
 
 [variables]
 NODE_ENV = "production"
+RAILWAY_STATIC = "false"
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircleIcon } from '@heroicons/react/24/outline';
+import { Link } from 'react-router-dom';
+import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 
@@ -10,6 +11,7 @@ const EmailLookupStep = ({ onEmailFound, onEmailNotFound, isLoading }) => {
   const [isValidating, setIsValidating] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [sentMessage, setSentMessage] = useState('');
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -34,9 +36,15 @@ const EmailLookupStep = ({ onEmailFound, onEmailNotFound, isLoading }) => {
     try {
       const result = await onEmailFound(email.trim());
       if (result?.found) {
-        // Email found and sent
-        setEmailSent(true);
-        setSentMessage(result.message || 'Please check your email for a link to complete your registration.');
+        if (result?.alreadyRegistered) {
+          // Email is already registered
+          setAlreadyRegistered(true);
+          setSentMessage(result.message || 'This email is already registered. Please log in to access your account.');
+        } else {
+          // Email found and sent
+          setEmailSent(true);
+          setSentMessage(result.message || 'Please check your email for a link to complete your registration.');
+        }
       } else {
         // Email not found - proceed with normal registration
         onEmailNotFound();
@@ -47,6 +55,57 @@ const EmailLookupStep = ({ onEmailFound, onEmailNotFound, isLoading }) => {
       setIsValidating(false);
     }
   };
+
+  if (alreadyRegistered) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+        className="space-y-6 text-center"
+      >
+        <div className="flex justify-center">
+          <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center">
+            <ExclamationCircleIcon className="w-10 h-10 text-amber-600" />
+          </div>
+        </div>
+        
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Account Already Exists
+          </h2>
+          <p className="text-gray-600 mb-6">
+            {sentMessage}
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link to="/login">
+            <Button className="w-full sm:w-auto">
+              Go to Login
+            </Button>
+          </Link>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setAlreadyRegistered(false);
+              setEmail('');
+              setError('');
+            }}
+            className="w-full sm:w-auto"
+          >
+            Try Different Email
+          </Button>
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-800">
+            <strong>Forgot your password?</strong> You can reset it from the login page.
+          </p>
+        </div>
+      </motion.div>
+    );
+  }
 
   if (emailSent) {
     return (

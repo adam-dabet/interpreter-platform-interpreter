@@ -274,6 +274,14 @@ const InterpreterProfile = () => {
             const response = await interpreterAPI.lookupByEmail(email);
             
             if (response.data.success && response.data.found) {
+                // Check if already registered
+                if (response.data.alreadyRegistered) {
+                    return { 
+                        found: true, 
+                        alreadyRegistered: true,
+                        message: response.data.message || 'This email is already registered. Please log in to access your account.'
+                    };
+                }
                 // Found existing interpreter - email was sent
                 toast.success(response.data.message || 'Please check your email for a link to complete your registration.');
                 return { found: true, message: response.data.message };

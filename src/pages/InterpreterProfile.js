@@ -13,7 +13,7 @@ import CertificatesStep from '../components/forms/CertificatesStep';
 import W9FormStep from '../components/forms/W9FormStep';
 import ReviewStep from '../components/forms/ReviewStep';
 import EmailLookupStep from '../components/forms/EmailLookupStep';
-import { interpreterAPI, parametricAPI, api } from '../services/api';
+import api, { interpreterAPI, parametricAPI } from '../services/api';
 
 const INTERPRETER_STEPS = [
     {

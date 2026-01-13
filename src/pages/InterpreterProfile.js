@@ -274,31 +274,17 @@ const InterpreterProfile = () => {
             const response = await interpreterAPI.lookupByEmail(email);
             
             if (response.data.success && response.data.found) {
-                // Found existing interpreter - autofill form
-                const lookupData = response.data.data;
-                prefillFormData(lookupData);
-                
-                // Set email in form data
-                setFormData(prev => ({
-                    ...prev,
-                    email: email
-                }));
-                
-                // Skip email lookup and registration type selection, go directly to step 1
-                setShowEmailLookup(false);
-                setRegistrationType('individual');
-                setCurrentStep(1);
-                setVisitedSteps(new Set([1]));
-                
-                toast.success('We found your information! Please review and complete the form.');
-                return true; // Email found
+                // Found existing interpreter - email was sent
+                toast.success(response.data.message || 'Please check your email for a link to complete your registration.');
+                return { found: true, message: response.data.message };
             } else {
-                // Not found - let handleEmailNotFound handle the flow
-                return false; // Email not found
+                // Not found - proceed with normal registration
+                return { found: false };
             }
         } catch (error) {
             console.error('Error looking up email:', error);
-            toast.error(error.message || 'Failed to check email. Please try again.');
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to check email. Please try again.';
+            toast.error(errorMessage);
             throw error;
         } finally {
             setEmailLookupLoading(false);

@@ -203,9 +203,9 @@ export const interpreterAPI = {
     return api.delete(`/interpreters/agency-members/${memberId}`);
   },
 
-  // Lookup interpreter by email for registration autofill
+  // Lookup interpreter by email and send registration link
   lookupByEmail: (email) => {
-    return api.get(`/interpreters/lookup-by-email/${encodeURIComponent(email)}`);
+    return api.post('/interpreters/lookup-by-email', { email });
   },
 };
 

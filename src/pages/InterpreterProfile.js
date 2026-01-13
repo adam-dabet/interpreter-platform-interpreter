@@ -13,7 +13,7 @@ import CertificatesStep from '../components/forms/CertificatesStep';
 import W9FormStep from '../components/forms/W9FormStep';
 import ReviewStep from '../components/forms/ReviewStep';
 import EmailLookupStep from '../components/forms/EmailLookupStep';
-import { interpreterAPI, parametricAPI } from '../services/api';
+import { interpreterAPI, parametricAPI, api } from '../services/api';
 
 const INTERPRETER_STEPS = [
     {
@@ -196,8 +196,9 @@ const InterpreterProfile = () => {
             console.log('Found profile completion token, loading imported data...');
             setIsLoading(true);
             
-            const response = await fetch(`${process.env.REACT_APP_API_URL}/profile-completion/validate-token/${token}`);
-            const result = await response.json();
+            // Use the api service for consistent URL handling
+            const response = await api.get(`/profile-completion/validate-token/${token}`);
+            const result = response.data;
             
             if (!result.success) {
                 toast.error(result.message || 'Invalid completion link');
@@ -233,7 +234,24 @@ const InterpreterProfile = () => {
             
         } catch (error) {
             console.error('Error loading profile completion data:', error);
-            toast.error('Failed to load your profile data. Please contact support.');
+            console.error('Error details:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status,
+                token: token ? 'Token provided' : 'No token'
+            });
+            
+            // Provide more specific error messages
+            let errorMessage = 'Failed to load your profile data. Please contact support.';
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.response?.status === 404) {
+                errorMessage = 'Invalid or expired profile completion link. Please request a new link.';
+            } else if (error.response?.status === 400) {
+                errorMessage = error.response.data?.message || 'This link has already been used or has expired.';
+            }
+            
+            toast.error(errorMessage);
         } finally {
             setIsLoading(false);
         }

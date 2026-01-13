@@ -12,6 +12,7 @@ import ServiceTypesStep from '../components/forms/ServiceTypesStep';
 import CertificatesStep from '../components/forms/CertificatesStep';
 import W9FormStep from '../components/forms/W9FormStep';
 import ReviewStep from '../components/forms/ReviewStep';
+import EmailLookupStep from '../components/forms/EmailLookupStep';
 import { interpreterAPI, parametricAPI } from '../services/api';
 
 const INTERPRETER_STEPS = [
@@ -91,6 +92,10 @@ const InterpreterProfile = () => {
     const [completionToken, setCompletionToken] = useState(null);
     const [importedData, setImportedData] = useState(null);
     
+    // Email lookup state
+    const [showEmailLookup, setShowEmailLookup] = useState(false);
+    const [emailLookupLoading, setEmailLookupLoading] = useState(false);
+    
     const [formData, setFormData] = useState({
         // Personal Information
         first_name: '',
@@ -169,7 +174,11 @@ const InterpreterProfile = () => {
             // Skip registration type selection for resubmission
             setRegistrationType('individual');
             setCurrentStep(1);
+            return; // Don't show email lookup if rejection token exists
         }
+        
+        // If no tokens, show email lookup step first
+        setShowEmailLookup(true);
     };
     
     const handleSelectRegistrationType = (type) => {
@@ -257,6 +266,49 @@ const InterpreterProfile = () => {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleEmailLookup = async (email) => {
+        setEmailLookupLoading(true);
+        try {
+            const response = await interpreterAPI.lookupByEmail(email);
+            
+            if (response.data.success && response.data.found) {
+                // Found existing interpreter - autofill form
+                const lookupData = response.data.data;
+                prefillFormData(lookupData);
+                
+                // Set email in form data
+                setFormData(prev => ({
+                    ...prev,
+                    email: email
+                }));
+                
+                // Skip email lookup and registration type selection, go directly to step 1
+                setShowEmailLookup(false);
+                setRegistrationType('individual');
+                setCurrentStep(1);
+                setVisitedSteps(new Set([1]));
+                
+                toast.success('We found your information! Please review and complete the form.');
+                return true; // Email found
+            } else {
+                // Not found - let handleEmailNotFound handle the flow
+                return false; // Email not found
+            }
+        } catch (error) {
+            console.error('Error looking up email:', error);
+            toast.error(error.message || 'Failed to check email. Please try again.');
+            throw error;
+        } finally {
+            setEmailLookupLoading(false);
+        }
+    };
+
+    const handleEmailNotFound = () => {
+        // Email not found - proceed with normal registration flow
+        setShowEmailLookup(false);
+        // currentStep will remain 0 for registration type selection
     };
 
     const prefillFormData = (originalData) => {
@@ -416,6 +468,7 @@ const InterpreterProfile = () => {
             setCurrentStep(INTERPRETER_STEPS.length);
         } else if (currentStep === 1 && !isResubmission && !isProfileCompletion) {
             // Go back to registration type selection (only for new applications)
+            // Once they've started, don't go back to email lookup
             setCurrentStep(0);
             setRegistrationType(null);
         } else {
@@ -639,6 +692,37 @@ const InterpreterProfile = () => {
                     <LoadingSpinner size="lg" />
                     <p className="mt-4 text-gray-600">Loading form data...</p>
                 </div>
+            </div>
+        );
+    }
+
+    // Email Lookup Screen (shown before registration type selection)
+    if (showEmailLookup) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <div className="max-w-4xl mx-auto px-4 py-8">
+                    {/* Header */}
+                    <div className="text-center mb-8">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                            Interpreter Registration
+                        </h1>
+                        <p className="text-gray-600">
+                            Let's get started with your interpreter profile
+                        </p>
+                    </div>
+
+                    {/* Email Lookup Step */}
+                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                        <div className="p-8">
+                            <EmailLookupStep
+                                onEmailFound={handleEmailLookup}
+                                onEmailNotFound={handleEmailNotFound}
+                                isLoading={emailLookupLoading}
+                            />
+                        </div>
+                    </div>
+                </div>
+                <Toaster position="top-right" />
             </div>
         );
     }

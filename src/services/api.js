@@ -202,6 +202,11 @@ export const interpreterAPI = {
   removeAgencyMember: (memberId) => {
     return api.delete(`/interpreters/agency-members/${memberId}`);
   },
+
+  // Lookup interpreter by email for registration autofill
+  lookupByEmail: (email) => {
+    return api.get(`/interpreters/lookup-by-email/${encodeURIComponent(email)}`);
+  },
 };
 
 // Parametric Data API

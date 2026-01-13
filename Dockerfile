@@ -25,3 +25,4 @@ EXPOSE $PORT
 # Start server
 CMD ["node", "server.js"]
 
+

@@ -22,6 +22,7 @@ import MySchedule from './pages/MySchedule';
 import PendingActions from './pages/PendingActions';
 import ConfirmJob from './pages/ConfirmJob';
 import CompletionReportPublic from './pages/CompletionReportPublic';
+import TransportationCompletionReportPublic from './pages/TransportationCompletionReportPublic';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import ForgotPassword from './pages/ForgotPassword';
@@ -54,6 +55,7 @@ function App() {
             <Route path="/job-timer/:token" element={<JobTimer />} />
             <Route path="/jobs/:jobId/confirm/:token" element={<ConfirmJob />} />
             <Route path="/jobs/:jobId/report/:token" element={<CompletionReportPublic />} />
+            <Route path="/transportation-jobs/:jobId/report/:token" element={<TransportationCompletionReportPublic />} />
             <Route path="/dashboard" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><Dashboard /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/schedule" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><MySchedule /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/pending" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><PendingActions /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />

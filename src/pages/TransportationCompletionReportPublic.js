@@ -55,7 +55,7 @@ const TransportationCompletionReportPublic = () => {
   const loadJobDetails = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/magic-link/transportation-jobs/${jobId}/report/${token}`);
+      const response = await axios.get(`${API_BASE}/magic-link/transportation-jobs/${jobId}/report/${token}`);
       
       if (response.data.success) {
         const job = response.data.data;

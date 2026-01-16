@@ -619,12 +619,35 @@ const InterpreterProfile = () => {
             let response;
             if (completionToken) {
                 // Profile completion for imported interpreters
+                // Transform address fields to match backend expectations (address object with street2)
+                const transformedData = {
+                    ...submissionData,
+                    address: {
+                        street: submissionData.street_address || '',
+                        street2: submissionData.street_address_2 || '',
+                        city: submissionData.city || '',
+                        stateId: submissionData.state_id || '',
+                        zipCode: submissionData.zip_code || ''
+                    }
+                };
+                // Remove flat address fields as backend expects the object format
+                delete transformedData.street_address;
+                delete transformedData.street_address_2;
+                delete transformedData.city;
+                delete transformedData.state_id;
+                delete transformedData.zip_code;
+                delete transformedData.formatted_address;
+                delete transformedData.latitude;
+                delete transformedData.longitude;
+                delete transformedData.place_id;
+                delete transformedData.county;
+                
                 response = await fetch(`${process.env.REACT_APP_API_URL}/profile-completion/submit/${completionToken}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(submissionData)
+                    body: JSON.stringify(transformedData)
                 });
                 const result = await response.json();
                 response = { data: result }; // Normalize response structure

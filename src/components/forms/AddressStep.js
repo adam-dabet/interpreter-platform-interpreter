@@ -131,8 +131,9 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, par
             onUpdate(updatedData);
         }
 
-        // Clear validation when user starts typing
-        if (validationResult) {
+        // Clear validation ONLY when street_address changes, not when street_address_2 changes
+        // This allows users to add/remove apartment numbers without invalidating the address
+        if (field === 'street_address' && validationResult) {
             setValidationResult(null);
         }
 

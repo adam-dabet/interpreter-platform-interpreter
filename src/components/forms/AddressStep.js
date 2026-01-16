@@ -607,12 +607,12 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, par
 
                 <div className={isFieldRejected('street_address_2') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
                     <Input
-                        label="Address Line 2 (Optional)"
+                        label="Apartment Number (Optional)"
                         type="text"
                         value={addressData.street_address_2}
                         onChange={(e) => handleInputChange('street_address_2', e.target.value)}
                         error={isFieldRejected('street_address_2') ? 'This field needs to be updated' : ''}
-                        placeholder="Apartment, suite, unit, etc."
+                        placeholder="Apt, Suite, Unit, etc."
                     />
                 </div>
             </div>

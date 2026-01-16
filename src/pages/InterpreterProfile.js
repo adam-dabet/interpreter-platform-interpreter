@@ -265,7 +265,18 @@ const InterpreterProfile = () => {
     const loadRejectionData = async (token) => {
         try {
             console.log('Found rejection token, loading application data...');
-            const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/interpreters/rejection/${token}`);
+            const apiUrl = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api').trim().replace(/\/+$/, '');
+            const url = `${apiUrl}/interpreters/rejection/${token}`;
+            console.log('Fetching rejection data from:', url);
+            
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API error response:', response.status, errorText);
+                throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+            }
+            
             const data = await response.json();
             
             if (data.success) {
@@ -281,11 +292,11 @@ const InterpreterProfile = () => {
                 
                 toast.success('Application loaded! Please update the highlighted fields.');
             } else {
-                toast.error('Invalid or expired rejection link');
+                toast.error(data.message || 'Invalid or expired rejection link');
             }
         } catch (error) {
             console.error('Error loading rejection data:', error);
-            toast.error('Failed to load application data');
+            toast.error(`Failed to load application data: ${error.message}`);
         } finally {
             setIsLoading(false);
         }

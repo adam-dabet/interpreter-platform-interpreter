@@ -212,6 +212,10 @@ const InterpreterProfile = () => {
             setCompletionToken(token);
             setImportedData(data);
             
+            // Set registration type based on whether it's an agency
+            const registrationType = data.isAgency ? 'agency' : 'individual';
+            setRegistrationType(registrationType);
+            
             // Pre-fill form with imported data
             setFormData(prev => ({
                 ...prev,
@@ -227,7 +231,8 @@ const InterpreterProfile = () => {
                 zip_code: data.address?.zipCode || '',
                 business_name: data.businessName || '',
                 languages: data.languages || [],
-                service_types: data.serviceTypes?.map(st => st.service_type_id) || []
+                service_types: data.serviceTypes?.map(st => st.service_type_id) || [],
+                is_agency: data.isAgency || false
             }));
             
             toast.success('Welcome! Please complete your profile information below.');

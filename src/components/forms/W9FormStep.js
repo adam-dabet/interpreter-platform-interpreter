@@ -98,22 +98,16 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                 break;
                 
             case 'ssn':
-                if (w9Data.tax_classification === 'individual') {
-                    if (!value?.trim()) {
-                        error = 'Social Security Number is required for individual tax classification';
-                    } else if (!/^\d{3}-\d{2}-\d{4}$/.test(value)) {
-                        error = 'SSN must be in format XXX-XX-XXXX';
-                    }
+                // Only validate format if value is provided
+                if (value?.trim() && !/^\d{3}-\d{2}-\d{4}$/.test(value)) {
+                    error = 'SSN must be in format XXX-XX-XXXX';
                 }
                 break;
                 
             case 'ein':
-                if (w9Data.tax_classification !== 'individual') {
-                    if (!value?.trim()) {
-                        error = 'Employer Identification Number is required for business tax classification';
-                    } else if (!/^\d{2}-\d{7}$/.test(value)) {
-                        error = 'EIN must be in format XX-XXXXXXX';
-                    }
+                // Only validate format if value is provided
+                if (value?.trim() && !/^\d{2}-\d{7}$/.test(value)) {
+                    error = 'EIN must be in format XX-XXXXXXX';
                 }
                 break;
                 
@@ -277,17 +271,19 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
             newErrors.llc_classification = 'LLC classification is required';
         }
         
-        // TIN validation based on tax classification
-        if (w9Data.tax_classification === 'individual') {
-            if (!w9Data.ssn?.trim()) {
-                newErrors.ssn = 'Social Security Number is required for individual tax classification';
-            } else if (!/^\d{3}-\d{2}-\d{4}$/.test(w9Data.ssn)) {
+        // TIN validation - require at least one of SSN or EIN
+        const hasSSN = w9Data.ssn?.trim() && /^\d{3}-\d{2}-\d{4}$/.test(w9Data.ssn);
+        const hasEIN = w9Data.ein?.trim() && /^\d{2}-\d{7}$/.test(w9Data.ein);
+        
+        if (!hasSSN && !hasEIN) {
+            newErrors.ssn = 'Either Social Security Number or Employer Identification Number is required';
+            newErrors.ein = 'Either Social Security Number or Employer Identification Number is required';
+        } else {
+            // Validate format if provided
+            if (w9Data.ssn?.trim() && !/^\d{3}-\d{2}-\d{4}$/.test(w9Data.ssn)) {
                 newErrors.ssn = 'SSN must be in format XXX-XX-XXXX';
             }
-        } else {
-            if (!w9Data.ein?.trim()) {
-                newErrors.ein = 'Employer Identification Number is required for business tax classification';
-            } else if (!/^\d{2}-\d{7}$/.test(w9Data.ein)) {
+            if (w9Data.ein?.trim() && !/^\d{2}-\d{7}$/.test(w9Data.ein)) {
                 newErrors.ein = 'EIN must be in format XX-XXXXXXX';
             }
         }
@@ -651,7 +647,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                 placeholder="XXX-XX-XXXX"
                                 pattern="^\d{3}-\d{2}-\d{4}$"
                                 title="SSN must be in format XXX-XX-XXXX"
-                                required={w9Data.tax_classification === 'individual'}
+                                required={false}
                             />
                         </div>
                         <div>
@@ -665,12 +661,12 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                 placeholder="XX-XXXXXXX"
                                 pattern="^\d{2}-\d{7}$"
                                 title="EIN must be in format XX-XXXXXXX"
-                                required={w9Data.tax_classification !== 'individual'}
+                                required={false}
                             />
                         </div>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                        Note: If the account is in more than one name, see the instructions for line 1. See also What Name and Number To Give the Requester for guidelines on whose number to enter.
+                        <strong>Note:</strong> Either SSN or EIN is required (at least one). If the account is in more than one name, see the instructions for line 1. See also What Name and Number To Give the Requester for guidelines on whose number to enter.
                     </p>
                 </div>
             </div>

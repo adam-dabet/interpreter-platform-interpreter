@@ -648,15 +648,12 @@ const InterpreterProfile = () => {
                 delete transformedData.place_id;
                 delete transformedData.county;
                 
-                response = await fetch(`${process.env.REACT_APP_API_URL}/profile-completion/submit/${completionToken}`, {
-                    method: 'POST',
+                // Use the configured api instance which has the correct baseURL
+                response = await api.post(`/profile-completion/submit/${completionToken}`, transformedData, {
                     headers: {
                         'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(transformedData)
+                    }
                 });
-                const result = await response.json();
-                response = { data: result }; // Normalize response structure
             } else {
                 // Normal new application
                 response = await interpreterAPI.createProfile(formDataToSubmit);

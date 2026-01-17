@@ -617,6 +617,12 @@ const InterpreterProfile = () => {
 
             // Use appropriate endpoint based on whether this is profile completion or new application
             let response;
+            
+            // Debug: Log API configuration
+            const apiBaseURL = process.env.REACT_APP_API_URL || '/api';
+            console.log('API Base URL:', apiBaseURL);
+            console.log('Full endpoint would be:', `${apiBaseURL}/interpreters`);
+            
             if (completionToken) {
                 // Profile completion for imported interpreters
                 // Transform address fields to match backend expectations (address object with street2)
@@ -676,9 +682,34 @@ const InterpreterProfile = () => {
             console.error('Profile submission error:', error);
             
             let errorMessage = 'Failed to create profile';
-            if (error.response?.data?.message) {
-                errorMessage = error.response.data.message;
-            } else if (error.message) {
+            
+            // Handle JSON parsing errors (HTML response instead of JSON)
+            if (error.message && (error.message.includes('Unexpected token') || error.message.includes('<!DOCTYPE') || error.message.includes('not valid JSON'))) {
+                errorMessage = 'The server returned an error page instead of data. This usually means the API endpoint was not found (404) or the server encountered an error. Please check your network connection and try again.';
+            }
+            // Handle axios response errors
+            else if (error.response) {
+                // Check if response data is HTML string
+                if (typeof error.response.data === 'string' && error.response.data.trim().startsWith('<!DOCTYPE')) {
+                    if (error.response.status === 404) {
+                        errorMessage = 'The API endpoint was not found (404). Please verify the server is running and the endpoint is correct.';
+                    } else if (error.response.status >= 500) {
+                        errorMessage = 'Server error occurred. The server may be down or experiencing issues. Please try again later.';
+                    } else {
+                        errorMessage = `Server error (${error.response.status}). Please contact support if this persists.`;
+                    }
+                } else if (error.response.data?.message) {
+                    errorMessage = error.response.data.message;
+                } else {
+                    errorMessage = `Request failed with status ${error.response.status}`;
+                }
+            }
+            // Handle axios request errors (no response)
+            else if (error.request) {
+                errorMessage = 'No response from server. Please check your internet connection and verify the server is accessible.';
+            }
+            // Handle other errors
+            else if (error.message) {
                 errorMessage = error.message;
             }
             

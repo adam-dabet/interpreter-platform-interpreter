@@ -319,9 +319,9 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
                         <span className="font-medium text-gray-900">{serviceName}</span>
                         <span className="text-sm text-gray-600">
                           {rate.rate_type === 'platform' ? (
-                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded">Platform Rate: ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : 'hr'}</span>
+                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded">Platform Rate: ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : rate.rate_unit === '3hours' ? '3hr' : rate.rate_unit === '6hours' ? '6hr' : 'hr'}</span>
                           ) : (
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">Custom Rate: ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : 'hr'}</span>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">Custom Rate: ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : rate.rate_unit === '3hours' ? '3hr' : rate.rate_unit === '6hours' ? '6hr' : 'hr'}</span>
                           )}
                         </span>
                       </div>

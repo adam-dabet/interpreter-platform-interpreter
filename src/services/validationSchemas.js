@@ -115,7 +115,7 @@ export const professionalInfoSchema = yup.object({
         }),
         rate_unit: yup.string().when('rate_type', {
           is: 'custom',
-          then: yup.string().oneOf(['minutes', 'hours']).required('Rate unit is required'),
+          then: yup.string().oneOf(['minutes', 'hours', '3hours', '6hours', 'word']).required('Rate unit is required'),
           otherwise: yup.mixed().nullable()
         })
       })

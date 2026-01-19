@@ -558,7 +558,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                 <span className="text-sm font-medium text-blue-900">Platform Rate</span>
                                                 <span className="text-lg font-bold text-blue-900">
                                                     ${rate.rate_type === 'platform' ? 
-                                                        `${rate.rate_amount}/${rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : 'hr'}` : 
+                                                        `${rate.rate_amount}/${rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : rate.rate_unit === '3hours' ? '3hr' : rate.rate_unit === '6hours' ? '6hr' : 'hr'}` : 
                                                         `${getLanguageSpecificRate(serviceType.code, serviceType.platform_rate_amount)}/${serviceType.platform_rate_unit === 'minutes' ? 'min' : serviceType.platform_rate_unit === 'word' ? 'word' : 'hr'}`}
                                                 </span>
                                             </div>
@@ -663,16 +663,30 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                         className="flex-1"
                                                         label="Rate Amount"
                                                     />
-                                                    <Select
-                                                        options={RATE_UNITS}
-                                                        value={rate.rate_unit || 'hours'}
-                                                        onChange={(e) => handleCustomRateChange(serviceTypeId, 'rate_unit', e.target.value)}
-                                                        className="w-32"
-                                                        label="Rate Unit"
-                                                    />
+                                                    {serviceType.code === 'legal' ? (
+                                                        <div className="w-32">
+                                                            <label className="block text-sm font-medium text-gray-700 mb-1">Rate Unit</label>
+                                                            <select
+                                                                value={rate.rate_unit || '3hours'}
+                                                                onChange={(e) => handleCustomRateChange(serviceTypeId, 'rate_unit', e.target.value)}
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                            >
+                                                                <option value="3hours">Per 3 Hours</option>
+                                                                <option value="6hours">Per 6 Hours</option>
+                                                            </select>
+                                                        </div>
+                                                    ) : (
+                                                        <Select
+                                                            options={RATE_UNITS}
+                                                            value={rate.rate_unit || 'hours'}
+                                                            onChange={(e) => handleCustomRateChange(serviceTypeId, 'rate_unit', e.target.value)}
+                                                            className="w-32"
+                                                            label="Rate Unit"
+                                                        />
+                                                    )}
                                                 </div>
                                                 
-                                                {rate.rate_unit !== 'word' && (
+                                                {(rate.rate_unit !== 'word' && serviceType.code !== 'legal') && (
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <Input
                                                             type="number"
@@ -701,7 +715,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                             <div>
                                                                 <span className="font-medium text-gray-600">Your Rate:</span>
                                                                 <div className="text-green-700 font-medium">
-                                                                    ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : 'hr'}
+                                                                    ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : rate.rate_unit === '3hours' ? '3hr' : rate.rate_unit === '6hours' ? '6hr' : 'hr'}
                                                                 </div>
                                                             </div>
                                                             <div>
@@ -741,13 +755,27 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                                 className="flex-1"
                                                                 label="Second Rate Amount"
                                                             />
-                                                            <Select
-                                                                options={RATE_UNITS}
-                                                                value={rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit || 'hours'}
-                                                                onChange={(e) => handleCustomRateChange(serviceTypeId, 'custom_second_interval_rate_unit', e.target.value)}
-                                                                className="w-32"
-                                                                label="Second Rate Unit"
-                                                            />
+                                                            {serviceType.code === 'legal' ? (
+                                                                <div className="w-32">
+                                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Second Rate Unit</label>
+                                                                    <select
+                                                                        value={rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit || '3hours'}
+                                                                        onChange={(e) => handleCustomRateChange(serviceTypeId, 'custom_second_interval_rate_unit', e.target.value)}
+                                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                    >
+                                                                        <option value="3hours">Per 3 Hours</option>
+                                                                        <option value="6hours">Per 6 Hours</option>
+                                                                    </select>
+                                                                </div>
+                                                            ) : (
+                                                                <Select
+                                                                    options={RATE_UNITS}
+                                                                    value={rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit || 'hours'}
+                                                                    onChange={(e) => handleCustomRateChange(serviceTypeId, 'custom_second_interval_rate_unit', e.target.value)}
+                                                                    className="w-32"
+                                                                    label="Second Rate Unit"
+                                                                />
+                                                            )}
                                                         </div>
                                                     </div>
                                                 )}

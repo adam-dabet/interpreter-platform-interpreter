@@ -724,7 +724,12 @@ const JobSearch = () => {
                                 rate => rate.service_type_id === job.service_type_id
                               );
                               if (serviceRate && serviceRate.rate_amount && serviceRate.rate_unit) {
-                                return `${formatCurrency(serviceRate.rate_amount)}/${serviceRate.rate_unit}`;
+                                const unitDisplay = serviceRate.rate_unit === 'minutes' ? 'min' : 
+                                                  serviceRate.rate_unit === 'word' ? 'word' : 
+                                                  serviceRate.rate_unit === '3hours' ? '3hr' : 
+                                                  serviceRate.rate_unit === '6hours' ? '6hr' : 
+                                                  serviceRate.rate_unit;
+                                return `${formatCurrency(serviceRate.rate_amount)}/${unitDisplay}`;
                               }
                               if (job.hourly_rate) {
                                 return `${formatCurrency(job.hourly_rate)}/hour`;

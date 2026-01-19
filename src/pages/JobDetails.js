@@ -419,6 +419,14 @@ const JobDetails = () => {
         
         if (serviceRate.rate_unit === 'minutes') {
           basePayment = serviceRate.rate_amount * job.estimated_duration_minutes;
+        } else if (serviceRate.rate_unit === '3hours') {
+          // Calculate number of 3-hour blocks (round up)
+          const blocks = Math.ceil(hours / 3);
+          basePayment = serviceRate.rate_amount * blocks;
+        } else if (serviceRate.rate_unit === '6hours') {
+          // Calculate number of 6-hour blocks (round up)
+          const blocks = Math.ceil(hours / 6);
+          basePayment = serviceRate.rate_amount * blocks;
         } else {
           basePayment = serviceRate.rate_amount * hours;
         }
@@ -924,6 +932,12 @@ const JobDetails = () => {
                               if (serviceRate && serviceRate.rate_amount && serviceRate.rate_unit) {
                                 if (serviceRate.rate_unit === 'minutes') {
                                   return `${formatCurrency(serviceRate.rate_amount)}/min × ${job.estimated_duration_minutes} min = ${formatCurrency(serviceRate.rate_amount * job.estimated_duration_minutes)}`;
+                                } else if (serviceRate.rate_unit === '3hours') {
+                                  const blocks = Math.ceil(hours / 3);
+                                  return `${formatCurrency(serviceRate.rate_amount)}/3hr × ${blocks} block(s) = ${formatCurrency(serviceRate.rate_amount * blocks)}`;
+                                } else if (serviceRate.rate_unit === '6hours') {
+                                  const blocks = Math.ceil(hours / 6);
+                                  return `${formatCurrency(serviceRate.rate_amount)}/6hr × ${blocks} block(s) = ${formatCurrency(serviceRate.rate_amount * blocks)}`;
                                 } else {
                                   return `${formatCurrency(serviceRate.rate_amount)}/hour × ${hours.toFixed(1)} hours = ${formatCurrency(serviceRate.rate_amount * hours)}`;
                                 }

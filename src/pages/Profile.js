@@ -358,7 +358,7 @@ const Profile = () => {
                                 {rate && rate.rate_amount != null ? (
                                     <div className="text-right">
                                         <span className="text-sm font-medium text-gray-900">
-                                            ${rate.rate_amount}/{rate.rate_unit || 'hour'}
+                                            ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : rate.rate_unit === '3hours' ? '3hr' : rate.rate_unit === '6hours' ? '6hr' : rate.rate_unit || 'hour'}
                                         </span>
                                         <p className="text-xs text-gray-500">
                                             {rate.rate_type === 'custom' ? 'Custom Rate' : 'Platform Rate'}

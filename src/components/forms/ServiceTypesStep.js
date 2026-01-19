@@ -297,12 +297,12 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
     const validateForm = () => {
         const newErrors = {};
 
-        // Allow zero service types if service_types is in rejected fields (admin may want them all removed)
-        if (selectedServiceTypes.length === 0 && !isFieldRejected('service_types')) {
+        // Always require at least one service type, even for resubmissions
+        if (selectedServiceTypes.length === 0) {
             newErrors.service_types = 'Please select at least one service type';
         }
 
-        // Validate service rates (skip if no service types and service_types was rejected)
+        // Validate service rates
         for (const serviceTypeId of selectedServiceTypes) {
             const serviceTypeIdStr = String(serviceTypeId);
             const rate = serviceRates[serviceTypeIdStr];

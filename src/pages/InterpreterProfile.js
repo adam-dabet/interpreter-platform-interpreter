@@ -265,38 +265,52 @@ const InterpreterProfile = () => {
     const loadRejectionData = async (token) => {
         try {
             console.log('Found rejection token, loading application data...');
-            const apiUrl = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api').trim().replace(/\/+$/, '');
-            const url = `${apiUrl}/interpreters/rejection/${token}`;
-            console.log('Fetching rejection data from:', url);
+            setIsLoading(true);
             
-            const response = await fetch(url);
+            // Use the api service for consistent URL handling
+            const response = await api.get(`/interpreters/rejection/${token}`);
+            const result = response.data;
             
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('API error response:', response.status, errorText);
-                throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+            if (!result.success) {
+                toast.error(result.message || 'Invalid or expired rejection link');
+                return;
             }
             
-            const data = await response.json();
+            const data = result.data;
+            console.log('Loaded rejection data:', data);
             
-            if (data.success) {
-                setIsResubmission(true);
-                setRejectionToken(token);
-                setRejectedFields(data.data.rejected_fields || []);
-                setRejectionNote(data.data.rejection_note || '');
-                
-                // Pre-fill form with original data
-                if (data.data.original_submission_data) {
-                    prefillFormData(data.data.original_submission_data);
-                }
-                
-                toast.success('Application loaded! Please update the highlighted fields.');
-            } else {
-                toast.error(data.message || 'Invalid or expired rejection link');
+            setIsResubmission(true);
+            setRejectionToken(token);
+            setRejectedFields(data.rejected_fields || []);
+            setRejectionNote(data.rejection_note || '');
+            
+            // Pre-fill form with original data
+            if (data.original_submission_data) {
+                prefillFormData(data.original_submission_data);
             }
+            
+            toast.success('Application loaded! Please update the highlighted fields.');
+            
         } catch (error) {
             console.error('Error loading rejection data:', error);
-            toast.error(`Failed to load application data: ${error.message}`);
+            console.error('Error details:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status,
+                token: token ? 'Token provided' : 'No token'
+            });
+            
+            // Provide more specific error messages
+            let errorMessage = 'Failed to load your application data. Please contact support.';
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.response?.status === 404) {
+                errorMessage = 'Invalid or expired rejection link. Please contact support.';
+            } else if (error.response?.status === 400) {
+                errorMessage = error.response.data?.message || 'This link has already been used or has expired.';
+            }
+            
+            toast.error(errorMessage);
         } finally {
             setIsLoading(false);
         }

@@ -663,7 +663,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                         className="flex-1"
                                                         label="Rate Amount"
                                                     />
-                                                    {serviceType.code === 'legal' ? (
+                                                    {(serviceType.code === 'legal' || serviceType.code === 'video') ? (
                                                         <div className="w-32">
                                                             <label className="block text-sm font-medium text-gray-700 mb-1">Rate Unit</label>
                                                             <select
@@ -686,7 +686,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                     )}
                                                 </div>
                                                 
-                                                {(rate.rate_unit !== 'word' && serviceType.code !== 'legal') && (
+                                                {(rate.rate_unit !== 'word' && serviceType.code !== 'legal' && serviceType.code !== 'video') && (
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <Input
                                                             type="number"
@@ -755,7 +755,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                                 className="flex-1"
                                                                 label="Second Rate Amount"
                                                             />
-                                                            {serviceType.code === 'legal' ? (
+                                                            {(serviceType.code === 'legal' || serviceType.code === 'video') ? (
                                                                 <div className="w-32">
                                                                     <label className="block text-sm font-medium text-gray-700 mb-1">Second Rate Unit</label>
                                                                     <select

@@ -254,7 +254,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     prev[serviceTypeId]?.rate_amount || '',
                 rate_unit: rateType === 'platform' ? 
                     serviceType?.platform_rate_unit : 
-                    prev[serviceTypeId]?.rate_unit || 'hours',
+                    prev[serviceTypeId]?.rate_unit || ((serviceType?.code === 'legal' || serviceType?.code === 'video') ? '3hours' : 'hours'),
                 minimum_hours: rateType === 'platform' ? 
                     serviceType?.platform_minimum_hours : 
                     prev[serviceTypeId]?.minimum_hours || 1.0,
@@ -266,18 +266,30 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     prev[serviceTypeId]?.second_interval_rate_amount || null,
                 second_interval_rate_unit: rateType === 'platform' ? 
                     serviceType?.platform_second_interval_rate_unit : 
-                    prev[serviceTypeId]?.second_interval_rate_unit || 'hours'
+                    prev[serviceTypeId]?.second_interval_rate_unit || ((serviceType?.code === 'legal' || serviceType?.code === 'video') ? '3hours' : 'hours')
             }
         }));
     };
 
     const handleCustomRateChange = (serviceTypeId, field, value) => {
         const serviceTypeIdStr = String(serviceTypeId);
+        const serviceType = parametricData?.serviceTypes?.find(st => 
+            String(st.id) === String(serviceTypeId) || st.id === serviceTypeId
+        );
+        
+        // Normalize rate_unit for legal/video: if 'hours' is set, convert to '3hours'
+        let normalizedValue = value;
+        if ((field === 'rate_unit' || field === 'custom_second_interval_rate_unit') && 
+            (serviceType?.code === 'legal' || serviceType?.code === 'video') && 
+            value === 'hours') {
+            normalizedValue = '3hours';
+        }
+        
         setServiceRates(prev => ({
             ...prev,
             [serviceTypeIdStr]: {
                 ...prev[serviceTypeIdStr],
-                [field]: value
+                [field]: normalizedValue
             }
         }));
     };
@@ -667,7 +679,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                         <div className="w-32">
                                                             <label className="block text-sm font-medium text-gray-700 mb-1">Rate Unit</label>
                                                             <select
-                                                                value={rate.rate_unit || '3hours'}
+                                                                value={(rate.rate_unit === 'hours' || !rate.rate_unit) ? '3hours' : rate.rate_unit}
                                                                 onChange={(e) => handleCustomRateChange(serviceTypeId, 'rate_unit', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                             >
@@ -715,13 +727,24 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                             <div>
                                                                 <span className="font-medium text-gray-600">Your Rate:</span>
                                                                 <div className="text-green-700 font-medium">
-                                                                    ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : rate.rate_unit === '3hours' ? '3hr' : rate.rate_unit === '6hours' ? '6hr' : 'hr'}
+                                                                    {(() => {
+                                                                        // Normalize rate_unit for legal/video: if 'hours', treat as '3hours'
+                                                                        const normalizedUnit = (serviceType.code === 'legal' || serviceType.code === 'video') && rate.rate_unit === 'hours' 
+                                                                            ? '3hours' 
+                                                                            : rate.rate_unit;
+                                                                        const unitDisplay = normalizedUnit === 'minutes' ? 'min' : 
+                                                                                          normalizedUnit === 'word' ? 'word' : 
+                                                                                          normalizedUnit === '3hours' ? '3hr' : 
+                                                                                          normalizedUnit === '6hours' ? '6hr' : 
+                                                                                          'hr';
+                                                                        return `$${rate.rate_amount}/${unitDisplay}`;
+                                                                    })()}
                                                                 </div>
                                                             </div>
                                                             <div>
                                                                 <span className="font-medium text-gray-600">Platform Rate:</span>
                                                                 <div className="text-blue-700 font-medium">
-                                                                    ${getLanguageSpecificRate(serviceType.code, serviceType.platform_rate_amount)}/{serviceType.platform_rate_unit === 'minutes' ? 'min' : serviceType.platform_rate_unit === 'word' ? 'word' : 'hr'}
+                                                                    ${getLanguageSpecificRate(serviceType.code, serviceType.platform_rate_amount)}/{(serviceType.code === 'legal' || serviceType.code === 'video') ? '3hr' : serviceType.platform_rate_unit === 'minutes' ? 'min' : serviceType.platform_rate_unit === 'word' ? 'word' : 'hr'}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -759,7 +782,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                                 <div className="w-32">
                                                                     <label className="block text-sm font-medium text-gray-700 mb-1">Second Rate Unit</label>
                                                                     <select
-                                                                        value={rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit || '3hours'}
+                                                                        value={((rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit) === 'hours' || !(rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit)) ? '3hours' : (rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit)}
                                                                         onChange={(e) => handleCustomRateChange(serviceTypeId, 'custom_second_interval_rate_unit', e.target.value)}
                                                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                                     >

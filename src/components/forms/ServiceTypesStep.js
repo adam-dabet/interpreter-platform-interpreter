@@ -560,8 +560,19 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                 );
                             }
                             
+                            // Check if this specific rate is rejected
+                            const rateRejectedFieldName = `service_rate_${serviceTypeId}`;
+                            const isRateRejected = isFieldRejected(rateRejectedFieldName);
+                            
                             return (
-                                <div key={serviceTypeId} className="border border-gray-200 rounded-lg p-4">
+                                <div key={serviceTypeId} className={`border-2 rounded-lg p-4 ${isRateRejected ? 'border-red-500 bg-red-50 ring-2 ring-red-200' : 'border-gray-200'}`}>
+                                    {isRateRejected && (
+                                        <div className="mb-3 bg-red-100 border border-red-300 rounded-lg p-3">
+                                            <p className="text-sm font-medium text-red-900">
+                                                ⚠️ This rate has been rejected and needs to be updated
+                                            </p>
+                                        </div>
+                                    )}
                                     <div className="mb-4">
                                         <h5 className="font-medium text-gray-900 mb-3">{serviceType.name}</h5>
                                         

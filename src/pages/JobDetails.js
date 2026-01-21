@@ -134,6 +134,45 @@ const JobDetails = () => {
     }
   };
 
+  // Helper function to get user's current location
+  const getCurrentLocation = () => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported by your browser'));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          });
+        },
+        (error) => {
+          let errorMessage = 'Unable to retrieve your location';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Location access denied. Please enable location services to start non-remote jobs.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Location information is unavailable.';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Location request timed out. Please try again.';
+              break;
+          }
+          reject(new Error(errorMessage));
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    });
+  };
+
   const handleJobAction = async (action, data = {}) => {
     try {
       setActionLoading(true);
@@ -155,7 +194,23 @@ const JobDetails = () => {
           toast.success('Job declined');
           break;
         case 'start':
-          response = await jobAPI.startJob(jobId);
+          // For non-remote jobs, we need location data
+          let locationData = {};
+          if (job && !job.is_remote) {
+            try {
+              const location = await getCurrentLocation();
+              locationData = {
+                latitude: location.latitude,
+                longitude: location.longitude
+              };
+            } catch (locationError) {
+              toast.error(locationError.message || 'Failed to get location');
+              setActionLoading(false);
+              return;
+            }
+          }
+          
+          response = await jobAPI.startJob(jobId, locationData);
           toast.success('Job started successfully!');
           // Reload job details to show updated status
           await loadJobDetails();

@@ -1064,7 +1064,7 @@ const JobDetails = () => {
               className="bg-white rounded-lg shadow-sm border p-6"
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                {job.assignment_status ? 'Status' : 'Actions'}
+                {job.assignment_status || (job.status === 'assigned' && job.assigned_interpreter_id && profile?.id !== job.assigned_interpreter_id) ? 'Status' : 'Actions'}
               </h3>
               <div className="space-y-3">
                 {job.status === 'finding_interpreter' && !job.assignment_status && (
@@ -1178,13 +1178,18 @@ const JobDetails = () => {
                     </div>
                   ) : (
                     // Job is assigned to someone else
-                    <div className="text-center py-4">
-                      <div className="text-lg font-semibold text-gray-600 mb-2">
-                        Job Assigned to Another Interpreter
+                    <div className="p-5 bg-amber-50 border-2 border-amber-200 rounded-lg">
+                      <div className="flex items-start">
+                        <UserIcon className="h-6 w-6 text-amber-600 mr-3 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-base font-semibold text-amber-900 mb-1">
+                            This job is assigned to another interpreter
+                          </p>
+                          <p className="text-sm text-amber-800">
+                            You are viewing this job for reference only. You cannot accept, start, or take any action on it.
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-500">
-                        This job has been assigned to another interpreter
-                      </p>
                     </div>
                   )
                 ) : (
@@ -1198,8 +1203,8 @@ const JobDetails = () => {
                   </div>
                 )}
 
-                {/* Urgent Call Notice - Show if interpreter is assigned and job is in less than 2 days */}
-                {job.assigned_interpreter_id && isJobInLessThan2Days(job) && (
+                {/* Urgent Call Notice - Show only for the assigned interpreter when job is in less than 2 days */}
+                {job.assigned_interpreter_id && profile?.id === job.assigned_interpreter_id && isJobInLessThan2Days(job) && (
                   <div className="mt-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg">
                     <div className="flex items-start">
                       <ExclamationTriangleIcon className="h-5 w-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
@@ -1220,8 +1225,8 @@ const JobDetails = () => {
               </div>
             </motion.div>
 
-            {/* Job Timing Controls - Show for assigned jobs */}
-            {job.status === 'assigned' || job.status === 'reminders_sent' || job.status === 'in_progress' ? (
+            {/* Job Timing Controls - Show only for the assigned interpreter */}
+            {(job.status === 'assigned' || job.status === 'reminders_sent' || job.status === 'in_progress') && profile?.id === job.assigned_interpreter_id ? (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1293,8 +1298,8 @@ const JobDetails = () => {
           </div>
         </div>
 
-        {/* Job Workflow - Only show for assigned jobs */}
-        {job.assigned_interpreter_id && (
+        {/* Job Workflow - Only show for the assigned interpreter (hides Unassign, Completion Report, etc. when viewing someone else's job) */}
+        {job.assigned_interpreter_id && profile?.id === job.assigned_interpreter_id && (
           <div id="job-workflow-section" className="mt-8">
             <InterpreterJobWorkflow 
               job={job} 

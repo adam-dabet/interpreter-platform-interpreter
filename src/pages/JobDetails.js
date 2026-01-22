@@ -1125,55 +1125,68 @@ const JobDetails = () => {
                 )}
                 
                 {job.status === 'assigned' && job.assigned_interpreter_id ? (
-                  <div className="text-center py-4">
-                    {job.confirmation_status === 'pending' ? (
-                      <div>
-                        <div className="text-lg font-semibold text-orange-600 mb-2">
-                          ⚠️ Availability Confirmation Required
+                  // Check if the current interpreter is the one assigned
+                  profile?.id === job.assigned_interpreter_id ? (
+                    <div className="text-center py-4">
+                      {job.confirmation_status === 'pending' ? (
+                        <div>
+                          <div className="text-lg font-semibold text-orange-600 mb-2">
+                            ⚠️ Availability Confirmation Required
+                          </div>
+                          <p className="text-sm text-gray-500 mb-4">
+                            Please confirm if you can still make this appointment.
+                          </p>
+                          <div className="space-y-2">
+                            <Button
+                              className="w-full"
+                              onClick={() => setShowConfirmationModal(true)}
+                              disabled={confirmationLoading}
+                            >
+                              <CheckCircleIcon className="h-4 w-4 mr-2" />
+                              Confirm Availability
+                            </Button>
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-500 mb-4">
-                          Please confirm if you can still make this appointment.
-                        </p>
-                        <div className="space-y-2">
-                          <Button
-                            className="w-full"
-                            onClick={() => setShowConfirmationModal(true)}
-                            disabled={confirmationLoading}
-                          >
-                            <CheckCircleIcon className="h-4 w-4 mr-2" />
-                            Confirm Availability
-                          </Button>
+                      ) : job.confirmation_status === 'confirmed' ? (
+                        <div>
+                          <div className="text-lg font-semibold text-green-600 mb-2">
+                            ✓ Availability Confirmed
+                          </div>
+                          <p className="text-sm text-gray-500">
+                            You have confirmed you can make the appointment
+                          </p>
                         </div>
+                      ) : job.confirmation_status === 'declined' ? (
+                        <div>
+                          <div className="text-lg font-semibold text-red-600 mb-2">
+                            ✗ Availability Declined
+                          </div>
+                          <p className="text-sm text-gray-500">
+                            You have declined this appointment
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="text-lg font-semibold text-green-600 mb-2">
+                            ✓ Job Accepted
+                          </div>
+                          <p className="text-sm text-gray-500">
+                            This job has been assigned to you
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Job is assigned to someone else
+                    <div className="text-center py-4">
+                      <div className="text-lg font-semibold text-gray-600 mb-2">
+                        Job Assigned to Another Interpreter
                       </div>
-                    ) : job.confirmation_status === 'confirmed' ? (
-                      <div>
-                        <div className="text-lg font-semibold text-green-600 mb-2">
-                          ✓ Availability Confirmed
-                        </div>
-                        <p className="text-sm text-gray-500">
-                          You have confirmed you can make the appointment
-                        </p>
-                      </div>
-                    ) : job.confirmation_status === 'declined' ? (
-                      <div>
-                        <div className="text-lg font-semibold text-red-600 mb-2">
-                          ✗ Availability Declined
-                        </div>
-                        <p className="text-sm text-gray-500">
-                          You have declined this appointment
-                        </p>
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="text-lg font-semibold text-green-600 mb-2">
-                          ✓ Job Accepted
-                        </div>
-                        <p className="text-sm text-gray-500">
-                          This job has been assigned to you
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                      <p className="text-sm text-gray-500">
+                        This job has been assigned to another interpreter
+                      </p>
+                    </div>
+                  )
                 ) : (
                   <div className="text-center py-4">
                     <div className="text-lg font-semibold text-gray-600 mb-2">

@@ -102,9 +102,13 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
   };
 
   // Map all languages from parametric data to options format
-  // Filter out 'agency' language if it exists
+  // Filter out 'agency' language and 'english' if they exist
   const languageOptions = (parametricData?.languages || [])
-    .filter(lang => lang.name && lang.name.toLowerCase() !== 'agency')
+    .filter(lang => {
+      if (!lang.name) return false;
+      const nameLower = lang.name.toLowerCase();
+      return nameLower !== 'agency' && nameLower !== 'english';
+    })
     .map(lang => ({ value: String(lang.id), label: lang.name }));
 
 

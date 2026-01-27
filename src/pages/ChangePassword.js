@@ -11,7 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const ChangePassword = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -113,8 +113,19 @@ const ChangePassword = () => {
       });
 
       if (response.data && response.data.success) {
-        toast.success('Password changed successfully!');
-        navigate('/dashboard');
+        // If this was a first-time password change, log out and redirect to login
+        if (response.data.requiresReLogin) {
+          toast.success('Password changed successfully! Please log in again with your new password.');
+          // Log out the user
+          logout();
+          // Small delay to let logout complete, then redirect to login
+          setTimeout(() => {
+            navigate('/login');
+          }, 500);
+        } else {
+          toast.success('Password changed successfully!');
+          navigate('/dashboard');
+        }
       } else {
         toast.error(response.data?.message || 'Failed to change password. Please try again.');
       }

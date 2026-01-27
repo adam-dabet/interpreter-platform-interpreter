@@ -289,7 +289,13 @@ const JobCard = ({
             <span>
               Estimated: {formatCurrency(
                 (() => {
-                  const rawMinutes = Math.max(job.actual_duration_minutes || 0, job.estimated_duration_minutes || 0);
+                  // Use the greater of estimated, reserved, or actual duration
+                  const estimatedMinutes = job.estimated_duration_minutes || 0;
+                  const actualMinutes = job.actual_duration_minutes || 0;
+                  const reservedHours = job.reserved_hours || 0;
+                  const reservedMinutes = job.reserved_minutes || 0;
+                  const reservedTimeMinutes = (reservedHours * 60) + reservedMinutes;
+                  const rawMinutes = Math.max(estimatedMinutes, reservedTimeMinutes, actualMinutes);
                   // Round up to billing increment (default 15 minutes if not set)
                   const billingIncrement = job.interpreter_interval_minutes || 15;
                   const billableMinutes = Math.ceil(rawMinutes / billingIncrement) * billingIncrement;

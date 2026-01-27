@@ -513,18 +513,19 @@ const JobDetails = () => {
       }
     }
 
-    // Otherwise, use the job's total_amount (calculated by backend) if it's greater than 0
+    // Calculate from hourly rate and billable duration (don't use job.total_amount as it may be stale)
+    // Always recalculate to ensure we use the correct billing increment
+    if (basePayment === 0 && job.hourly_rate && billableMinutes > 0) {
+      const hours = billableMinutes / 60;
+      basePayment = parseFloat(job.hourly_rate) * hours;
+    }
+    
+    // Fallback: use the job's total_amount only if we couldn't calculate from billableMinutes
     if (basePayment === 0) {
       const totalAmount = parseFloat(job.total_amount) || 0;
       if (totalAmount > 0) {
         basePayment = totalAmount;
       }
-    }
-
-    // Fallback: calculate from hourly rate and billable duration
-    if (basePayment === 0 && job.hourly_rate && billableMinutes > 0) {
-      const hours = billableMinutes / 60;
-      basePayment = parseFloat(job.hourly_rate) * hours;
     }
     
     // Add mileage reimbursement if available

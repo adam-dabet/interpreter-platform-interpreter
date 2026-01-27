@@ -15,6 +15,7 @@ const jobAPI = {
   endJob: (jobId) => api.post(`/interpreters/jobs/${jobId}/end`),
   submitCompletionReport: (jobId, reportData) => api.post(`/jobs/${jobId}/completion-report`, reportData),
   getEarnings: (params = {}) => api.get('/interpreters/earnings', { params }),
+  getPaymentCalculation: (jobId) => api.get(`/interpreters/jobs/${jobId}/payment-calculation`),
 };
 
 export default jobAPI;

@@ -471,9 +471,9 @@ const JobDetails = () => {
 
   const fetchPaymentCalculation = async () => {
     try {
-      const response = await makeAuthenticatedRequest(`/interpreters/jobs/${job.id}/payment-calculation`);
-      if (response.success && response.data.paymentBreakdown) {
-        setPaymentBreakdown(response.data.paymentBreakdown);
+      const response = await jobAPI.getPaymentCalculation(job.id);
+      if (response.data.success && response.data.data.paymentBreakdown) {
+        setPaymentBreakdown(response.data.data.paymentBreakdown);
       }
     } catch (error) {
       console.error('Error fetching payment calculation:', error);

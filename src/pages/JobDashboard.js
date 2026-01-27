@@ -250,14 +250,26 @@ const JobDashboardNew = () => {
       return backendAmount;
     }
 
-    if (job?.actual_duration_minutes && (job?.agreed_rate || job?.hourly_rate)) {
-      const hours = parseFloat(job.actual_duration_minutes) / 60;
-      const rate = parseFloat(job.agreed_rate || job.hourly_rate) || 0;
-      return hours * rate;
+    // Determine billable minutes: use greater of reserved time or actual time from completion report
+    // This matches the admin portal's "actual payment" calculation
+    const actualMinutes = job?.actual_duration_minutes || 0;
+    const reservedHours = job?.reserved_hours || 0;
+    const reservedMinutes = job?.reserved_minutes || 0;
+    const reservedTimeMinutes = (reservedHours * 60) + reservedMinutes;
+    
+    // Use the greater of reserved time or actual time (if completion report submitted)
+    // Otherwise use estimated duration for upcoming jobs
+    let billableMinutes = 0;
+    if (actualMinutes > 0) {
+      // Job has completion report - use greater of reserved or actual
+      billableMinutes = Math.max(reservedTimeMinutes, actualMinutes);
+    } else if (job?.estimated_duration_minutes) {
+      // Job not yet completed - use greater of reserved or estimated
+      billableMinutes = Math.max(reservedTimeMinutes, job.estimated_duration_minutes);
     }
 
-    if (job?.estimated_duration_minutes && (job?.agreed_rate || job?.hourly_rate)) {
-      const hours = parseFloat(job.estimated_duration_minutes) / 60;
+    if (billableMinutes > 0 && (job?.agreed_rate || job?.hourly_rate)) {
+      const hours = billableMinutes / 60;
       const rate = parseFloat(job.agreed_rate || job.hourly_rate) || 0;
       return hours * rate;
     }

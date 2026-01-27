@@ -463,17 +463,35 @@ const JobDetails = () => {
   const calculateEarnings = (job) => {
     let basePayment = 0;
     
+    // Determine billable minutes: use greater of reserved time or actual time from completion report
+    // This matches the admin portal's "actual payment" calculation
+    const actualMinutes = job.actual_duration_minutes || 0;
+    const reservedHours = job.reserved_hours || 0;
+    const reservedMinutes = job.reserved_minutes || 0;
+    const reservedTimeMinutes = (reservedHours * 60) + reservedMinutes;
+    
+    // Use the greater of reserved time or actual time (if completion report submitted)
+    // Otherwise use estimated duration for upcoming jobs
+    let billableMinutes = 0;
+    if (job.actual_duration_minutes && job.actual_duration_minutes > 0) {
+      // Job has completion report - use greater of reserved or actual
+      billableMinutes = Math.max(reservedTimeMinutes, actualMinutes);
+    } else if (job.estimated_duration_minutes) {
+      // Job not yet completed - use greater of reserved or estimated
+      billableMinutes = Math.max(reservedTimeMinutes, job.estimated_duration_minutes);
+    }
+    
     // If interpreter has custom service rates, calculate based on those
-    if (profile?.service_rates && job.estimated_duration_minutes) {
+    if (profile?.service_rates && billableMinutes > 0) {
       const serviceRate = profile.service_rates.find(
         rate => rate.service_type_id === job.service_type_id
       );
       
       if (serviceRate && serviceRate.rate_amount) {
-        const hours = job.estimated_duration_minutes / 60;
+        const hours = billableMinutes / 60;
         
         if (serviceRate.rate_unit === 'minutes') {
-          basePayment = serviceRate.rate_amount * job.estimated_duration_minutes;
+          basePayment = serviceRate.rate_amount * billableMinutes;
         } else if (serviceRate.rate_unit === '3hours') {
           // Calculate number of 3-hour blocks (round up)
           const blocks = Math.ceil(hours / 3);
@@ -496,9 +514,9 @@ const JobDetails = () => {
       }
     }
 
-    // Fallback: calculate from hourly rate and duration
-    if (basePayment === 0 && job.hourly_rate && job.estimated_duration_minutes) {
-      const hours = job.estimated_duration_minutes / 60;
+    // Fallback: calculate from hourly rate and billable duration
+    if (basePayment === 0 && job.hourly_rate && billableMinutes > 0) {
+      const hours = billableMinutes / 60;
       basePayment = parseFloat(job.hourly_rate) * hours;
     }
     

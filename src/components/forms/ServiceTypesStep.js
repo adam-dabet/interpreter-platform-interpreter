@@ -790,27 +790,13 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                                 className="flex-1"
                                                                 label="Second Rate Amount"
                                                             />
-                                                            {(serviceType.code === 'legal' || serviceType.code === 'video') ? (
-                                                                <div className="w-32">
-                                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Second Rate Unit</label>
-                                                                    <select
-                                                                        value={((rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit) === 'hours' || !(rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit)) ? '3hours' : (rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit)}
-                                                                        onChange={(e) => handleCustomRateChange(serviceTypeId, 'custom_second_interval_rate_unit', e.target.value)}
-                                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                                    >
-                                                                        <option value="3hours">Per 3 Hours</option>
-                                                                        <option value="6hours">Per 6 Hours</option>
-                                                                    </select>
-                                                                </div>
-                                                            ) : (
-                                                                <Select
-                                                                    options={RATE_UNITS}
-                                                                    value={rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit || 'hours'}
-                                                                    onChange={(e) => handleCustomRateChange(serviceTypeId, 'custom_second_interval_rate_unit', e.target.value)}
-                                                                    className="w-32"
-                                                                    label="Second Rate Unit"
-                                                                />
-                                                            )}
+                                                            <Select
+                                                                options={RATE_UNITS}
+                                                                value={rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit || 'hours'}
+                                                                onChange={(e) => handleCustomRateChange(serviceTypeId, 'custom_second_interval_rate_unit', e.target.value)}
+                                                                className="w-32"
+                                                                label="Second Rate Unit"
+                                                            />
                                                         </div>
                                                     </div>
                                                 )}

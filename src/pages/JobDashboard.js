@@ -259,16 +259,19 @@ const JobDashboardNew = () => {
     
     // Use the greater of reserved time or actual time (if completion report submitted)
     // Otherwise use estimated duration for upcoming jobs
-    let billableMinutes = 0;
+    let rawBillableMinutes = 0;
     if (actualMinutes > 0) {
       // Job has completion report - use greater of reserved or actual
-      billableMinutes = Math.max(reservedTimeMinutes, actualMinutes);
+      rawBillableMinutes = Math.max(reservedTimeMinutes, actualMinutes);
     } else if (job?.estimated_duration_minutes) {
       // Job not yet completed - use greater of reserved or estimated
-      billableMinutes = Math.max(reservedTimeMinutes, job.estimated_duration_minutes);
+      rawBillableMinutes = Math.max(reservedTimeMinutes, job.estimated_duration_minutes);
     }
 
-    if (billableMinutes > 0 && (job?.agreed_rate || job?.hourly_rate)) {
+    if (rawBillableMinutes > 0 && (job?.agreed_rate || job?.hourly_rate)) {
+      // Round up to billing increment (default 15 minutes if not set)
+      const billingIncrement = job?.interpreter_interval_minutes || 15;
+      const billableMinutes = Math.ceil(rawBillableMinutes / billingIncrement) * billingIncrement;
       const hours = billableMinutes / 60;
       const rate = parseFloat(job.agreed_rate || job.hourly_rate) || 0;
       return hours * rate;

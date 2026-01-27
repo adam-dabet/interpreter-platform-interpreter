@@ -470,15 +470,16 @@ const JobDetails = () => {
     const reservedMinutes = job.reserved_minutes || 0;
     const reservedTimeMinutes = (reservedHours * 60) + reservedMinutes;
     
-    // Use the greater of reserved time or actual time (if completion report submitted)
-    // Otherwise use estimated duration for upcoming jobs
+    // Use the greater of estimated, reserved time, or actual time
+    // Interpreters are paid for booked time (estimated) or actual time, whichever is greater
+    const estimatedMinutes = job.estimated_duration_minutes || 0;
     let rawBillableMinutes = 0;
     if (job.actual_duration_minutes && job.actual_duration_minutes > 0) {
-      // Job has completion report - use greater of reserved or actual
-      rawBillableMinutes = Math.max(reservedTimeMinutes, actualMinutes);
-    } else if (job.estimated_duration_minutes) {
+      // Job has completion report - use greater of estimated, reserved, or actual
+      rawBillableMinutes = Math.max(estimatedMinutes, reservedTimeMinutes, actualMinutes);
+    } else if (estimatedMinutes > 0) {
       // Job not yet completed - use greater of reserved or estimated
-      rawBillableMinutes = Math.max(reservedTimeMinutes, job.estimated_duration_minutes);
+      rawBillableMinutes = Math.max(reservedTimeMinutes, estimatedMinutes);
     }
     
     // Round up to billing increment (default 15 minutes if not set)

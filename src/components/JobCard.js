@@ -289,12 +289,18 @@ const JobCard = ({
             <span>
               Estimated: {formatCurrency(
                 (() => {
-                  // Use backend-calculated payment if available
-                  if (job.calculated_payment !== null && job.calculated_payment !== undefined) {
-                    return parseFloat(job.calculated_payment) || 0;
+                  // ALWAYS use backend-calculated payment if the field exists (even if 0)
+                  // Check if the property exists on the object, not just if it's truthy
+                  if ('calculated_payment' in job && job.calculated_payment !== null && job.calculated_payment !== undefined) {
+                    const backendValue = parseFloat(job.calculated_payment);
+                    // Use backend value even if it's 0 (0 is a valid calculated payment)
+                    if (!isNaN(backendValue)) {
+                      return backendValue;
+                    }
                   }
                   
-                  // Fallback: calculate locally if backend value not available
+                  // Only fallback if backend value truly doesn't exist
+                  // This should rarely happen if backend is working correctly
                   const estimatedMinutes = job.estimated_duration_minutes || 0;
                   const actualMinutes = job.actual_duration_minutes || 0;
                   const reservedHours = job.reserved_hours || 0;

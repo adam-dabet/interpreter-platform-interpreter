@@ -460,78 +460,34 @@ const JobDetails = () => {
 
   // Date/time formatting functions imported from utils/dateUtils.js
 
-  const calculateEarnings = (job) => {
-    let basePayment = 0;
-    
-    // Determine billable minutes: use greater of reserved time or actual time from completion report
-    // This matches the admin portal's "actual payment" calculation
-    const actualMinutes = job.actual_duration_minutes || 0;
-    const reservedHours = job.reserved_hours || 0;
-    const reservedMinutes = job.reserved_minutes || 0;
-    const reservedTimeMinutes = (reservedHours * 60) + reservedMinutes;
-    
-    // Use the greater of estimated, reserved time, or actual time
-    // Interpreters are paid for booked time (estimated) or actual time, whichever is greater
-    const estimatedMinutes = job.estimated_duration_minutes || 0;
-    let rawBillableMinutes = 0;
-    if (job.actual_duration_minutes && job.actual_duration_minutes > 0) {
-      // Job has completion report - use greater of estimated, reserved, or actual
-      rawBillableMinutes = Math.max(estimatedMinutes, reservedTimeMinutes, actualMinutes);
-    } else if (estimatedMinutes > 0) {
-      // Job not yet completed - use greater of reserved or estimated
-      rawBillableMinutes = Math.max(reservedTimeMinutes, estimatedMinutes);
-    }
-    
-    // Round up to billing increment (default 15 minutes if not set)
-    const billingIncrement = job.interpreter_interval_minutes || 15;
-    const billableMinutes = rawBillableMinutes > 0 
-      ? Math.ceil(rawBillableMinutes / billingIncrement) * billingIncrement 
-      : 0;
-    
-    // If interpreter has custom service rates, calculate based on those
-    if (profile?.service_rates && billableMinutes > 0) {
-      const serviceRate = profile.service_rates.find(
-        rate => rate.service_type_id === job.service_type_id
-      );
-      
-      if (serviceRate && serviceRate.rate_amount) {
-        const hours = billableMinutes / 60;
-        
-        if (serviceRate.rate_unit === 'minutes') {
-          basePayment = serviceRate.rate_amount * billableMinutes;
-        } else if (serviceRate.rate_unit === '3hours') {
-          // Calculate number of 3-hour blocks (round up)
-          const blocks = Math.ceil(hours / 3);
-          basePayment = serviceRate.rate_amount * blocks;
-        } else if (serviceRate.rate_unit === '6hours') {
-          // Calculate number of 6-hour blocks (round up)
-          const blocks = Math.ceil(hours / 6);
-          basePayment = serviceRate.rate_amount * blocks;
-        } else {
-          basePayment = serviceRate.rate_amount * hours;
-        }
-      }
-    }
+  // Payment breakdown from backend (same logic as admin portal)
+  const [paymentBreakdown, setPaymentBreakdown] = useState(null);
 
-    // Calculate from hourly rate and billable duration (don't use job.total_amount as it may be stale)
-    // Always recalculate to ensure we use the correct billing increment
-    if (basePayment === 0 && job.hourly_rate && billableMinutes > 0) {
-      const hours = billableMinutes / 60;
-      basePayment = parseFloat(job.hourly_rate) * hours;
+  useEffect(() => {
+    if (job?.id && (job.actual_duration_minutes > 0 || job.estimated_duration_minutes > 0)) {
+      fetchPaymentCalculation();
     }
-    
-    // Fallback: use the job's total_amount only if we couldn't calculate from billableMinutes
-    if (basePayment === 0) {
-      const totalAmount = parseFloat(job.total_amount) || 0;
-      if (totalAmount > 0) {
-        basePayment = totalAmount;
+  }, [job?.id, job?.actual_duration_minutes, job?.estimated_duration_minutes]);
+
+  const fetchPaymentCalculation = async () => {
+    try {
+      const response = await makeAuthenticatedRequest(`/interpreters/jobs/${job.id}/payment-calculation`);
+      if (response.success && response.data.paymentBreakdown) {
+        setPaymentBreakdown(response.data.paymentBreakdown);
       }
+    } catch (error) {
+      console.error('Error fetching payment calculation:', error);
+    }
+  };
+
+  const calculateEarnings = (job) => {
+    // Use backend-calculated payment (matches admin portal)
+    if (paymentBreakdown) {
+      return paymentBreakdown.totalPayment;
     }
     
-    // Add mileage reimbursement if available
-    const mileageReimbursement = parseFloat(job.mileage_reimbursement) || 0;
-    
-    return basePayment + mileageReimbursement;
+    // Fallback while loading
+    return parseFloat(job.total_amount) || 0;
   };
 
   const getPriorityColor = (priority) => {

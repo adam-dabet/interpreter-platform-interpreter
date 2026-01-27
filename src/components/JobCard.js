@@ -288,19 +288,8 @@ const JobCard = ({
             <CurrencyDollarIcon className="h-4 w-4 mr-1" />
             <span>
               Estimated: {formatCurrency(
-                (() => {
-                  // Use the greater of estimated, reserved, or actual duration
-                  const estimatedMinutes = job.estimated_duration_minutes || 0;
-                  const actualMinutes = job.actual_duration_minutes || 0;
-                  const reservedHours = job.reserved_hours || 0;
-                  const reservedMinutes = job.reserved_minutes || 0;
-                  const reservedTimeMinutes = (reservedHours * 60) + reservedMinutes;
-                  const rawMinutes = Math.max(estimatedMinutes, reservedTimeMinutes, actualMinutes);
-                  // Round up to billing increment (default 15 minutes if not set)
-                  const billingIncrement = job.interpreter_interval_minutes || 15;
-                  const billableMinutes = Math.ceil(rawMinutes / billingIncrement) * billingIncrement;
-                  return ((job.agreed_rate || job.hourly_rate) * (billableMinutes / 60)) || 0;
-                })()
+                // Use backend-calculated payment if available
+                job.calculated_payment || 0
               )}
             </span>
           </div>

@@ -130,9 +130,19 @@ export class TokenExpirationHandler {
       }
 
       // For other error statuses, check the response body
-      if (!response.ok && (response.status === 400 || response.status === 403)) {
+      if (!response.ok && (response.status === 400 || response.status === 401 || response.status === 403)) {
         try {
           const responseData = await response.clone().json();
+          
+          // Check for password reset required error
+          if (responseData.code === 'PASSWORD_RESET_REQUIRED' || 
+              (responseData.message && responseData.message.includes('password was reset'))) {
+            // Show password reset message and logout
+            this.handleTokenExpiration(logoutFunction, responseData.message || 'Your password was reset. Please log in again with your new password.');
+            throw new Error('Password reset required');
+          }
+          
+          // Check for token expiration
           if (this.isTokenExpiredFromResponse(responseData)) {
             this.handleTokenExpiration(logoutFunction);
             throw new Error('Token expired');

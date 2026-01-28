@@ -1036,7 +1036,6 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                         </div>
                     </div>
                 )}
-            </div>
                 
                 {errors.service_rates && (
                     <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">

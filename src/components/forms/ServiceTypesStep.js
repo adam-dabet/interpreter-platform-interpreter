@@ -138,7 +138,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
     // Check if user has required certifications for a service type
     const hasRequiredCertification = (serviceTypeCode) => {
         // Only these specific service types require certifications
-        const requiresCertification = ['legal', 'medical'];
+        const requiresCertification = ['legal', 'medical', 'video'];
         
         if (!requiresCertification.includes(serviceTypeCode)) {
             return true; // Other service types don't require any certifications
@@ -160,6 +160,13 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
         switch (serviceTypeCode) {
             case 'legal':
                 // Legal requires one of the three court certifications
+                return userCertificates.some(cert => {
+                    const certCode = getCertificateTypeCode(cert.certificate_type_id);
+                    return certCode && ['court_certified', 'federal_certified', 'ata_certified', 'administrative_court_certified'].includes(certCode);
+                });
+            
+            case 'video':
+                // Video Remote Interpretation requires the same legal certifications as legal service type
                 return userCertificates.some(cert => {
                     const certCode = getCertificateTypeCode(cert.certificate_type_id);
                     return certCode && ['court_certified', 'federal_certified', 'ata_certified', 'administrative_court_certified'].includes(certCode);
@@ -517,6 +524,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                     <p className="text-xs text-yellow-800">
                                         <strong>Requires certification:</strong> 
                                         {serviceType.code === 'legal' && ' Federal Court, State Court, or Administrative Court certification'}
+                                        {serviceType.code === 'video' && ' Federal Court, State Court, or Administrative Court certification'}
                                         {serviceType.code === 'medical' && ' Any court certification OR Medical certification'}
                                     </p>
                                 </div>

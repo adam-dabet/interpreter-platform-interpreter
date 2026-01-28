@@ -39,6 +39,8 @@ const getApiBaseURL = () => {
   return '/api';
 };
 
+export { getApiBaseURL };
+
 // Create axios instance
 const api = axios.create({
   baseURL: getApiBaseURL(),

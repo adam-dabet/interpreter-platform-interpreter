@@ -333,7 +333,7 @@ const Profile = () => {
         return (
             <div className="space-y-6">
                 <h3 className="text-xl font-semibold text-gray-900">Service Types & Rates</h3>
-                <div className="space-y-3">
+                <div className="space-y-4">
                     {displayServices.map((service, index) => {
                         const serviceId = service?.service_type_id ?? service?.id ?? service?.service_type?.id;
                         const rate = normalizedServiceRates.length > 0
@@ -345,27 +345,60 @@ const Profile = () => {
                         const serviceName = service?.service_type_name || service?.name || service?.title || 'Unknown Service';
                         const serviceCode = service?.service_type_code || service?.code || service?.identifier || '';
                         
+                        // Find language-specific rates for this service type
+                        const serviceLangRates = (profile?.language_rates || []).filter(
+                            lr => String(lr.service_type_id) === String(serviceId)
+                        );
+                        
                         return (
-                            <div key={serviceId || index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                                <div>
-                                    <span className="text-sm font-medium text-gray-900">
-                                        {serviceName}
-                                    </span>
-                                    {serviceCode && (
-                                        <p className="text-xs text-gray-500">{serviceCode}</p>
+                            <div key={serviceId || index} className="bg-gray-50 rounded-lg p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <span className="text-sm font-medium text-gray-900">
+                                            {serviceName}
+                                        </span>
+                                        {serviceCode && (
+                                            <p className="text-xs text-gray-500">{serviceCode}</p>
+                                        )}
+                                    </div>
+                                    {rate && rate.rate_amount != null ? (
+                                        <div className="text-right">
+                                            <span className="text-sm font-medium text-gray-900">
+                                                ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : rate.rate_unit === '3hours' ? '3hr' : rate.rate_unit === '6hours' ? '6hr' : rate.rate_unit || 'hour'}
+                                            </span>
+                                            <p className="text-xs text-gray-500">
+                                                {rate.rate_type === 'custom' ? 'Custom Rate' : 'Platform Rate'}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-gray-500">Rate not set</p>
                                     )}
                                 </div>
-                                {rate && rate.rate_amount != null ? (
-                                    <div className="text-right">
-                                        <span className="text-sm font-medium text-gray-900">
-                                            ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : rate.rate_unit === '3hours' ? '3hr' : rate.rate_unit === '6hours' ? '6hr' : rate.rate_unit || 'hour'}
-                                        </span>
-                                        <p className="text-xs text-gray-500">
-                                            {rate.rate_type === 'custom' ? 'Custom Rate' : 'Platform Rate'}
-                                        </p>
+                                
+                                {/* Language-Specific Rates */}
+                                {serviceLangRates.length > 0 && (
+                                    <div className="border-t border-gray-200 pt-3 space-y-2">
+                                        <div className="text-xs text-gray-600 font-medium mb-2">
+                                            Language-Specific Rates:
+                                        </div>
+                                        {serviceLangRates.map((lr, lrIdx) => (
+                                            <div key={lrIdx} className="bg-blue-50 border border-blue-200 rounded-md p-2 flex items-center justify-between">
+                                                <span className="text-xs font-medium text-blue-900">
+                                                    {lr.language_name}
+                                                </span>
+                                                <div className="text-right">
+                                                    <span className="text-sm font-semibold text-blue-900">
+                                                        ${Number(lr.rate_amount).toFixed(2)}/{lr.rate_unit === 'minutes' ? 'min' : 'hr'}
+                                                    </span>
+                                                    {lr.minimum_hours && (
+                                                        <p className="text-xs text-blue-700">
+                                                            {lr.minimum_hours}hr min
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                ) : (
-                                    <p className="text-xs text-gray-500">Rate not set</p>
                                 )}
                             </div>
                         );

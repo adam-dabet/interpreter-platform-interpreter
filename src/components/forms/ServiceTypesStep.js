@@ -415,6 +415,14 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             updated[stKey][langKey][field] = value;
             return updated;
         });
+        
+        // If user enters a rate_amount, automatically uncheck "Use same rates" checkbox
+        if (field === 'rate_amount' && value && value.trim() !== '') {
+            setUseSameRatesForLanguage(prev => ({
+                ...prev,
+                [langKey]: false  // Uncheck the box
+            }));
+        }
     };
 
     const handleUseSameRatesToggle = (languageId) => {
@@ -954,17 +962,24 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                 
                                 return (
                                     <div key={langId} className="border border-gray-200 rounded-lg p-4 bg-white">
-                                        <div className="flex items-center mb-4">
-                                            <input
-                                                type="checkbox"
-                                                id={`same_rates_${langId}`}
-                                                checked={useSameRates}
-                                                onChange={() => handleUseSameRatesToggle(langId)}
-                                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                            />
-                                            <label htmlFor={`same_rates_${langId}`} className="ml-2 text-sm font-medium text-gray-700 cursor-pointer">
-                                                Use same rates for {langName}
-                                            </label>
+                                        <div className="space-y-2 mb-4">
+                                            <div className="flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    id={`same_rates_${langId}`}
+                                                    checked={useSameRates}
+                                                    onChange={() => handleUseSameRatesToggle(langId)}
+                                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                />
+                                                <label htmlFor={`same_rates_${langId}`} className="ml-2 text-sm font-medium text-gray-700 cursor-pointer">
+                                                    Use same rates for {langName}
+                                                </label>
+                                            </div>
+                                            {!useSameRates && (
+                                                <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1">
+                                                    ✓ Custom rates for {langName} will be saved
+                                                </p>
+                                            )}
                                         </div>
                                         
                                         {!useSameRates && (

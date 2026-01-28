@@ -219,18 +219,8 @@ const InterpreterProfile = () => {
             const registrationType = data.isAgency ? 'agency' : 'individual';
             setRegistrationType(registrationType);
             
-            // Merge language_rates into languages for form (each language can have rate_amount, rate_unit)
-            const languageRatesMap = (data.language_rates || []).reduce((acc, lr) => {
-                acc[lr.language_id] = lr;
-                return acc;
-            }, {});
-            const languagesWithRates = (data.languages || []).map(lang => ({
-                ...lang,
-                rate_amount: languageRatesMap[lang.language_id]?.rate_amount != null ? String(languageRatesMap[lang.language_id].rate_amount) : '',
-                rate_unit: languageRatesMap[lang.language_id]?.rate_unit || 'hours'
-            }));
-
             // Pre-fill form with imported data
+            // Note: language_rates are now per (service_type, language) and handled in ServiceTypesStep
             setFormData(prev => ({
                 ...prev,
                 first_name: data.firstName || '',
@@ -244,8 +234,8 @@ const InterpreterProfile = () => {
                 state_id: data.address?.stateId || '',
                 zip_code: data.address?.zipCode || '',
                 business_name: data.businessName || '',
-                languages: languagesWithRates,
-                language_rates: data.language_rates || [],
+                languages: data.languages || [],
+                language_rates: data.language_rates || [], // Per (service_type, language) - handled in ServiceTypesStep
                 service_types: data.serviceTypes?.map(st => st.service_type_id) || [],
                 is_agency: data.isAgency || false
             }));

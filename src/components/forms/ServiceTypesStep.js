@@ -9,6 +9,7 @@ import { RATE_UNITS } from '../../utils/constants';
 const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, onUpdate, rejectedFields = [] }) => {
     const [selectedServiceTypes, setSelectedServiceTypes] = useState(formData.service_types || []);
     const [serviceRates, setServiceRates] = useState({});
+    const [languageRates, setLanguageRates] = useState({}); // { [serviceTypeId]: { [languageId]: { rate_amount, rate_unit } } }
     const [errors, setErrors] = useState({});
     const [showPreferredProviderModal, setShowPreferredProviderModal] = useState(false);
     
@@ -62,6 +63,25 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             setServiceRates(ratesObject);
         }
     }, [formData.service_rates, parametricData?.serviceTypes]);
+
+    // Initialize language rates from formData
+    useEffect(() => {
+        if (formData.language_rates && Array.isArray(formData.language_rates)) {
+            const langRatesObj = {};
+            formData.language_rates.forEach(lr => {
+                const stKey = String(lr.service_type_id);
+                const langKey = String(lr.language_id);
+                if (!langRatesObj[stKey]) {
+                    langRatesObj[stKey] = {};
+                }
+                langRatesObj[stKey][langKey] = {
+                    rate_amount: String(lr.rate_amount || ''),
+                    rate_unit: lr.rate_unit || 'hours'
+                };
+            });
+            setLanguageRates(langRatesObj);
+        }
+    }, [formData.language_rates]);
 
     // Ensure all selected service types have rates (create defaults if missing)
     useEffect(() => {
@@ -350,6 +370,22 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
         return Object.keys(newErrors).length === 0;
     };
 
+    const handleLanguageRateChange = (serviceTypeId, languageId, field, value) => {
+        const stKey = String(serviceTypeId);
+        const langKey = String(languageId);
+        setLanguageRates(prev => {
+            const updated = { ...prev };
+            if (!updated[stKey]) {
+                updated[stKey] = {};
+            }
+            if (!updated[stKey][langKey]) {
+                updated[stKey][langKey] = { rate_amount: '', rate_unit: 'hours' };
+            }
+            updated[stKey][langKey][field] = value;
+            return updated;
+        });
+    };
+
     const handleNext = () => {
         if (!validateForm()) {
             const errorMessage = Object.values(errors)[0];
@@ -360,9 +396,26 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
         // Convert serviceRates object to array format
         const serviceRatesArray = Object.values(serviceRates);
         
+        // Build language_rates array from languageRates state
+        const languageRatesArray = [];
+        Object.keys(languageRates).forEach(serviceTypeId => {
+            Object.keys(languageRates[serviceTypeId]).forEach(languageId => {
+                const lr = languageRates[serviceTypeId][languageId];
+                if (lr.rate_amount != null && String(lr.rate_amount).trim() !== '' && !isNaN(parseFloat(lr.rate_amount))) {
+                    languageRatesArray.push({
+                        service_type_id: serviceTypeId,
+                        language_id: languageId,
+                        rate_amount: parseFloat(lr.rate_amount),
+                        rate_unit: lr.rate_unit || 'hours'
+                    });
+                }
+            });
+        });
+        
         onNext({
             service_types: selectedServiceTypes,
-            service_rates: serviceRatesArray
+            service_rates: serviceRatesArray,
+            language_rates: languageRatesArray
         });
     };
 
@@ -808,6 +861,52 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                         </div>
                                                     </div>
                                                 )}
+                                            </div>
+                                        )}
+
+                                        {/* Language-specific rates section */}
+                                        {formData.languages && formData.languages.length > 0 && (
+                                            <div className="mt-4 pt-4 border-t border-gray-200">
+                                                <h6 className="text-sm font-medium text-gray-700 mb-2">
+                                                    Language-specific rates (optional)
+                                                </h6>
+                                                <p className="text-xs text-gray-500 mb-3">
+                                                    Set different rates for different languages within this service type. 
+                                                    Example: Spanish Medical Standard = $55/hr, Portuguese Medical Standard = $65/hr
+                                                </p>
+                                                <div className="space-y-2">
+                                                    {formData.languages.map((lang) => {
+                                                        const langId = String(lang.language_id);
+                                                        const langName = parametricData?.languages?.find(l => String(l.id) === langId)?.name || 'Unknown';
+                                                        const stKey = String(serviceTypeId);
+                                                        const langRate = languageRates[stKey]?.[langId] || { rate_amount: '', rate_unit: 'hours' };
+                                                        return (
+                                                            <div key={langId} className="bg-white border border-gray-200 rounded-md p-3">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <span className="text-sm font-medium text-gray-700">{langName}</span>
+                                                                </div>
+                                                                <div className="flex gap-2">
+                                                                    <Input
+                                                                        type="number"
+                                                                        step="0.01"
+                                                                        placeholder="e.g. 55"
+                                                                        value={langRate.rate_amount || ''}
+                                                                        onChange={(e) => handleLanguageRateChange(serviceTypeId, langId, 'rate_amount', e.target.value)}
+                                                                        className="flex-1"
+                                                                        label="Rate ($)"
+                                                                    />
+                                                                    <Select
+                                                                        options={RATE_UNITS}
+                                                                        value={langRate.rate_unit || 'hours'}
+                                                                        onChange={(e) => handleLanguageRateChange(serviceTypeId, langId, 'rate_unit', e.target.value)}
+                                                                        className="w-32"
+                                                                        label="Per"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
                                         )}
                                     </div>

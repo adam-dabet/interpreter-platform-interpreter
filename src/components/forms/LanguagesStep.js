@@ -14,9 +14,7 @@ const customLanguagesSchema = yup.object({
     .array()
     .of(
       yup.object({
-        language_id: yup.string().required('Language is required'),
-        rate_amount: yup.string().nullable(),
-        rate_unit: yup.string().nullable()
+        language_id: yup.string().required('Language is required')
       })
     )
     .min(1, 'At least one language is required')
@@ -38,11 +36,9 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
   // Ensure all form fields have proper default values to prevent uncontrolled to controlled warnings
   const defaultValues = {
     languages: data.languages?.length > 0 ? data.languages.map(l => ({
-      language_id: l.language_id || '',
-      rate_amount: l.rate_amount != null ? String(l.rate_amount) : '',
-      rate_unit: l.rate_unit || 'hours'
+      language_id: l.language_id || ''
     })) : [
-      { language_id: '', rate_amount: '', rate_unit: 'hours' }
+      { language_id: '' }
     ]
   };
 
@@ -86,9 +82,7 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
     const validLanguages = formData.languages.filter(lang => 
       lang.language_id && lang.language_id.trim()
     ).map(lang => ({
-      language_id: lang.language_id,
-      rate_amount: lang.rate_amount,
-      rate_unit: lang.rate_unit || 'hours'
+      language_id: lang.language_id
     }));
     
     if (validLanguages.length === 0) {
@@ -96,20 +90,12 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
       return; // Don't submit if no valid languages
     }
     
-    // Build language_rates from languages that have a custom rate set (optional per-language rate)
-    const language_rates = validLanguages
-      .filter(lang => lang.rate_amount != null && String(lang.rate_amount).trim() !== '' && !isNaN(parseFloat(lang.rate_amount)))
-      .map(lang => ({
-        language_id: lang.language_id,
-        rate_amount: parseFloat(lang.rate_amount),
-        rate_unit: lang.rate_unit || 'hours'
-      }));
-    
-    onNext({ ...formData, languages: validLanguages, language_rates });
+    // Language rates are now handled in ServiceTypesStep (per service type)
+    onNext({ ...formData, languages: validLanguages });
   };
 
   const addLanguage = () => {
-    append({ language_id: '', rate_amount: '', rate_unit: 'hours' });
+    append({ language_id: '' });
   };
 
   const removeLanguage = (index) => {
@@ -211,49 +197,6 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
                     </div>
                   )}
                 />
-                <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Custom rate for this language (optional)</p>
-                  <p className="text-xs text-gray-500 mb-2">Some interpreters charge more for rarer languages. Leave blank to use your default service rates.</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Controller
-                      name={`languages.${index}.rate_amount`}
-                      control={control}
-                      render={({ field }) => (
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Rate ($)</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="e.g. 55"
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                            {...field}
-                            value={field.value ?? ''}
-                            onChange={(e) => field.onChange(e.target.value)}
-                          />
-                        </div>
-                      )}
-                    />
-                    <Controller
-                      name={`languages.${index}.rate_unit`}
-                      control={control}
-                      render={({ field }) => (
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Per</label>
-                          <select
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                            {...field}
-                            value={field.value ?? 'hours'}
-                            onChange={(e) => field.onChange(e.target.value)}
-                          >
-                            <option value="hours">hour</option>
-                            <option value="minutes">minute</option>
-                          </select>
-                        </div>
-                      )}
-                    />
-                  </div>
-                </div>
               </div>
 
               {/* Show requirement message only for the first language */}

@@ -126,6 +126,9 @@ const InterpreterProfile = () => {
         // Languages (array of objects)
         languages: [],
         
+        // Language rates (optional per-language rate overrides)
+        language_rates: [],
+        
         // Service Types (array of IDs)
         service_types: [],
         
@@ -216,6 +219,17 @@ const InterpreterProfile = () => {
             const registrationType = data.isAgency ? 'agency' : 'individual';
             setRegistrationType(registrationType);
             
+            // Merge language_rates into languages for form (each language can have rate_amount, rate_unit)
+            const languageRatesMap = (data.language_rates || []).reduce((acc, lr) => {
+                acc[lr.language_id] = lr;
+                return acc;
+            }, {});
+            const languagesWithRates = (data.languages || []).map(lang => ({
+                ...lang,
+                rate_amount: languageRatesMap[lang.language_id]?.rate_amount != null ? String(languageRatesMap[lang.language_id].rate_amount) : '',
+                rate_unit: languageRatesMap[lang.language_id]?.rate_unit || 'hours'
+            }));
+
             // Pre-fill form with imported data
             setFormData(prev => ({
                 ...prev,
@@ -230,7 +244,8 @@ const InterpreterProfile = () => {
                 state_id: data.address?.stateId || '',
                 zip_code: data.address?.zipCode || '',
                 business_name: data.businessName || '',
-                languages: data.languages || [],
+                languages: languagesWithRates,
+                language_rates: data.language_rates || [],
                 service_types: data.serviceTypes?.map(st => st.service_type_id) || [],
                 is_agency: data.isAgency || false
             }));
@@ -556,6 +571,11 @@ const InterpreterProfile = () => {
                 formDataToSubmit.append('service_types', JSON.stringify(submissionData.service_types));
             }
             
+            // Add language_rates (optional per-language rate overrides)
+            if (submissionData.language_rates && submissionData.language_rates.length > 0) {
+                formDataToSubmit.append('language_rates', JSON.stringify(submissionData.language_rates));
+            }
+            
             // Add certificate metadata if we have certificates
             if (submissionData.certificates && submissionData.certificates.length > 0) {
                 // Send the certificate metadata as JSON
@@ -599,7 +619,7 @@ const InterpreterProfile = () => {
                     submissionData[key].forEach((file, index) => {
                         formDataToSubmit.append('certificates', file);
                     });
-                } else if (key === 'languages' || key === 'service_types' || key === 'certificates' || key === 'w9_data' || key === 'w9_entry_method' || key === 'w9_file') {
+                } else if (key === 'languages' || key === 'language_rates' || key === 'service_types' || key === 'certificates' || key === 'w9_data' || key === 'w9_entry_method' || key === 'w9_file') {
                     // Already handled above
                     return;
                 } else if (submissionData[key] !== null && submissionData[key] !== undefined) {

@@ -114,6 +114,9 @@ const ProfileEdit = () => {
         // Languages (array of objects)
         languages: [],
         
+        // Language rates (optional per-language rate overrides)
+        language_rates: [],
+        
         // Service Types (array of IDs)
         service_types: [],
         
@@ -190,15 +193,26 @@ const ProfileEdit = () => {
             
             // Transform profile data to match rejection resubmission format
             // Rejection data structure: { interpreter, languages, service_types, service_rates, certificates, w9 }
+            const languageRatesMap = (profile.language_rates || []).reduce((acc, lr) => {
+                acc[lr.language_id] = lr;
+                return acc;
+            }, {});
             const transformedData = {
                 interpreter: profile,
-                languages: (profile.languages || []).map(lang => ({
-                    language_id: lang.id
-                })),
+                languages: (profile.languages || []).map(lang => {
+                    const langId = lang.id || lang.language_id;
+                    const lr = languageRatesMap[langId];
+                    return {
+                        language_id: langId,
+                        rate_amount: lr?.rate_amount != null ? String(lr.rate_amount) : '',
+                        rate_unit: lr?.rate_unit || 'hours'
+                    };
+                }),
                 service_types: (profile.service_types || []).map(st => ({
-                    service_type_id: st.id
+                    service_type_id: st.id || st.service_type_id
                 })),
                 service_rates: profile.service_rates || [],
+                language_rates: profile.language_rates || [],
                 certificates: profile.certificates || [],
                 w9: profile.w9_forms?.[0] || null
             };
@@ -206,7 +220,7 @@ const ProfileEdit = () => {
             console.log('📦 Transformed data for prefill:', transformedData);
             
             // Now use EXACT same logic as rejection resubmission (lines 184-272 from InterpreterProfile.js)
-            const { interpreter, languages, service_types, service_rates, certificates, w9 } = transformedData;
+            const { interpreter, languages, service_types, service_rates, language_rates, certificates, w9 } = transformedData;
             
             const newFormData = {
                 // Personal Information
@@ -240,11 +254,14 @@ const ProfileEdit = () => {
                 years_of_experience: interpreter.years_of_experience || '',
                 hourly_rate: interpreter.hourly_rate || '',
                 
-                // Languages - with all details
+                // Languages - with all details and optional per-language rate
                 languages: languages?.map(lang => ({
                     language_id: String(lang.language_id),
-                    is_primary: lang.is_primary || false
+                    is_primary: lang.is_primary || false,
+                    rate_amount: lang.rate_amount != null ? String(lang.rate_amount) : '',
+                    rate_unit: lang.rate_unit || 'hours'
                 })) || [],
+                language_rates: language_rates || [],
                 
                 // Service Types - as array of IDs (string format for proper selection)
                 service_types: service_types?.map(st => String(st.service_type_id)) || [],
@@ -397,6 +414,11 @@ const ProfileEdit = () => {
                 formDataToSubmit.append('service_rates', JSON.stringify(submissionData.service_rates));
             }
             
+            // Language rates (optional per-language overrides)
+            if (submissionData.language_rates && submissionData.language_rates.length > 0) {
+                formDataToSubmit.append('language_rates', JSON.stringify(submissionData.language_rates));
+            }
+            
             // Certificates metadata
             if (submissionData.certificates && submissionData.certificates.length > 0) {
                 const certificatesMetadata = submissionData.certificates.map(cert => ({
@@ -427,7 +449,7 @@ const ProfileEdit = () => {
             
             // Add all other fields
             Object.keys(submissionData).forEach(key => {
-                if (!['languages', 'service_types', 'service_rates', 'certificates', 'certificateFiles', 'w9_file', 'w9_data'].includes(key)) {
+                if (!['languages', 'language_rates', 'service_types', 'service_rates', 'certificates', 'certificateFiles', 'w9_file', 'w9_data'].includes(key)) {
                     if (key === 'w9_entry_method' && submissionData.w9_file) {
                         // Already handled above
                         return;

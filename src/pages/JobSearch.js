@@ -34,6 +34,7 @@ const JobSearch = () => {
   const [showMileagePrompt, setShowMileagePrompt] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [mileageRequested, setMileageRequested] = useState(0);
+  const [mileageRate, setMileageRate] = useState(0.72); // Federal rate cap $0.72/mile
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [searchRadius, setSearchRadius] = useState(null); // null = use profile setting
@@ -167,12 +168,13 @@ const JobSearch = () => {
     
     setMileagePromptLoading(true);
     try {
-      const response = await jobAPI.indicateAvailability(selectedJobId, mileageRequested, selectedTeamMember);
+      const response = await jobAPI.indicateAvailability(selectedJobId, mileageRequested, selectedTeamMember, mileageRequested > 0 ? mileageRate : null);
       
       toast.success('Availability indicated! The admin will review and assign interpreters.');
       setShowMileagePrompt(false);
       setSelectedJobId(null);
       setMileageRequested(0);
+      setMileageRate(0.72);
       setSelectedTeamMember(null);
       
       // Reload jobs
@@ -222,13 +224,14 @@ const JobSearch = () => {
     
     setMileagePromptLoading(true);
     try {
-      const response = await jobAPI.indicateAvailability(selectedJobId, mileageRequested, selectedTeamMember);
+      const response = await jobAPI.indicateAvailability(selectedJobId, mileageRequested, selectedTeamMember, mileageRequested > 0 ? mileageRate : null);
       
       toast.success('Availability indicated! The admin will review and assign interpreters.');
       setShowMileagePrompt(false);
       setShowTeamMemberModal(false);
       setSelectedJobId(null);
       setMileageRequested(0);
+      setMileageRate(0.72);
       setSelectedTeamMember(null);
       
       // Reload jobs
@@ -809,6 +812,7 @@ const JobSearch = () => {
                         setShowMileagePrompt(false);
                         setSelectedJobId(null);
                         setMileageRequested(0);
+                        setMileageRate(0.72);
                       }}
                       className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
                     >
@@ -839,12 +843,30 @@ const JobSearch = () => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="0"
                         />
-                        {mileageRequested > 0 && (
-                          <p className="text-sm text-gray-500 mt-1">
-                            Estimated reimbursement: ${(mileageRequested * 0.7).toFixed(2)}
-                          </p>
-                        )}
                       </div>
+                      {mileageRequested > 0 && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Mileage rate ($/mile, max $0.72 federal rate):
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="0.72"
+                            step="0.01"
+                            value={mileageRate}
+                            onChange={(e) => {
+                              const v = parseFloat(e.target.value);
+                              if (!isNaN(v)) setMileageRate(Math.min(0.72, Math.max(0, v)));
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="0.72"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">
+                            Estimated reimbursement: ${(mileageRequested * mileageRate).toFixed(2)} ({mileageRequested} mi × ${mileageRate.toFixed(2)}/mile)
+                          </p>
+                        </div>
+                      )}
 
                       <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
                         <div className="flex">

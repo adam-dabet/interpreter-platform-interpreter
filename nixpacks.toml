@@ -24,4 +24,5 @@ cmd = "node server.js"
 [variables]
 NODE_ENV = "production"
 RAILWAY_STATIC = "false"
+REACT_APP_API_URL = "https://backend.theintegritycompanyinc.com/api"
 

@@ -8,6 +8,8 @@ restartPolicyType = "always"
 [env]
 NODE_ENV = "production"
 PORT = "$PORT"
+REACT_APP_API_URL = "https://backend.theintegritycompanyinc.com/api"
+REACT_APP_GOOGLE_MAPS_API_KEY = "$REACT_APP_GOOGLE_MAPS_API_KEY"
 
 
 

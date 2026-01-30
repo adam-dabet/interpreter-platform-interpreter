@@ -234,8 +234,8 @@ const JobDashboard = () => {
     return hourlyRate * hours;
   };
 
-  // Check if job is more than 48 hours (2 days) away
-  const isJobMoreThan48HoursAway = (job) => {
+  // Check if job is more than 24 hours away
+  const isJobMoreThan24HoursAway = (job) => {
     try {
       // Check if we have the required date/time fields
       if (!job.scheduled_date || !job.scheduled_time) {
@@ -263,8 +263,7 @@ const JobDashboard = () => {
 
       const hoursUntilJob = (jobDateTime - now) / (1000 * 60 * 60);
       
-      // Unassign is only allowed if more than 48 hours (2 days) away
-      return hoursUntilJob > 48;
+      return hoursUntilJob > 24;
     } catch (error) {
       console.error('Error checking job timing:', error, {
         jobId: job.id,
@@ -294,8 +293,7 @@ const JobDashboard = () => {
     } else if (activeTab === 'completion_reports') {
       const completionReportJobs = jobs.filter(job => {
         // Show jobs that need completion reports (completed but not submitted)
-        // Only check jobs where the interpreter actually accepted the assignment
-        const needsReport = job.status === 'completed' && !job.completion_report_submitted && job.assignment_status === 'accepted';
+        const needsReport = job.status === 'completed' && !job.completion_report_submitted;
         
         if (needsReport) {
         } else {
@@ -332,7 +330,7 @@ const JobDashboard = () => {
     }).length;
 
     const completionReportsCount = jobs.filter(job => 
-      job.status === 'completed' && !job.completion_report_submitted && job.assignment_status === 'accepted'
+      job.status === 'completed' && !job.completion_report_submitted
     ).length;
 
     const pastJobsCount = jobs.filter(job => 
@@ -697,7 +695,7 @@ const JobDashboard = () => {
                           <CheckCircleIcon className="h-4 w-4 mr-1" />
                           Complete Job
                         </Button>
-                        {isJobMoreThan48HoursAway(job) ? (
+                        {isJobMoreThan24HoursAway(job) ? (
                           <Button
                             size="sm"
                             variant="outline"
@@ -713,7 +711,7 @@ const JobDashboard = () => {
                           </Button>
                         ) : (
                           <span className="text-xs text-gray-500">
-                            (Cannot unassign - less than 2 days away)
+                            (Cannot unassign - less than 24 hours away)
                           </span>
                         )}
                       </>

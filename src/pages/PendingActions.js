@@ -44,12 +44,9 @@ const PendingActions = () => {
     const now = new Date();
     
     // Overdue completion reports (>24 hours after job completion)
-    // Only check jobs where the interpreter actually accepted the assignment
     const overdueReports = jobs.filter(job => {
       if (job.status !== 'completed' || job.completion_report_submitted) return false;
       if (!job.completed_at) return false;
-      // Only check if assignment was accepted (not declined, cancelled, available, etc.)
-      if (job.assignment_status !== 'accepted') return false;
       
       const completedTime = new Date(job.completed_at);
       const hoursSinceCompletion = (now - completedTime) / (1000 * 60 * 60);
@@ -57,12 +54,9 @@ const PendingActions = () => {
     });
 
     // Completion reports due (job completed, <24 hours)
-    // Only check jobs where the interpreter actually accepted the assignment
     const reportsDue = jobs.filter(job => {
       if (job.status !== 'completed' || job.completion_report_submitted) return false;
       if (!job.completed_at) return false;
-      // Only check if assignment was accepted (not declined, cancelled, available, etc.)
-      if (job.assignment_status !== 'accepted') return false;
       
       const completedTime = new Date(job.completed_at);
       const hoursSinceCompletion = (now - completedTime) / (1000 * 60 * 60);

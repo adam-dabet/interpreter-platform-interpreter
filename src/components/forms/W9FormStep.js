@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { PencilIcon } from '@heroicons/react/24/outline';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -74,96 +74,6 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
     const [w9Data, setW9Data] = useState(getInitialW9Data());
     const [errors, setErrors] = useState({});
 
-    // Individual field validation functions
-    const validateField = (field, value) => {
-        let error = null;
-        
-        switch (field) {
-            case 'business_name':
-                if (!value?.trim()) {
-                    error = 'Name of entity/individual is required';
-                }
-                break;
-                
-            case 'tax_classification':
-                if (!value) {
-                    error = 'Federal tax classification is required';
-                }
-                break;
-                
-            case 'llc_classification':
-                if (w9Data.tax_classification === 'llc' && (!value || (typeof value === 'string' && !value.trim()))) {
-                    error = 'LLC classification is required';
-                }
-                break;
-                
-            case 'ssn':
-                // Only validate format if value is provided
-                if (value?.trim() && !/^\d{3}-\d{2}-\d{4}$/.test(value)) {
-                    error = 'SSN must be in format XXX-XX-XXXX';
-                }
-                break;
-                
-            case 'ein':
-                // Only validate format if value is provided
-                if (value?.trim() && !/^\d{2}-\d{7}$/.test(value)) {
-                    error = 'EIN must be in format XX-XXXXXXX';
-                }
-                break;
-                
-            case 'address':
-                if (!value?.trim()) {
-                    error = 'Address is required';
-                }
-                break;
-                
-            case 'city':
-                if (!value?.trim()) {
-                    error = 'City is required';
-                }
-                break;
-                
-            case 'state':
-                if (!value || (typeof value === 'string' && !value.trim())) {
-                    error = 'State is required';
-                }
-                break;
-                
-            case 'zip_code':
-                if (!value?.trim()) {
-                    error = 'ZIP code is required';
-                } else if (!/^\d{5}(-\d{4})?$/.test(value)) {
-                    error = 'ZIP code must be in format 12345 or 12345-6789';
-                }
-                break;
-                
-            case 'signature':
-                if (!value?.trim()) {
-                    error = 'Electronic signature is required';
-                }
-                break;
-                
-            case 'signature_date':
-                if (!value || (typeof value === 'string' && !value.trim())) {
-                    error = 'Signature date is required';
-                } else {
-                    const today = getTodayDate();
-                    if (value !== today) {
-                        error = 'Signature date must be today\'s date';
-                    }
-                }
-                break;
-                
-            case 'electronic_signature_acknowledgment':
-                if (!value) {
-                    error = 'Electronic signature acknowledgment is required';
-                }
-                break;
-        }
-        
-        return error;
-    };
-
     const handleW9DataChange = (field, value) => {
         let formattedValue = value;
         
@@ -207,51 +117,11 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
         
         setW9Data(prev => ({ ...prev, [field]: formattedValue }));
         
-        // Validate field immediately for format-sensitive fields (SSN, EIN, ZIP)
-        const formatSensitiveFields = ['ssn', 'ein', 'zip_code'];
-        if (formatSensitiveFields.includes(field)) {
-            // Validate after a short delay to allow formatting to complete
-            setTimeout(() => {
-                const error = validateField(field, formattedValue);
-                setErrors(prev => ({
-                    ...prev,
-                    [field]: error
-                }));
-            }, 100);
-        } else {
-            // Clear error for other fields (will validate on blur)
-            if (errors[field]) {
-                setErrors(prev => ({ ...prev, [field]: null }));
-            }
+        // Clear specific error
+        if (errors[field]) {
+            setErrors(prev => ({ ...prev, [field]: null }));
         }
     };
-
-    // Handle field blur - validate when user leaves the field
-    const handleFieldBlur = (field) => {
-        const value = w9Data[field];
-        const error = validateField(field, value);
-        setErrors(prev => ({
-            ...prev,
-            [field]: error
-        }));
-    };
-
-    // Re-validate dependent fields when tax_classification changes
-    useEffect(() => {
-        // Clear and re-validate SSN/EIN when tax classification changes
-        if (w9Data.tax_classification) {
-            const ssnError = validateField('ssn', w9Data.ssn);
-            const einError = validateField('ein', w9Data.ein);
-            const llcError = validateField('llc_classification', w9Data.llc_classification);
-            
-            setErrors(prev => ({
-                ...prev,
-                ssn: ssnError,
-                ein: einError,
-                llc_classification: llcError
-            }));
-        }
-    }, [w9Data.tax_classification, w9Data.ssn, w9Data.ein, w9Data.llc_classification]);
 
     const validateForm = () => {
         const newErrors = {};
@@ -271,19 +141,17 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
             newErrors.llc_classification = 'LLC classification is required';
         }
         
-        // TIN validation - require at least one of SSN or EIN
-        const hasSSN = w9Data.ssn?.trim() && /^\d{3}-\d{2}-\d{4}$/.test(w9Data.ssn);
-        const hasEIN = w9Data.ein?.trim() && /^\d{2}-\d{7}$/.test(w9Data.ein);
-        
-        if (!hasSSN && !hasEIN) {
-            newErrors.ssn = 'Either Social Security Number or Employer Identification Number is required';
-            newErrors.ein = 'Either Social Security Number or Employer Identification Number is required';
-        } else {
-            // Validate format if provided
-            if (w9Data.ssn?.trim() && !/^\d{3}-\d{2}-\d{4}$/.test(w9Data.ssn)) {
+        // TIN validation based on tax classification
+        if (w9Data.tax_classification === 'individual') {
+            if (!w9Data.ssn?.trim()) {
+                newErrors.ssn = 'Social Security Number is required for individual tax classification';
+            } else if (!/^\d{3}-\d{2}-\d{4}$/.test(w9Data.ssn)) {
                 newErrors.ssn = 'SSN must be in format XXX-XX-XXXX';
             }
-            if (w9Data.ein?.trim() && !/^\d{2}-\d{7}$/.test(w9Data.ein)) {
+        } else {
+            if (!w9Data.ein?.trim()) {
+                newErrors.ein = 'Employer Identification Number is required for business tax classification';
+            } else if (!/^\d{2}-\d{7}$/.test(w9Data.ein)) {
                 newErrors.ein = 'EIN must be in format XX-XXXXXXX';
             }
         }
@@ -417,7 +285,6 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                             type="text"
                             value={w9Data.business_name}
                             onChange={(e) => handleW9DataChange('business_name', e.target.value)}
-                            onBlur={() => handleFieldBlur('business_name')}
                             error={errors.business_name || (isFieldRejected('w9_business_name') ? 'This field needs to be updated' : '')}
                             placeholder="Enter your full name or business name"
                             required
@@ -437,7 +304,6 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                         type="text"
                         value={w9Data.business_name_alt || ''}
                         onChange={(e) => handleW9DataChange('business_name_alt', e.target.value)}
-                        onBlur={() => handleFieldBlur('business_name_alt')}
                         placeholder="Enter business name if different from above"
                     />
                 </div>
@@ -465,15 +331,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                     name="tax_classification"
                                     value={option.value}
                                     checked={w9Data.tax_classification === option.value}
-                                    onChange={(e) => {
-                                        handleW9DataChange('tax_classification', e.target.value);
-                                        // Re-validate SSN/EIN fields when tax classification changes
-                                        setTimeout(() => {
-                                            handleFieldBlur('ssn');
-                                            handleFieldBlur('ein');
-                                            handleFieldBlur('llc_classification');
-                                        }, 100);
-                                    }}
+                                    onChange={(e) => handleW9DataChange('tax_classification', e.target.value)}
                                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                 />
                                 <span className="ml-2 text-sm text-gray-700">{option.label}</span>
@@ -484,10 +342,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                         <div className="mt-2 ml-6">
                             <Select
                                 value={w9Data.llc_classification || ''}
-                                onChange={(e) => {
-                                    handleW9DataChange('llc_classification', e.target.value);
-                                    setTimeout(() => handleFieldBlur('llc_classification'), 100);
-                                }}
+                                onChange={(e) => handleW9DataChange('llc_classification', e.target.value)}
                                 error={errors.llc_classification}
                                 options={[
                                     { value: 'C', label: 'C Corporation' },
@@ -561,7 +416,6 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                         type="text"
                         value={w9Data.address}
                         onChange={(e) => handleW9DataChange('address', e.target.value)}
-                        onBlur={() => handleFieldBlur('address')}
                         error={errors.address || (isFieldRejected('w9_address') ? 'This field needs to be updated' : '')}
                         placeholder="Street address"
                         required
@@ -580,7 +434,6 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                 type="text"
                                 value={w9Data.city}
                                 onChange={(e) => handleW9DataChange('city', e.target.value)}
-                                onBlur={() => handleFieldBlur('city')}
                                 error={errors.city || (isFieldRejected('w9_city') ? 'This field needs to be updated' : '')}
                                 placeholder="City"
                                 required
@@ -589,11 +442,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                         <div>
                             <Select
                                 value={w9Data.state}
-                                onChange={(e) => {
-                                    handleW9DataChange('state', e.target.value);
-                                    // Validate immediately when state changes
-                                    setTimeout(() => handleFieldBlur('state'), 100);
-                                }}
+                                onChange={(e) => handleW9DataChange('state', e.target.value)}
                                 error={errors.state || (isFieldRejected('w9_state') ? 'This field needs to be updated' : '')}
                                 required
                                 options={usStates}
@@ -605,11 +454,8 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                 type="text"
                                 value={w9Data.zip_code}
                                 onChange={(e) => handleW9DataChange('zip_code', e.target.value)}
-                                onBlur={() => handleFieldBlur('zip_code')}
                                 error={errors.zip_code || (isFieldRejected('w9_zip_code') ? 'This field needs to be updated' : '')}
-                                placeholder="ZIP code (12345 or 12345-6789)"
-                                pattern="^\d{5}(-\d{4})?$"
-                                title="ZIP code must be in format 12345 or 12345-6789"
+                                placeholder="ZIP code"
                                 required
                             />
                         </div>
@@ -642,12 +488,9 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                 type="text"
                                 value={w9Data.ssn}
                                 onChange={(e) => handleW9DataChange('ssn', e.target.value)}
-                                onBlur={() => handleFieldBlur('ssn')}
                                 error={errors.ssn || (isFieldRejected('w9_ssn') ? 'This field needs to be updated' : '')}
                                 placeholder="XXX-XX-XXXX"
-                                pattern="^\d{3}-\d{2}-\d{4}$"
-                                title="SSN must be in format XXX-XX-XXXX"
-                                required={false}
+                                required={w9Data.tax_classification === 'individual'}
                             />
                         </div>
                         <div>
@@ -656,17 +499,14 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                 type="text"
                                 value={w9Data.ein}
                                 onChange={(e) => handleW9DataChange('ein', e.target.value)}
-                                onBlur={() => handleFieldBlur('ein')}
                                 error={errors.ein || (isFieldRejected('w9_ein') ? 'This field needs to be updated' : '')}
                                 placeholder="XX-XXXXXXX"
-                                pattern="^\d{2}-\d{7}$"
-                                title="EIN must be in format XX-XXXXXXX"
-                                required={false}
+                                required={w9Data.tax_classification !== 'individual'}
                             />
                         </div>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                        <strong>Note:</strong> Either SSN or EIN is required (at least one). If the account is in more than one name, see the instructions for line 1. See also What Name and Number To Give the Requester for guidelines on whose number to enter.
+                        Note: If the account is in more than one name, see the instructions for line 1. See also What Name and Number To Give the Requester for guidelines on whose number to enter.
                     </p>
                 </div>
             </div>
@@ -714,7 +554,6 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                 type="text"
                                 value={w9Data.signature || ''}
                                 onChange={(e) => handleW9DataChange('signature', e.target.value)}
-                                onBlur={() => handleFieldBlur('signature')}
                                 error={errors.signature}
                                 placeholder="Type your full name to sign"
                                 required
@@ -727,7 +566,6 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                 type="date"
                                 value={w9Data.signature_date || ''}
                                 onChange={(e) => handleW9DataChange('signature_date', e.target.value)}
-                                onBlur={() => handleFieldBlur('signature_date')}
                                 error={errors.signature_date}
                                 required
                             />
@@ -741,10 +579,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                             <input
                                 type="checkbox"
                                 checked={w9Data.electronic_signature_acknowledgment || false}
-                                onChange={(e) => {
-                                    handleW9DataChange('electronic_signature_acknowledgment', e.target.checked);
-                                    setTimeout(() => handleFieldBlur('electronic_signature_acknowledgment'), 100);
-                                }}
+                                onChange={(e) => handleW9DataChange('electronic_signature_acknowledgment', e.target.checked)}
                                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1"
                                 required
                             />

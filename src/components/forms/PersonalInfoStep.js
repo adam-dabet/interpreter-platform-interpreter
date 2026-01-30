@@ -7,9 +7,7 @@ import Checkbox from '../ui/Checkbox';
 import { personalInfoSchema } from '../../services/validationSchemas';
 import { formatPhoneNumber } from '../../utils/helpers';
 
-const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, parametricData, rejectedFields = [], registrationType }) => {
-  const isAgency = registrationType === 'agency' || data?.is_agency;
-  
+const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, parametricData, rejectedFields = [] }) => {
   // Ensure all form fields have proper default values to prevent uncontrolled to controlled warnings
   const defaultValues = {
     first_name: '',
@@ -67,112 +65,47 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
       className="space-y-6"
     >
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          {isAgency ? 'Agency Information' : 'Personal Information'}
-        </h2>
-        <p className="text-gray-600">
-          {isAgency 
-            ? "Let's start with your agency's basic contact information."
-            : "Let's start with your basic contact information."
-          }
-        </p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Personal Information</h2>
+        <p className="text-gray-600">Let's start with your basic contact information.</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {isAgency ? (
-          // Agency Registration Fields
-          <>
-            {/* Agency/Business Name (Required for agencies) */}
-            <Controller
-              name="business_name"
-              control={control}
-              render={({ field }) => (
-                <div className={isFieldRejected('business_name') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
-                  <Input
-                    {...field}
-                    label="Agency / Business Name"
-                    placeholder="Enter your agency or business name"
-                    error={errors.business_name?.message || (isFieldRejected('business_name') ? 'This field needs to be updated' : '')}
-                    required
-                  />
-                </div>
-              )}
-            />
+        {/* Name Fields */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Controller
+            name="first_name"
+            control={control}
+            render={({ field }) => (
+              <div className={isFieldRejected('first_name') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                <Input
+                  {...field}
+                  label="First Name"
+                  placeholder="Enter your first name"
+                  error={errors.first_name?.message || (isFieldRejected('first_name') ? 'This field needs to be updated' : '')}
+                  required
+                />
+              </div>
+            )}
+          />
+          
+          <Controller
+            name="last_name"
+            control={control}
+            render={({ field }) => (
+              <div className={isFieldRejected('last_name') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                <Input
+                  {...field}
+                  label="Last Name"
+                  placeholder="Enter your last name"
+                  error={errors.last_name?.message || (isFieldRejected('last_name') ? 'This field needs to be updated' : '')}
+                  required
+                />
+              </div>
+            )}
+          />
+        </div>
 
-            {/* Contact Person Name */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Controller
-                name="first_name"
-                control={control}
-                render={({ field }) => (
-                  <div className={isFieldRejected('first_name') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
-                    <Input
-                      {...field}
-                      label="Contact Person First Name"
-                      placeholder="Enter contact person's first name"
-                      error={errors.first_name?.message || (isFieldRejected('first_name') ? 'This field needs to be updated' : '')}
-                    />
-                  </div>
-                )}
-              />
-              
-              <Controller
-                name="last_name"
-                control={control}
-                render={({ field }) => (
-                  <div className={isFieldRejected('last_name') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
-                    <Input
-                      {...field}
-                      label="Contact Person Last Name"
-                      placeholder="Enter contact person's last name"
-                      error={errors.last_name?.message || (isFieldRejected('last_name') ? 'This field needs to be updated' : '')}
-                    />
-                  </div>
-                )}
-              />
-            </div>
-          </>
-        ) : (
-          // Individual Registration Fields
-          <>
-            {/* Name Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Controller
-                name="first_name"
-                control={control}
-                render={({ field }) => (
-                  <div className={isFieldRejected('first_name') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
-                    <Input
-                      {...field}
-                      label="First Name"
-                      placeholder="Enter your first name"
-                      error={errors.first_name?.message || (isFieldRejected('first_name') ? 'This field needs to be updated' : '')}
-                      required
-                    />
-                  </div>
-                )}
-              />
-              
-              <Controller
-                name="last_name"
-                control={control}
-                render={({ field }) => (
-                  <div className={isFieldRejected('last_name') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
-                    <Input
-                      {...field}
-                      label="Last Name"
-                      placeholder="Enter your last name"
-                      error={errors.last_name?.message || (isFieldRejected('last_name') ? 'This field needs to be updated' : '')}
-                      required
-                    />
-                  </div>
-                )}
-              />
-            </div>
-          </>
-        )}
-
-        {/* Contact Information - Common for both */}
+        {/* Contact Information */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Controller
             name="email"
@@ -182,7 +115,7 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
                 <Input
                   {...field}
                   type="email"
-                  label={isAgency ? "Contact Email" : "Email Address"}
+                  label="Email Address"
                   placeholder="your.email@example.com"
                   error={errors.email?.message || (isFieldRejected('email') ? 'This field needs to be updated' : '')}
                   required
@@ -210,45 +143,40 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
           />
         </div>
 
-        {/* Fields only for Individual */}
-        {!isAgency && (
-          <>
-            {/* Date of Birth and Business Name */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Controller
-                name="date_of_birth"
-                control={control}
-                render={({ field }) => (
-                  <div className={isFieldRejected('date_of_birth') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
-                    <Input
-                      {...field}
-                      type="date"
-                      label="Date of Birth"
-                      error={errors.date_of_birth?.message || (isFieldRejected('date_of_birth') ? 'This field needs to be updated' : '')}
-                      helper="Optional - helps us verify your identity"
-                    />
-                  </div>
-                )}
-              />
-              
-              <Controller
-                name="business_name"
-                control={control}
-                render={({ field }) => (
-                  <div className={isFieldRejected('business_name') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
-                    <Input
-                      {...field}
-                      label="Business Name"
-                      placeholder="Your Business Name (optional)"
-                      error={errors.business_name?.message || (isFieldRejected('business_name') ? 'This field needs to be updated' : '')}
-                      helper="If you operate as a business entity"
-                    />
-                  </div>
-                )}
-              />
-            </div>
-          </>
-        )}
+        {/* Date of Birth and Business Name */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Controller
+            name="date_of_birth"
+            control={control}
+            render={({ field }) => (
+              <div className={isFieldRejected('date_of_birth') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                <Input
+                  {...field}
+                  type="date"
+                  label="Date of Birth"
+                  error={errors.date_of_birth?.message || (isFieldRejected('date_of_birth') ? 'This field needs to be updated' : '')}
+                  helper="Optional - helps us verify your identity"
+                />
+              </div>
+            )}
+          />
+          
+          <Controller
+            name="business_name"
+            control={control}
+            render={({ field }) => (
+              <div className={isFieldRejected('business_name') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                <Input
+                  {...field}
+                  label="Business Name"
+                  placeholder="Your Business Name (optional)"
+                  error={errors.business_name?.message || (isFieldRejected('business_name') ? 'This field needs to be updated' : '')}
+                  helper="If you operate as a business entity"
+                />
+              </div>
+            )}
+          />
+        </div>
 
         {/* SMS Consent Notice */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -268,15 +196,6 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
             )}
           />
         </div>
-
-        {/* Agency Info Box */}
-        {isAgency && (
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <p className="text-sm text-purple-800">
-              <strong>Note:</strong> After your agency is approved, you'll be able to add individual interpreters to your roster from your dashboard.
-            </p>
-          </div>
-        )}
 
         {/* Navigation Buttons */}
         <div className="flex justify-end pt-6">

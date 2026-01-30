@@ -16,7 +16,6 @@ import {
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
-import { interpreterAPI } from '../services/api';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
@@ -34,14 +33,10 @@ const JobSearch = () => {
   const [showMileagePrompt, setShowMileagePrompt] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [mileageRequested, setMileageRequested] = useState(0);
-  const [mileageRate, setMileageRate] = useState(0.72); // Federal rate cap $0.72/mile
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [searchRadius, setSearchRadius] = useState(null); // null = use profile setting
   const [tempRadius, setTempRadius] = useState(null); // For slider drag preview
-  const [showTeamMemberModal, setShowTeamMemberModal] = useState(false);
-  const [selectedTeamMember, setSelectedTeamMember] = useState(null);
-  const [teamMembers, setTeamMembers] = useState([]);
   const [filters, setFilters] = useState({
     language: '',
     service_type: '',
@@ -54,23 +49,6 @@ const JobSearch = () => {
   useEffect(() => {
     loadJobs();
   }, [filters, currentPage, searchRadius]);
-
-  useEffect(() => {
-    if (profile?.is_agency) {
-      loadTeamMembers();
-    }
-  }, [profile]);
-
-  const loadTeamMembers = async () => {
-    try {
-      const response = await interpreterAPI.getAgencyMembers();
-      if (response.data.success) {
-        setTeamMembers(response.data.data.members || []);
-      }
-    } catch (error) {
-      console.error('Error loading team members:', error);
-    }
-  };
 
   const loadJobs = async () => {
     try {
@@ -159,23 +137,14 @@ const JobSearch = () => {
   const handleMileageSubmit = async () => {
     if (!selectedJobId) return;
     
-    // If agency with team members, show team member selection
-    if (profile?.is_agency && teamMembers.length > 0) {
-      setShowMileagePrompt(false);
-      setShowTeamMemberModal(true);
-      return;
-    }
-    
     setMileagePromptLoading(true);
     try {
-      const response = await jobAPI.indicateAvailability(selectedJobId, mileageRequested, selectedTeamMember, mileageRequested > 0 ? mileageRate : null);
+      const response = await jobAPI.indicateAvailability(selectedJobId, mileageRequested);
       
       toast.success('Availability indicated! The admin will review and assign interpreters.');
       setShowMileagePrompt(false);
       setSelectedJobId(null);
       setMileageRequested(0);
-      setMileageRate(0.72);
-      setSelectedTeamMember(null);
       
       // Reload jobs
       loadJobs();
@@ -190,49 +159,14 @@ const JobSearch = () => {
   const handleNoMileage = async () => {
     if (!selectedJobId) return;
     
-    setMileageRequested(0);
-    
-    // If agency with team members, show team member selection
-    if (profile?.is_agency && teamMembers.length > 0) {
-      setShowMileagePrompt(false);
-      setShowTeamMemberModal(true);
-      return;
-    }
-    
     setMileagePromptLoading(true);
     try {
-      const response = await jobAPI.indicateAvailability(selectedJobId, 0, selectedTeamMember);
+      const response = await jobAPI.indicateAvailability(selectedJobId, 0);
       
       toast.success('Availability indicated! The admin will review and assign interpreters.');
       setShowMileagePrompt(false);
       setSelectedJobId(null);
       setMileageRequested(0);
-      setSelectedTeamMember(null);
-      
-      // Reload jobs
-      loadJobs();
-    } catch (error) {
-      console.error('Error indicating availability:', error);
-      toast.error(`Failed to indicate availability: ${error.response?.data?.message || error.message}`);
-    } finally {
-      setMileagePromptLoading(false);
-    }
-  };
-
-  const confirmAvailability = async () => {
-    if (!selectedJobId || !selectedTeamMember) return;
-    
-    setMileagePromptLoading(true);
-    try {
-      const response = await jobAPI.indicateAvailability(selectedJobId, mileageRequested, selectedTeamMember, mileageRequested > 0 ? mileageRate : null);
-      
-      toast.success('Availability indicated! The admin will review and assign interpreters.');
-      setShowMileagePrompt(false);
-      setShowTeamMemberModal(false);
-      setSelectedJobId(null);
-      setMileageRequested(0);
-      setMileageRate(0.72);
-      setSelectedTeamMember(null);
       
       // Reload jobs
       loadJobs();
@@ -727,12 +661,7 @@ const JobSearch = () => {
                                 rate => rate.service_type_id === job.service_type_id
                               );
                               if (serviceRate && serviceRate.rate_amount && serviceRate.rate_unit) {
-                                const unitDisplay = serviceRate.rate_unit === 'minutes' ? 'min' : 
-                                                  serviceRate.rate_unit === 'word' ? 'word' : 
-                                                  serviceRate.rate_unit === '3hours' ? '3hr' : 
-                                                  serviceRate.rate_unit === '6hours' ? '6hr' : 
-                                                  serviceRate.rate_unit;
-                                return `${formatCurrency(serviceRate.rate_amount)}/${unitDisplay}`;
+                                return `${formatCurrency(serviceRate.rate_amount)}/${serviceRate.rate_unit}`;
                               }
                               if (job.hourly_rate) {
                                 return `${formatCurrency(job.hourly_rate)}/hour`;
@@ -812,7 +741,6 @@ const JobSearch = () => {
                         setShowMileagePrompt(false);
                         setSelectedJobId(null);
                         setMileageRequested(0);
-                        setMileageRate(0.72);
                       }}
                       className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
                     >
@@ -843,30 +771,12 @@ const JobSearch = () => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="0"
                         />
-                      </div>
-                      {mileageRequested > 0 && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Mileage rate ($/mile, max $0.72 federal rate):
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="0.72"
-                            step="0.01"
-                            value={mileageRate}
-                            onChange={(e) => {
-                              const v = parseFloat(e.target.value);
-                              if (!isNaN(v)) setMileageRate(Math.min(0.72, Math.max(0, v)));
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="0.72"
-                          />
+                        {mileageRequested > 0 && (
                           <p className="text-sm text-gray-500 mt-1">
-                            Estimated reimbursement: ${(mileageRequested * mileageRate).toFixed(2)} ({mileageRequested} mi × ${mileageRate.toFixed(2)}/mile)
+                            Estimated reimbursement: ${(mileageRequested * 0.7).toFixed(2)}
                           </p>
-                        </div>
-                      )}
+                        )}
+                      </div>
 
                       <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
                         <div className="flex">
@@ -899,67 +809,6 @@ const JobSearch = () => {
                           {mileagePromptLoading ? 'Submitting...' : 'Request Mileage'}
                         </button>
                       </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Team Member Selection Modal */}
-              {showTeamMemberModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                  <div className="bg-white rounded-lg max-w-md w-full p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                      Select Team Member
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Which team member will perform this job?
-                    </p>
-                    
-                    <div className="space-y-2 max-h-64 overflow-y-auto mb-6">
-                      {teamMembers.map(member => (
-                        <label
-                          key={member.id}
-                          className="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                        >
-                          <input
-                            type="radio"
-                            name="team_member"
-                            value={member.id}
-                            checked={selectedTeamMember === member.id}
-                            onChange={(e) => setSelectedTeamMember(parseInt(e.target.value))}
-                            className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
-                          />
-                          <div className="ml-3">
-                            <p className="text-sm font-medium text-gray-900">
-                              {member.first_name} {member.last_name}
-                            </p>
-                            {member.languages && member.languages !== 'N/A' && (
-                              <p className="text-xs text-gray-500">{member.languages}</p>
-                            )}
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-
-                    <div className="flex space-x-3">
-                      <button
-                        onClick={() => {
-                          setShowTeamMemberModal(false);
-                          setShowMileagePrompt(true);
-                          setSelectedTeamMember(null);
-                        }}
-                        disabled={mileagePromptLoading}
-                        className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        Back
-                      </button>
-                      <button
-                        onClick={confirmAvailability}
-                        disabled={mileagePromptLoading || !selectedTeamMember}
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {mileagePromptLoading ? 'Submitting...' : 'Indicate Available'}
-                      </button>
                     </div>
                   </div>
                 </div>

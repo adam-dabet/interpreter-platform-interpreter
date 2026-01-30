@@ -131,9 +131,8 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, par
             onUpdate(updatedData);
         }
 
-        // Clear validation ONLY when street_address changes, not when street_address_2 changes
-        // This allows users to add/remove apartment numbers without invalidating the address
-        if (field === 'street_address' && validationResult) {
+        // Clear validation when user starts typing
+        if (validationResult) {
             setValidationResult(null);
         }
 
@@ -608,12 +607,12 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, par
 
                 <div className={isFieldRejected('street_address_2') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
                     <Input
-                        label="Apartment Number (Optional)"
+                        label="Address Line 2 (Optional)"
                         type="text"
                         value={addressData.street_address_2}
                         onChange={(e) => handleInputChange('street_address_2', e.target.value)}
                         error={isFieldRejected('street_address_2') ? 'This field needs to be updated' : ''}
-                        placeholder="Apt, Suite, Unit, etc."
+                        placeholder="Apartment, suite, unit, etc."
                     />
                 </div>
             </div>

@@ -15,20 +15,16 @@ import {
   PhoneIcon,
   EnvelopeIcon,
   PlayIcon,
-  StopIcon,
-  ExclamationTriangleIcon,
-  DocumentTextIcon
+  StopIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
-import { interpreterAPI } from '../services/api';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import InterpreterJobWorkflow from '../components/InterpreterJobWorkflow';
-import AppointmentChangeModal from '../components/AppointmentChangeModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useJobRestrictions } from '../contexts/JobRestrictionContext';
-import { formatDate, formatTime, formatCurrency, getTimeUntilJob, parseLocalDate } from '../utils/dateUtils';
+import { formatDate, formatTime, formatCurrency, getTimeUntilJob } from '../utils/dateUtils';
 
 const LAST_LIST_ROUTE_KEY = 'interpreterLastJobListRoute';
 const DEFAULT_RETURN_PATH = '/jobs';
@@ -48,11 +44,6 @@ const JobDetails = () => {
   const [showMileagePrompt, setShowMileagePrompt] = useState(false);
   const [mileageRequested, setMileageRequested] = useState(0);
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
-  const [showAppointmentChangeModal, setShowAppointmentChangeModal] = useState(false);
-  const [appointmentChanges, setAppointmentChanges] = useState(null);
-  const [showTeamMemberModal, setShowTeamMemberModal] = useState(false);
-  const [selectedTeamMember, setSelectedTeamMember] = useState(null);
-  const [teamMembers, setTeamMembers] = useState([]);
 
   const getStoredReturnPath = useCallback(() => {
     const statePath = location.state?.returnTo;
@@ -76,50 +67,7 @@ const JobDetails = () => {
 
   useEffect(() => {
     loadJobDetails();
-    if (profile?.is_agency) {
-      loadTeamMembers();
-    }
-  }, [jobId, profile]);
-
-  const loadTeamMembers = async () => {
-    try {
-      const response = await interpreterAPI.getAgencyMembers();
-      if (response.data.success) {
-        setTeamMembers(response.data.data.members || []);
-      }
-    } catch (error) {
-      console.error('Error loading team members:', error);
-    }
-  };
-
-  // Check for appointment change notification from push
-  useEffect(() => {
-    if (location.state?.showAppointmentChange && job) {
-      const changes = location.state.changes;
-      const jobWithChanges = {
-        ...job,
-        newDate: location.state.newDate,
-        newTime: location.state.newTime,
-        newDuration: location.state.newDuration
-      };
-      setAppointmentChanges(changes);
-      setShowAppointmentChangeModal(true);
-      // Clear the state
-      window.history.replaceState({}, document.title);
-    }
-  }, [job, location.state]);
-
-  // Auto-show modal if job has pending schedule change confirmation
-  useEffect(() => {
-    if (job && 
-        job.confirmation_status === 'pending' && 
-        job.confirmation_reason === 'schedule_change' &&
-        !sessionStorage.getItem(`appointment_change_shown_${job.id}`)) {
-      // Show modal with changes
-      setShowAppointmentChangeModal(true);
-      sessionStorage.setItem(`appointment_change_shown_${job.id}`, 'true');
-    }
-  }, [job]);
+  }, [jobId]);
 
   const loadJobDetails = async () => {
     try {
@@ -132,45 +80,6 @@ const JobDetails = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Helper function to get user's current location
-  const getCurrentLocation = () => {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error('Geolocation is not supported by your browser'));
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          resolve({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          });
-        },
-        (error) => {
-          let errorMessage = 'Unable to retrieve your location';
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage = 'Location access denied. Please enable location services to start non-remote jobs.';
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMessage = 'Location information is unavailable.';
-              break;
-            case error.TIMEOUT:
-              errorMessage = 'Location request timed out. Please try again.';
-              break;
-          }
-          reject(new Error(errorMessage));
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        }
-      );
-    });
   };
 
   const handleJobAction = async (action, data = {}) => {
@@ -194,23 +103,7 @@ const JobDetails = () => {
           toast.success('Job declined');
           break;
         case 'start':
-          // For non-remote jobs, we need location data
-          let locationData = {};
-          if (job && !job.is_remote) {
-            try {
-              const location = await getCurrentLocation();
-              locationData = {
-                latitude: location.latitude,
-                longitude: location.longitude
-              };
-            } catch (locationError) {
-              toast.error(locationError.message || 'Failed to get location');
-              setActionLoading(false);
-              return;
-            }
-          }
-          
-          response = await jobAPI.startJob(jobId, locationData);
+          response = await jobAPI.startJob(jobId);
           toast.success('Job started successfully!');
           // Reload job details to show updated status
           await loadJobDetails();
@@ -273,20 +166,15 @@ const JobDetails = () => {
     if (!job.is_remote) {
       setShowMileagePrompt(true);
     } else {
-      // For remote jobs, check if agency with team members
-      if (profile?.is_agency && teamMembers.length > 0) {
-        setShowTeamMemberModal(true);
-      } else {
-        // Indicate availability directly for non-agencies or agencies without team members
-        confirmAvailability(0);
-      }
+      // For remote jobs, indicate availability directly
+      confirmAvailability(0);
     }
   };
   
   const confirmAvailability = async (mileage) => {
     try {
       setMileagePromptLoading(true);
-      const response = await jobAPI.indicateAvailability(jobId, parseFloat(mileage) || 0, selectedTeamMember);
+      const response = await jobAPI.indicateAvailability(jobId, parseFloat(mileage) || 0);
       
       // Check if auto-assigned as preferred provider
       if (response.data?.auto_assigned) {
@@ -302,9 +190,7 @@ const JobDetails = () => {
       }
       
       setShowMileagePrompt(false);
-      setShowTeamMemberModal(false);
       setMileageRequested(0);
-      setSelectedTeamMember(null);
       await loadJobDetails();
     } catch (error) {
       console.error('Error indicating availability:', error);
@@ -331,128 +217,59 @@ const JobDetails = () => {
     }
   };
 
-  const submitJobAcceptance = async () => {
-    try {
-      setMileagePromptLoading(true);
-      const response = await jobAPI.acceptJob(jobId, {
-        agreed_rate: job.hourly_rate,
-        mileage_requested: mileageRequested || 0,
-        team_member_id: selectedTeamMember
-      });
-      
-      if (response.data.success) {
-        if (mileageRequested > 0) {
-          toast.success('Job accepted! Your mileage request has been submitted for approval.');
-        } else {
-          toast.success('Job accepted successfully!');
-        }
-        setShowMileagePrompt(false);
-        setShowTeamMemberModal(false);
-        setMileageRequested(0);
-        setSelectedTeamMember(null);
-        navigateBackToPreviousPage();
-      } else {
-        toast.error(response.data.message || 'Failed to accept job');
-      }
-    } catch (error) {
-      console.error('Error accepting job:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to accept job';
-      toast.error(errorMessage);
-    } finally {
-      setMileagePromptLoading(false);
-    }
-  };
-
   const handleMileageSubmit = async () => {
-    // For job acceptance flow
-    if (job.status !== 'finding_interpreter') {
-      // Double-check restriction before submitting
-      if (!canAcceptJobs()) {
-        showJobAcceptanceBlocked();
-        return;
-      }
-      
-      // If agency with team members, show team member selection
-      if (profile?.is_agency && teamMembers.length > 0) {
-        setShowMileagePrompt(false);
-        setShowTeamMemberModal(true);
-        return;
-      }
-      
-      setMileagePromptLoading(true);
-      try {
-        await submitJobAcceptance();
-      } catch (error) {
-        console.error('Error submitting job acceptance:', error);
-        toast.error(`Failed to submit: ${error.response?.data?.message || error.message}`);
-      } finally {
-        setMileagePromptLoading(false);
-      }
-      return;
-    }
-    
-    // For availability indication flow
-    if (profile?.is_agency && teamMembers.length > 0) {
-      setShowMileagePrompt(false);
-      setShowTeamMemberModal(true);
+    // Double-check restriction before submitting
+    if (!canAcceptJobs()) {
+      showJobAcceptanceBlocked();
       return;
     }
     
     setMileagePromptLoading(true);
     try {
-      await confirmAvailability(mileageRequested);
+      // Check if this is for availability indication or job acceptance
+      if (job.status === 'finding_interpreter') {
+        await confirmAvailability(mileageRequested);
+      } else {
+        const response = await jobAPI.acceptJob(jobId, { 
+          mileage_requested: mileageRequested 
+        });
+        
+        toast.success('Job accepted successfully! Your mileage request is pending admin approval.');
+        setShowMileagePrompt(false);
+        setMileageRequested(0);
+        navigateBackToPreviousPage();
+      }
     } catch (error) {
-      console.error('Error indicating availability:', error);
-      toast.error(`Failed to indicate availability: ${error.response?.data?.message || error.message}`);
+      console.error('Error submitting mileage request:', error);
+      toast.error(`Failed to submit mileage request: ${error.response?.data?.message || error.message}`);
     } finally {
       setMileagePromptLoading(false);
     }
   };
 
   const handleNoMileage = async () => {
-    // Reset mileage to 0
-    setMileageRequested(0);
-    
-    // For job acceptance flow
-    if (job.status !== 'finding_interpreter') {
-      // Double-check restriction before submitting
-      if (!canAcceptJobs()) {
-        showJobAcceptanceBlocked();
-        return;
-      }
-      
-      // If agency with team members, show team member selection
-      if (profile?.is_agency && teamMembers.length > 0) {
-        setShowMileagePrompt(false);
-        setShowTeamMemberModal(true);
-        return;
-      }
-      
-      setMileagePromptLoading(true);
-      try {
-        await submitJobAcceptance();
-      } catch (error) {
-        console.error('Error accepting job:', error);
-        toast.error(`Failed to accept job: ${error.response?.data?.message || error.message}`);
-      } finally {
-        setMileagePromptLoading(false);
-      }
-      return;
-    }
-    
-    // For availability indication flow
-    if (profile?.is_agency && teamMembers.length > 0) {
-      setShowMileagePrompt(false);
-      setShowTeamMemberModal(true);
+    // Double-check restriction before submitting
+    if (!canAcceptJobs()) {
+      showJobAcceptanceBlocked();
       return;
     }
     
     setMileagePromptLoading(true);
     try {
-      await confirmAvailability(0);
+      // Check if this is for availability indication or job acceptance
+      if (job.status === 'finding_interpreter') {
+        await confirmAvailability(0);
+      } else {
+        const response = await jobAPI.acceptJob(jobId, {});
+        
+        toast.success('Job accepted successfully!');
+        setShowMileagePrompt(false);
+        setMileageRequested(0);
+        navigateBackToPreviousPage();
+      }
     } catch (error) {
-      console.error('Error indicating availability:', error);
-      toast.error(`Failed to indicate availability: ${error.response?.data?.message || error.message}`);
+      console.error('Error accepting job:', error);
+      toast.error(`Failed to accept job: ${error.response?.data?.message || error.message}`);
     } finally {
       setMileagePromptLoading(false);
     }
@@ -460,34 +277,60 @@ const JobDetails = () => {
 
   // Date/time formatting functions imported from utils/dateUtils.js
 
-  // Payment breakdown from backend (same logic as admin portal)
-  const [paymentBreakdown, setPaymentBreakdown] = useState(null);
-
-  useEffect(() => {
-    if (job?.id && (job.actual_duration_minutes > 0 || job.estimated_duration_minutes > 0)) {
-      fetchPaymentCalculation();
-    }
-  }, [job?.id, job?.actual_duration_minutes, job?.estimated_duration_minutes]);
-
-  const fetchPaymentCalculation = async () => {
-    try {
-      const response = await jobAPI.getPaymentCalculation(job.id);
-      if (response.data.success && response.data.data.paymentBreakdown) {
-        setPaymentBreakdown(response.data.data.paymentBreakdown);
-      }
-    } catch (error) {
-      console.error('Error fetching payment calculation:', error);
-    }
-  };
-
   const calculateEarnings = (job) => {
-    // Use backend-calculated payment (matches admin portal)
-    if (paymentBreakdown) {
-      return paymentBreakdown.totalPayment;
+    // Priority 1: Use interpreter_paid_amount if job is marked as paid
+    if (job?.interpreter_paid_amount && (job?.status === 'interpreter_paid' || job?.interpreter_paid_at)) {
+      return parseFloat(job.interpreter_paid_amount);
+    }
+
+    // Priority 2: Use estimated_earnings from backend (includes billing increments, minimum hours, and mileage)
+    if (job?.estimated_earnings) {
+      return parseFloat(job.estimated_earnings);
+    }
+
+    // Priority 3: Use calculated_total_payment from backend
+    if (job?.calculated_total_payment) {
+      return parseFloat(job.calculated_total_payment);
+    }
+
+    // Fallback: Calculate locally
+    let basePayment = 0;
+    
+    // If interpreter has custom service rates, calculate based on those
+    if (profile?.service_rates && job.estimated_duration_minutes) {
+      const serviceRate = profile.service_rates.find(
+        rate => rate.service_type_id === job.service_type_id
+      );
+      
+      if (serviceRate && serviceRate.rate_amount) {
+        const hours = job.estimated_duration_minutes / 60;
+        
+        if (serviceRate.rate_unit === 'minutes') {
+          basePayment = serviceRate.rate_amount * job.estimated_duration_minutes;
+        } else {
+          basePayment = serviceRate.rate_amount * hours;
+        }
+      }
+    }
+
+    // Otherwise, use the job's total_amount (calculated by backend) if it's greater than 0
+    if (basePayment === 0) {
+      const totalAmount = parseFloat(job.total_amount) || 0;
+      if (totalAmount > 0) {
+        basePayment = totalAmount;
+      }
+    }
+
+    // Fallback: calculate from hourly rate and duration
+    if (basePayment === 0 && job.hourly_rate && job.estimated_duration_minutes) {
+      const hours = job.estimated_duration_minutes / 60;
+      basePayment = parseFloat(job.hourly_rate) * hours;
     }
     
-    // Fallback while loading
-    return parseFloat(job.total_amount) || 0;
+    // Add mileage reimbursement if available
+    const mileageReimbursement = parseFloat(job.mileage_reimbursement) || 0;
+    
+    return basePayment + mileageReimbursement;
   };
 
   const getPriorityColor = (priority) => {
@@ -498,48 +341,6 @@ const JobDetails = () => {
       case 'low': return 'text-gray-600 bg-gray-100';
       default: return 'text-gray-600 bg-gray-100';
     }
-  };
-
-  // Check if job is in less than 2 days (48 hours)
-  const isJobInLessThan2Days = (job) => {
-    if (!job.scheduled_date || !job.scheduled_time) return false;
-    
-    const jobDate = parseLocalDate(job.scheduled_date);
-    if (!jobDate) return false;
-    
-    // Parse the scheduled time and set it on the job date
-    const timeParts = job.scheduled_time.split(':');
-    const hours = parseInt(timeParts[0], 10);
-    const minutes = parseInt(timeParts[1], 10);
-    jobDate.setHours(hours, minutes, 0, 0);
-    
-    const now = new Date();
-    const hoursUntilJob = (jobDate - now) / (1000 * 60 * 60);
-    
-    // Return true if less than 48 hours (2 days) away
-    return hoursUntilJob >= 0 && hoursUntilJob < 48;
-  };
-
-  // Check if interpreter can start the job (within 2 hours before appointment)
-  const canStartJob = (job) => {
-    if (!job.scheduled_date || !job.scheduled_time) return false;
-    
-    const jobDate = parseLocalDate(job.scheduled_date);
-    if (!jobDate) return false;
-    
-    // Use arrival_time if available, otherwise use scheduled_time
-    const timeToUse = job.arrival_time || job.scheduled_time;
-    const timeParts = timeToUse.split(':');
-    const hours = parseInt(timeParts[0], 10);
-    const minutes = parseInt(timeParts[1], 10);
-    jobDate.setHours(hours, minutes, 0, 0);
-    
-    const now = new Date();
-    const hoursUntilJob = (jobDate - now) / (1000 * 60 * 60);
-    
-    // Can start job only within 2 hours before the appointment time
-    // Allow up to 12 hours after for jobs that are running late
-    return hoursUntilJob <= 2 && hoursUntilJob >= -12;
   };
 
   if (loading) {
@@ -603,47 +404,6 @@ const JobDetails = () => {
             </div>
           </div>
         </motion.div>
-
-        {/* Next Steps - Submit Completion Report (Prominent when job is completed) */}
-        {job.status === 'completed' && !job.completion_report_submitted && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-orange-50 border-2 border-orange-300 rounded-lg p-6 shadow-sm mb-6"
-          >
-            <div className="flex items-start mb-2">
-              <ExclamationTriangleIcon className="h-6 w-6 text-orange-600 mr-3 flex-shrink-0 mt-1" />
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-orange-900 mb-1">Next Steps</h3>
-                <p className="text-xl font-semibold text-orange-800">Submit Completion Report</p>
-              </div>
-            </div>
-            <p className="text-sm text-orange-700 text-center mb-4">
-              Your job is complete! Please submit your completion report to finalize this assignment and ensure timely payment.
-            </p>
-            <div className="flex justify-center">
-              <button
-                onClick={() => {
-                  // Scroll to the workflow section where the completion report form is
-                  const workflowElement = document.getElementById('job-workflow-section');
-                  if (workflowElement) {
-                    workflowElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }
-                  // Trigger the completion report modal if it exists in the workflow
-                  const completionReportButton = document.querySelector('[data-completion-report-trigger]');
-                  if (completionReportButton) {
-                    completionReportButton.click();
-                  }
-                }}
-                className="flex items-center justify-center px-8 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
-              >
-                <DocumentTextIcon className="h-5 w-5 mr-2" />
-                Submit Completion Report Now
-              </button>
-            </div>
-          </motion.div>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
@@ -969,12 +729,6 @@ const JobDetails = () => {
                               if (serviceRate && serviceRate.rate_amount && serviceRate.rate_unit) {
                                 if (serviceRate.rate_unit === 'minutes') {
                                   return `${formatCurrency(serviceRate.rate_amount)}/min × ${job.estimated_duration_minutes} min = ${formatCurrency(serviceRate.rate_amount * job.estimated_duration_minutes)}`;
-                                } else if (serviceRate.rate_unit === '3hours') {
-                                  const blocks = Math.ceil(hours / 3);
-                                  return `${formatCurrency(serviceRate.rate_amount)}/3hr × ${blocks} block(s) = ${formatCurrency(serviceRate.rate_amount * blocks)}`;
-                                } else if (serviceRate.rate_unit === '6hours') {
-                                  const blocks = Math.ceil(hours / 6);
-                                  return `${formatCurrency(serviceRate.rate_amount)}/6hr × ${blocks} block(s) = ${formatCurrency(serviceRate.rate_amount * blocks)}`;
                                 } else {
                                   return `${formatCurrency(serviceRate.rate_amount)}/hour × ${hours.toFixed(1)} hours = ${formatCurrency(serviceRate.rate_amount * hours)}`;
                                 }
@@ -1008,36 +762,6 @@ const JobDetails = () => {
               </div>
             </motion.div>
 
-            {/* Assigned Team Member Info (for agencies) */}
-            {profile?.is_agency && job.assigned_interpreter_id && job.team_member_first_name && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.45 }}
-                className="bg-white rounded-lg shadow-sm border p-6"
-              >
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <UserIcon className="h-5 w-5 mr-2 text-blue-600" />
-                  Assigned Team Member
-                </h3>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center">
-                    <div className="bg-blue-600 p-2 rounded-full mr-3">
-                      <UserIcon className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-base font-semibold text-gray-900">
-                        {job.team_member_first_name} {job.team_member_last_name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Team member performing this job
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
             {/* Action Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -1046,7 +770,7 @@ const JobDetails = () => {
               className="bg-white rounded-lg shadow-sm border p-6"
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                {job.assignment_status || (job.status === 'assigned' && job.assigned_interpreter_id && profile?.id !== job.assigned_interpreter_id) ? 'Status' : 'Actions'}
+                {job.assignment_status ? 'Status' : 'Actions'}
               </h3>
               <div className="space-y-3">
                 {job.status === 'finding_interpreter' && !job.assignment_status && (
@@ -1107,73 +831,55 @@ const JobDetails = () => {
                 )}
                 
                 {job.status === 'assigned' && job.assigned_interpreter_id ? (
-                  // Check if the current interpreter is the one assigned
-                  profile?.id === job.assigned_interpreter_id ? (
-                    <div className="text-center py-4">
-                      {job.confirmation_status === 'pending' ? (
-                        <div>
-                          <div className="text-lg font-semibold text-orange-600 mb-2">
-                            ⚠️ Availability Confirmation Required
-                          </div>
-                          <p className="text-sm text-gray-500 mb-4">
-                            Please confirm if you can still make this appointment.
-                          </p>
-                          <div className="space-y-2">
-                            <Button
-                              className="w-full"
-                              onClick={() => setShowConfirmationModal(true)}
-                              disabled={confirmationLoading}
-                            >
-                              <CheckCircleIcon className="h-4 w-4 mr-2" />
-                              Confirm Availability
-                            </Button>
-                          </div>
+                  <div className="text-center py-4">
+                    {job.confirmation_status === 'pending' ? (
+                      <div>
+                        <div className="text-lg font-semibold text-orange-600 mb-2">
+                          ⚠️ Availability Confirmation Required
                         </div>
-                      ) : job.confirmation_status === 'confirmed' ? (
-                        <div>
-                          <div className="text-lg font-semibold text-green-600 mb-2">
-                            ✓ Availability Confirmed
-                          </div>
-                          <p className="text-sm text-gray-500">
-                            You have confirmed you can make the appointment
-                          </p>
-                        </div>
-                      ) : job.confirmation_status === 'declined' ? (
-                        <div>
-                          <div className="text-lg font-semibold text-red-600 mb-2">
-                            ✗ Availability Declined
-                          </div>
-                          <p className="text-sm text-gray-500">
-                            You have declined this appointment
-                          </p>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="text-lg font-semibold text-green-600 mb-2">
-                            ✓ Job Accepted
-                          </div>
-                          <p className="text-sm text-gray-500">
-                            This job has been assigned to you
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    // Job is assigned to someone else
-                    <div className="p-5 bg-amber-50 border-2 border-amber-200 rounded-lg">
-                      <div className="flex items-start">
-                        <UserIcon className="h-6 w-6 text-amber-600 mr-3 flex-shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <p className="text-base font-semibold text-amber-900 mb-1">
-                            This job is assigned to another interpreter
-                          </p>
-                          <p className="text-sm text-amber-800">
-                            You are viewing this job for reference only. You cannot accept, start, or take any action on it.
-                          </p>
+                        <p className="text-sm text-gray-500 mb-4">
+                          Please confirm if you can still make this appointment.
+                        </p>
+                        <div className="space-y-2">
+                          <Button
+                            className="w-full"
+                            onClick={() => setShowConfirmationModal(true)}
+                            disabled={confirmationLoading}
+                          >
+                            <CheckCircleIcon className="h-4 w-4 mr-2" />
+                            Confirm Availability
+                          </Button>
                         </div>
                       </div>
-                    </div>
-                  )
+                    ) : job.confirmation_status === 'confirmed' ? (
+                      <div>
+                        <div className="text-lg font-semibold text-green-600 mb-2">
+                          ✓ Availability Confirmed
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          You have confirmed you can make the appointment
+                        </p>
+                      </div>
+                    ) : job.confirmation_status === 'declined' ? (
+                      <div>
+                        <div className="text-lg font-semibold text-red-600 mb-2">
+                          ✗ Availability Declined
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          You have declined this appointment
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="text-lg font-semibold text-green-600 mb-2">
+                          ✓ Job Accepted
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          This job has been assigned to you
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="text-center py-4">
                     <div className="text-lg font-semibold text-gray-600 mb-2">
@@ -1184,31 +890,11 @@ const JobDetails = () => {
                     </p>
                   </div>
                 )}
-
-                {/* Urgent Call Notice - Show only for the assigned interpreter when job is in less than 2 days */}
-                {job.assigned_interpreter_id && profile?.id === job.assigned_interpreter_id && isJobInLessThan2Days(job) && (
-                  <div className="mt-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg">
-                    <div className="flex items-start">
-                      <ExclamationTriangleIcon className="h-5 w-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-red-900 mb-1">
-                          Cannot Make This Appointment?
-                        </p>
-                        <p className="text-sm text-red-800">
-                          If you cannot make this appointment, please call us immediately at{' '}
-                          <a href="tel:888-418-2565" className="font-semibold underline hover:text-red-900">
-                            888-418-2565
-                          </a>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </motion.div>
 
-            {/* Job Timing Controls - Show only for the assigned interpreter */}
-            {(job.status === 'assigned' || job.status === 'reminders_sent' || job.status === 'in_progress') && profile?.id === job.assigned_interpreter_id ? (
+            {/* Job Timing Controls - Show for assigned jobs */}
+            {job.status === 'assigned' || job.status === 'reminders_sent' || job.status === 'in_progress' ? (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1235,7 +921,7 @@ const JobDetails = () => {
 
                   {/* Start/End Job Buttons */}
                   <div className="space-y-3">
-                    {(job.status === 'assigned' || job.status === 'reminders_sent') && canStartJob(job) && (
+                    {(job.status === 'assigned' || job.status === 'reminders_sent') && (
                       <Button
                         className="w-full"
                         onClick={() => handleJobAction('start')}
@@ -1244,14 +930,6 @@ const JobDetails = () => {
                         <PlayIcon className="h-4 w-4 mr-2" />
                         {actionLoading ? 'Starting...' : 'Start Job'}
                       </Button>
-                    )}
-                    
-                    {(job.status === 'assigned' || job.status === 'reminders_sent') && !canStartJob(job) && (
-                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="text-sm text-blue-800">
-                          <strong>Start Job:</strong> The "Start Job" button will appear 2 hours before your {job.arrival_time ? 'arrival' : 'appointment'} time.
-                        </div>
-                      </div>
                     )}
                     
                     {job.status === 'in_progress' && (
@@ -1280,9 +958,9 @@ const JobDetails = () => {
           </div>
         </div>
 
-        {/* Job Workflow - Only show for the assigned interpreter (hides Unassign, Completion Report, etc. when viewing someone else's job) */}
-        {job.assigned_interpreter_id && profile?.id === job.assigned_interpreter_id && (
-          <div id="job-workflow-section" className="mt-8">
+        {/* Job Workflow - Only show for assigned jobs */}
+        {job.assigned_interpreter_id && (
+          <div className="mt-8">
             <InterpreterJobWorkflow 
               job={job} 
               onJobUpdate={(updatedJob) => {
@@ -1436,86 +1114,6 @@ const JobDetails = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Team Member Selection Modal */}
-      {showTeamMemberModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Select Team Member
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Which team member will perform this job?
-            </p>
-            
-            <div className="space-y-2 max-h-64 overflow-y-auto mb-6">
-              {teamMembers.map(member => (
-                <label
-                  key={member.id}
-                  className="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                >
-                  <input
-                    type="radio"
-                    name="team_member"
-                    value={member.id}
-                    checked={selectedTeamMember === member.id}
-                    onChange={(e) => setSelectedTeamMember(parseInt(e.target.value))}
-                    className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
-                  />
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-900">
-                      {member.first_name} {member.last_name}
-                    </p>
-                    {member.languages && member.languages !== 'N/A' && (
-                      <p className="text-xs text-gray-500">{member.languages}</p>
-                    )}
-                  </div>
-                </label>
-              ))}
-            </div>
-
-            <div className="flex space-x-3">
-              <button
-                onClick={() => {
-                  setShowTeamMemberModal(false);
-                  setShowMileagePrompt(true);
-                  setSelectedTeamMember(null);
-                }}
-                disabled={mileagePromptLoading}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Back
-              </button>
-              <button
-                onClick={() => {
-                  // Check if this is for availability indication or job acceptance
-                  if (job.status === 'finding_interpreter') {
-                    confirmAvailability(mileageRequested);
-                  } else {
-                    submitJobAcceptance();
-                  }
-                }}
-                disabled={mileagePromptLoading || !selectedTeamMember}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {mileagePromptLoading ? 'Submitting...' : (job.status === 'finding_interpreter' ? 'Indicate Available' : 'Accept Job')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Appointment Change Modal */}
-      {showAppointmentChangeModal && job && (
-        <AppointmentChangeModal
-          job={job}
-          changes={appointmentChanges}
-          onClose={() => setShowAppointmentChangeModal(false)}
-          onConfirm={(confirmed) => {
-            loadJobDetails();
-          }}
-        />
       )}
     </div>
   );

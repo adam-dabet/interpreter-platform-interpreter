@@ -363,21 +363,10 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                             onChange={(e) => handleCertificateChange(certificate.id, 'certificate_type_id', e.target.value ? parseInt(e.target.value) : '')}
                                             error={errors[`certificate_${certificate.id}_certificate_type_id`]}
                                             required
-                                            options={parametricData?.certificateTypes
-                                                ?.filter(type => {
-                                                    const nameUpper = (type.name || '').toUpperCase();
-                                                    const codeUpper = (type.code || '').toUpperCase();
-                                                    return !nameUpper.includes('CMI') && 
-                                                           !codeUpper.includes('CMI') &&
-                                                           !nameUpper.includes('CCHI') && 
-                                                           !codeUpper.includes('CCHI') &&
-                                                           !nameUpper.includes('OREGON') && 
-                                                           !codeUpper.includes('OREGON');
-                                                })
-                                                ?.map(type => ({
-                                                    value: type.id,
-                                                    label: type.name
-                                                })) || []}
+                                            options={parametricData?.certificateTypes?.map(type => ({
+                                                value: type.id,
+                                                label: type.name
+                                            })) || []}
                                             placeholder="Select Certificate Type"
                                         />
                                     </div>

@@ -9,8 +9,6 @@ import { RATE_UNITS } from '../../utils/constants';
 const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, onUpdate, rejectedFields = [] }) => {
     const [selectedServiceTypes, setSelectedServiceTypes] = useState(formData.service_types || []);
     const [serviceRates, setServiceRates] = useState({});
-    const [languageRates, setLanguageRates] = useState({}); // { [serviceTypeId]: { [languageId]: { rate_amount, rate_unit } } }
-    const [useSameRatesForLanguage, setUseSameRatesForLanguage] = useState({}); // { [languageId]: boolean } - default true
     const [errors, setErrors] = useState({});
     const [showPreferredProviderModal, setShowPreferredProviderModal] = useState(false);
     
@@ -64,55 +62,6 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             setServiceRates(ratesObject);
         }
     }, [formData.service_rates, parametricData?.serviceTypes]);
-
-    // Initialize language rates from formData
-    useEffect(() => {
-        if (formData.language_rates && Array.isArray(formData.language_rates)) {
-            const langRatesObj = {};
-            const sameRatesState = {};
-            
-            // Track which languages have custom rates
-            const languagesWithCustomRates = new Set();
-            
-            formData.language_rates.forEach(lr => {
-                const stKey = String(lr.service_type_id);
-                const langKey = String(lr.language_id);
-                if (!langRatesObj[stKey]) {
-                    langRatesObj[stKey] = {};
-                }
-                langRatesObj[stKey][langKey] = {
-                    rate_amount: String(lr.rate_amount || ''),
-                    rate_unit: lr.rate_unit || 'hours'
-                };
-                // If language has custom rates, mark as not using same rates
-                languagesWithCustomRates.add(langKey);
-            });
-            
-            setLanguageRates(langRatesObj);
-            
-            // Initialize checkboxes: if language has custom rates, unchecked (false), otherwise checked (true)
-            if (formData.languages && formData.languages.length > 1) {
-                formData.languages.forEach((lang, index) => {
-                    const langId = String(lang.language_id);
-                    // Skip primary language
-                    if (index > 0) {
-                        sameRatesState[langId] = !languagesWithCustomRates.has(langId);
-                    }
-                });
-                setUseSameRatesForLanguage(prev => ({ ...prev, ...sameRatesState }));
-            }
-        } else if (formData.languages && formData.languages.length > 1) {
-            // No custom rates, default all to true (use same rates)
-            const sameRatesState = {};
-            formData.languages.forEach((lang, index) => {
-                const langId = String(lang.language_id);
-                if (index > 0) {
-                    sameRatesState[langId] = true;
-                }
-            });
-            setUseSameRatesForLanguage(prev => ({ ...prev, ...sameRatesState }));
-        }
-    }, [formData.language_rates, formData.languages]);
 
     // Ensure all selected service types have rates (create defaults if missing)
     useEffect(() => {
@@ -189,7 +138,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
     // Check if user has required certifications for a service type
     const hasRequiredCertification = (serviceTypeCode) => {
         // Only these specific service types require certifications
-        const requiresCertification = ['legal', 'medical', 'video'];
+        const requiresCertification = ['legal', 'medical'];
         
         if (!requiresCertification.includes(serviceTypeCode)) {
             return true; // Other service types don't require any certifications
@@ -211,13 +160,6 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
         switch (serviceTypeCode) {
             case 'legal':
                 // Legal requires one of the three court certifications
-                return userCertificates.some(cert => {
-                    const certCode = getCertificateTypeCode(cert.certificate_type_id);
-                    return certCode && ['court_certified', 'federal_certified', 'ata_certified', 'administrative_court_certified'].includes(certCode);
-                });
-            
-            case 'video':
-                // Video Remote Interpretation requires the same legal certifications as legal service type
                 return userCertificates.some(cert => {
                     const certCode = getCertificateTypeCode(cert.certificate_type_id);
                     return certCode && ['court_certified', 'federal_certified', 'ata_certified', 'administrative_court_certified'].includes(certCode);
@@ -312,7 +254,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     prev[serviceTypeId]?.rate_amount || '',
                 rate_unit: rateType === 'platform' ? 
                     serviceType?.platform_rate_unit : 
-                    prev[serviceTypeId]?.rate_unit || ((serviceType?.code === 'legal' || serviceType?.code === 'video') ? '3hours' : 'hours'),
+                    prev[serviceTypeId]?.rate_unit || 'hours',
                 minimum_hours: rateType === 'platform' ? 
                     serviceType?.platform_minimum_hours : 
                     prev[serviceTypeId]?.minimum_hours || 1.0,
@@ -324,30 +266,18 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     prev[serviceTypeId]?.second_interval_rate_amount || null,
                 second_interval_rate_unit: rateType === 'platform' ? 
                     serviceType?.platform_second_interval_rate_unit : 
-                    prev[serviceTypeId]?.second_interval_rate_unit || ((serviceType?.code === 'legal' || serviceType?.code === 'video') ? '3hours' : 'hours')
+                    prev[serviceTypeId]?.second_interval_rate_unit || 'hours'
             }
         }));
     };
 
     const handleCustomRateChange = (serviceTypeId, field, value) => {
         const serviceTypeIdStr = String(serviceTypeId);
-        const serviceType = parametricData?.serviceTypes?.find(st => 
-            String(st.id) === String(serviceTypeId) || st.id === serviceTypeId
-        );
-        
-        // Normalize rate_unit for legal/video: if 'hours' is set, convert to '3hours'
-        let normalizedValue = value;
-        if ((field === 'rate_unit' || field === 'custom_second_interval_rate_unit') && 
-            (serviceType?.code === 'legal' || serviceType?.code === 'video') && 
-            value === 'hours') {
-            normalizedValue = '3hours';
-        }
-        
         setServiceRates(prev => ({
             ...prev,
             [serviceTypeIdStr]: {
                 ...prev[serviceTypeIdStr],
-                [field]: normalizedValue
+                [field]: value
             }
         }));
     };
@@ -355,7 +285,6 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
     const validateForm = () => {
         const newErrors = {};
 
-        // Always require at least one service type, even for resubmissions
         if (selectedServiceTypes.length === 0) {
             newErrors.service_types = 'Please select at least one service type';
         }
@@ -401,60 +330,6 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleLanguageRateChange = (serviceTypeId, languageId, field, value) => {
-        const stKey = String(serviceTypeId);
-        const langKey = String(languageId);
-        setLanguageRates(prev => {
-            const updated = { ...prev };
-            if (!updated[stKey]) {
-                updated[stKey] = {};
-            }
-            if (!updated[stKey][langKey]) {
-                updated[stKey][langKey] = { rate_amount: '', rate_unit: 'hours' };
-            }
-            updated[stKey][langKey][field] = value;
-            return updated;
-        });
-        
-        // If user enters a rate_amount, automatically uncheck "Use same rates" checkbox
-        if (field === 'rate_amount' && value && value.trim() !== '') {
-            setUseSameRatesForLanguage(prev => ({
-                ...prev,
-                [langKey]: false  // Uncheck the box
-            }));
-        }
-    };
-
-    const handleUseSameRatesToggle = (languageId) => {
-        const langKey = String(languageId);
-        const currentValue = useSameRatesForLanguage[langKey] !== false; // true if using same rates
-        const newValue = !currentValue;
-        
-        setUseSameRatesForLanguage(prev => ({
-            ...prev,
-            [langKey]: newValue
-        }));
-        
-        // If unchecking (switching to custom rates), initialize rates from primary language rates
-        if (currentValue && !newValue) {
-            // Copy rates from service rates (which apply to primary language) for all service types
-            selectedServiceTypes.forEach(serviceTypeId => {
-                const stKey = String(serviceTypeId);
-                const primaryRate = serviceRates[stKey];
-                if (primaryRate) {
-                    handleLanguageRateChange(serviceTypeId, languageId, 'rate_amount', String(primaryRate.rate_amount || ''));
-                    handleLanguageRateChange(serviceTypeId, languageId, 'rate_unit', primaryRate.rate_unit || 'hours');
-                }
-            });
-        }
-    };
-
-    const getLanguageName = (languageId) => {
-        if (!languageId) return 'Unknown';
-        const language = parametricData?.languages?.find(l => String(l.id) === String(languageId));
-        return language ? language.name : 'Unknown';
-    };
-
     const handleNext = () => {
         if (!validateForm()) {
             const errorMessage = Object.values(errors)[0];
@@ -465,33 +340,9 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
         // Convert serviceRates object to array format
         const serviceRatesArray = Object.values(serviceRates);
         
-        // Build language_rates array from languageRates state
-        // Only include rates for languages where "use same rates" is unchecked
-        const languageRatesArray = [];
-        const primaryLanguageId = formData.languages?.[0]?.language_id;
-        
-        Object.keys(languageRates).forEach(serviceTypeId => {
-            Object.keys(languageRates[serviceTypeId]).forEach(languageId => {
-                // Skip primary language and languages using same rates
-                if (String(languageId) === String(primaryLanguageId)) return;
-                if (useSameRatesForLanguage[languageId] !== false) return;
-                
-                const lr = languageRates[serviceTypeId][languageId];
-                if (lr.rate_amount != null && String(lr.rate_amount).trim() !== '' && !isNaN(parseFloat(lr.rate_amount))) {
-                    languageRatesArray.push({
-                        service_type_id: serviceTypeId,
-                        language_id: languageId,
-                        rate_amount: parseFloat(lr.rate_amount),
-                        rate_unit: lr.rate_unit || 'hours'
-                    });
-                }
-            });
-        });
-        
         onNext({
             service_types: selectedServiceTypes,
-            service_rates: serviceRatesArray,
-            language_rates: languageRatesArray
+            service_rates: serviceRatesArray
         });
     };
 
@@ -653,7 +504,6 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                     <p className="text-xs text-yellow-800">
                                         <strong>Requires certification:</strong> 
                                         {serviceType.code === 'legal' && ' Federal Court, State Court, or Administrative Court certification'}
-                                        {serviceType.code === 'video' && ' Federal Court, State Court, or Administrative Court certification'}
                                         {serviceType.code === 'medical' && ' Any court certification OR Medical certification'}
                                     </p>
                                 </div>
@@ -697,19 +547,8 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                 );
                             }
                             
-                            // Check if this specific rate is rejected
-                            const rateRejectedFieldName = `service_rate_${serviceTypeId}`;
-                            const isRateRejected = isFieldRejected(rateRejectedFieldName);
-                            
                             return (
-                                <div key={serviceTypeId} className={`border-2 rounded-lg p-4 ${isRateRejected ? 'border-red-500 bg-red-50 ring-2 ring-red-200' : 'border-gray-200'}`}>
-                                    {isRateRejected && (
-                                        <div className="mb-3 bg-red-100 border border-red-300 rounded-lg p-3">
-                                            <p className="text-sm font-medium text-red-900">
-                                                ⚠️ This rate has been rejected and needs to be updated
-                                            </p>
-                                        </div>
-                                    )}
+                                <div key={serviceTypeId} className="border border-gray-200 rounded-lg p-4">
                                     <div className="mb-4">
                                         <h5 className="font-medium text-gray-900 mb-3">{serviceType.name}</h5>
                                         
@@ -719,7 +558,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                 <span className="text-sm font-medium text-blue-900">Platform Rate</span>
                                                 <span className="text-lg font-bold text-blue-900">
                                                     ${rate.rate_type === 'platform' ? 
-                                                        `${rate.rate_amount}/${rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : rate.rate_unit === '3hours' ? '3hr' : rate.rate_unit === '6hours' ? '6hr' : 'hr'}` : 
+                                                        `${rate.rate_amount}/${rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : 'hr'}` : 
                                                         `${getLanguageSpecificRate(serviceType.code, serviceType.platform_rate_amount)}/${serviceType.platform_rate_unit === 'minutes' ? 'min' : serviceType.platform_rate_unit === 'word' ? 'word' : 'hr'}`}
                                                 </span>
                                             </div>
@@ -824,30 +663,16 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                         className="flex-1"
                                                         label="Rate Amount"
                                                     />
-                                                    {(serviceType.code === 'legal' || serviceType.code === 'video') ? (
-                                                        <div className="w-32">
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">Rate Unit</label>
-                                                            <select
-                                                                value={(rate.rate_unit === 'hours' || !rate.rate_unit) ? '3hours' : rate.rate_unit}
-                                                                onChange={(e) => handleCustomRateChange(serviceTypeId, 'rate_unit', e.target.value)}
-                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                            >
-                                                                <option value="3hours">Per 3 Hours</option>
-                                                                <option value="6hours">Per 6 Hours</option>
-                                                            </select>
-                                                        </div>
-                                                    ) : (
-                                                        <Select
-                                                            options={RATE_UNITS}
-                                                            value={rate.rate_unit || 'hours'}
-                                                            onChange={(e) => handleCustomRateChange(serviceTypeId, 'rate_unit', e.target.value)}
-                                                            className="w-32"
-                                                            label="Rate Unit"
-                                                        />
-                                                    )}
+                                                    <Select
+                                                        options={RATE_UNITS}
+                                                        value={rate.rate_unit || 'hours'}
+                                                        onChange={(e) => handleCustomRateChange(serviceTypeId, 'rate_unit', e.target.value)}
+                                                        className="w-32"
+                                                        label="Rate Unit"
+                                                    />
                                                 </div>
                                                 
-                                                {(rate.rate_unit !== 'word' && serviceType.code !== 'legal' && serviceType.code !== 'video') && (
+                                                {rate.rate_unit !== 'word' && (
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <Input
                                                             type="number"
@@ -876,24 +701,13 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                             <div>
                                                                 <span className="font-medium text-gray-600">Your Rate:</span>
                                                                 <div className="text-green-700 font-medium">
-                                                                    {(() => {
-                                                                        // Normalize rate_unit for legal/video: if 'hours', treat as '3hours'
-                                                                        const normalizedUnit = (serviceType.code === 'legal' || serviceType.code === 'video') && rate.rate_unit === 'hours' 
-                                                                            ? '3hours' 
-                                                                            : rate.rate_unit;
-                                                                        const unitDisplay = normalizedUnit === 'minutes' ? 'min' : 
-                                                                                          normalizedUnit === 'word' ? 'word' : 
-                                                                                          normalizedUnit === '3hours' ? '3hr' : 
-                                                                                          normalizedUnit === '6hours' ? '6hr' : 
-                                                                                          'hr';
-                                                                        return `$${rate.rate_amount}/${unitDisplay}`;
-                                                                    })()}
+                                                                    ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : 'hr'}
                                                                 </div>
                                                             </div>
                                                             <div>
                                                                 <span className="font-medium text-gray-600">Platform Rate:</span>
                                                                 <div className="text-blue-700 font-medium">
-                                                                    ${getLanguageSpecificRate(serviceType.code, serviceType.platform_rate_amount)}/{(serviceType.code === 'legal' || serviceType.code === 'video') ? '3hr' : serviceType.platform_rate_unit === 'minutes' ? 'min' : serviceType.platform_rate_unit === 'word' ? 'word' : 'hr'}
+                                                                    ${getLanguageSpecificRate(serviceType.code, serviceType.platform_rate_amount)}/{serviceType.platform_rate_unit === 'minutes' ? 'min' : serviceType.platform_rate_unit === 'word' ? 'word' : 'hr'}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -943,112 +757,6 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                 </div>
                             );
                         })}
-                    </div>
-                )}
-
-                {/* Language Rates Section - Clear separator after main rates */}
-                {formData.languages && formData.languages.length > 1 && selectedServiceTypes.length > 0 && (
-                    <div className="mt-8 pt-8 border-t-2 border-gray-300">
-                        <h4 className="font-medium text-gray-900 mb-2">Language-Specific Rates</h4>
-                        <p className="text-sm text-gray-600 mb-4">
-                            Set different rates for other languages if needed. By default, all languages use the same rates as your primary language.
-                        </p>
-                        
-                        <div className="space-y-4">
-                            {formData.languages.slice(1).map((lang) => {
-                                const langId = String(lang.language_id);
-                                const langName = getLanguageName(langId);
-                                const useSameRates = useSameRatesForLanguage[langId] !== false;
-                                
-                                return (
-                                    <div key={langId} className="border border-gray-200 rounded-lg p-4 bg-white">
-                                        <div className="space-y-2 mb-4">
-                                            <div className="flex items-center">
-                                                <input
-                                                    type="checkbox"
-                                                    id={`same_rates_${langId}`}
-                                                    checked={useSameRates}
-                                                    onChange={() => handleUseSameRatesToggle(langId)}
-                                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                                />
-                                                <label htmlFor={`same_rates_${langId}`} className="ml-2 text-sm font-medium text-gray-700 cursor-pointer">
-                                                    Use same rates for {langName}
-                                                </label>
-                                            </div>
-                                            {!useSameRates && (
-                                                <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1">
-                                                    ✓ Custom rates for {langName} will be saved
-                                                </p>
-                                            )}
-                                        </div>
-                                        
-                                        {!useSameRates && (
-                                            <div className="space-y-4 pl-6 border-l-2 border-blue-200 bg-blue-50 rounded-r-lg p-4">
-                                                <p className="text-xs text-gray-600 mb-3">
-                                                    Set custom rates for {langName} for each service type. Other settings (minimum hours, intervals) will use the same values as your primary language rates.
-                                                </p>
-                                                {selectedServiceTypes.map(serviceTypeId => {
-                                                    const serviceType = parametricData?.serviceTypes?.find(st => 
-                                                        String(st.id) === String(serviceTypeId) || st.id === serviceTypeId
-                                                    );
-                                                    const stKey = String(serviceTypeId);
-                                                    const primaryRate = serviceRates[stKey];
-                                                    const langRate = languageRates[stKey]?.[langId] || { 
-                                                        rate_amount: primaryRate?.rate_amount || '', 
-                                                        rate_unit: primaryRate?.rate_unit || 'hours' 
-                                                    };
-                                                    
-                                                    if (!serviceType || !primaryRate) return null;
-                                                    
-                                                    return (
-                                                        <div key={serviceTypeId} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
-                                                            <h6 className="text-sm font-medium text-gray-900">{serviceType.name}</h6>
-                                                            <div className="flex gap-2">
-                                                                <Input
-                                                                    type="number"
-                                                                    step="0.01"
-                                                                    placeholder={primaryRate.rate_amount ? String(primaryRate.rate_amount) : "e.g. 55"}
-                                                                    value={langRate.rate_amount || ''}
-                                                                    onChange={(e) => handleLanguageRateChange(serviceTypeId, langId, 'rate_amount', e.target.value)}
-                                                                    className="flex-1"
-                                                                    label="Rate ($)"
-                                                                />
-                                                                {(serviceType.code === 'legal' || serviceType.code === 'video') ? (
-                                                                    <div className="w-32">
-                                                                        <label className="block text-sm font-medium text-gray-700 mb-1">Rate Unit</label>
-                                                                        <select
-                                                                            value={(langRate.rate_unit === 'hours' || !langRate.rate_unit) ? '3hours' : langRate.rate_unit}
-                                                                            onChange={(e) => handleLanguageRateChange(serviceTypeId, langId, 'rate_unit', e.target.value)}
-                                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                                        >
-                                                                            <option value="3hours">Per 3 Hours</option>
-                                                                            <option value="6hours">Per 6 Hours</option>
-                                                                        </select>
-                                                                    </div>
-                                                                ) : (
-                                                                    <Select
-                                                                        options={RATE_UNITS}
-                                                                        value={langRate.rate_unit || primaryRate.rate_unit || 'hours'}
-                                                                        onChange={(e) => handleLanguageRateChange(serviceTypeId, langId, 'rate_unit', e.target.value)}
-                                                                        className="w-32"
-                                                                        label="Per"
-                                                                    />
-                                                                )}
-                                                            </div>
-                                                            {primaryRate.rate_amount && (
-                                                                <div className="text-xs text-gray-500">
-                                                                    Primary language rate: ${primaryRate.rate_amount}/{primaryRate.rate_unit === 'minutes' ? 'min' : primaryRate.rate_unit === 'word' ? 'word' : primaryRate.rate_unit === '3hours' ? '3hr' : primaryRate.rate_unit === '6hours' ? '6hr' : 'hr'}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
                     </div>
                 )}
                 

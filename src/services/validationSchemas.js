@@ -115,7 +115,7 @@ export const professionalInfoSchema = yup.object({
         }),
         rate_unit: yup.string().when('rate_type', {
           is: 'custom',
-          then: yup.string().oneOf(['minutes', 'hours', '3hours', '6hours', 'word']).required('Rate unit is required'),
+          then: yup.string().oneOf(['minutes', 'hours']).required('Rate unit is required'),
           otherwise: yup.mixed().nullable()
         })
       })
@@ -203,31 +203,14 @@ export const agreementsSchema = yup.object({
       then: yup.object({
         business_name: yup.string().required('Business name is required'),
         tax_classification: yup.string().required('Tax classification is required'),
-        ssn: yup.string().test(
-          'ssn-or-ein-required',
-          'Either SSN or EIN is required',
-          function(value) {
-            const { ein } = this.parent;
-            const hasSSN = value && /^\d{3}-\d{2}-\d{4}$/.test(value);
-            const hasEIN = ein && /^\d{2}-\d{7}$/.test(ein);
-            return hasSSN || hasEIN;
-          }
-        ).test(
-          'ssn-format',
-          'SSN must be in format XXX-XX-XXXX',
-          function(value) {
-            if (!value) return true; // Format validation only if value exists
-            return /^\d{3}-\d{2}-\d{4}$/.test(value);
-          }
-        ),
-        ein: yup.string().test(
-          'ein-format',
-          'EIN must be in format XX-XXXXXXX',
-          function(value) {
-            if (!value) return true; // Format validation only if value exists
-            return /^\d{2}-\d{7}$/.test(value);
-          }
-        ),
+        ssn: yup.string().when('tax_classification', {
+          is: 'individual',
+          then: yup.string().required('SSN is required for individual tax classification')
+        }),
+        ein: yup.string().when('tax_classification', {
+          is: (val) => val !== 'individual',
+          then: yup.string().required('EIN is required for business tax classification')
+        }),
         address: yup.string().required('Address is required'),
         city: yup.string().required('City is required'),
         state: yup.string().required('State is required'),

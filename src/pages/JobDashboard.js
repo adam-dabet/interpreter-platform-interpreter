@@ -92,9 +92,8 @@ const JobDashboardNew = () => {
         return dateA - dateB;
       });
     } else if (activeTab === 'completion_reports') {
-      // Only show jobs where the interpreter actually accepted the assignment
       return jobs.filter(job => 
-        job.status === 'completed' && !job.completion_report_submitted && job.assignment_status === 'accepted'
+        job.status === 'completed' && !job.completion_report_submitted
       ).sort((a, b) => {
         const dateA = new Date(a.completed_at || a.scheduled_date);
         const dateB = new Date(b.completed_at || b.scheduled_date);
@@ -126,7 +125,7 @@ const JobDashboardNew = () => {
     }).length;
 
     const completionReportsCount = jobs.filter(job => 
-      job.status === 'completed' && !job.completion_report_submitted && job.assignment_status === 'accepted'
+      job.status === 'completed' && !job.completion_report_submitted
     ).length;
 
     const pastJobsCount = jobs.filter(job => 
@@ -250,29 +249,14 @@ const JobDashboardNew = () => {
       return backendAmount;
     }
 
-    // Determine billable minutes: use greater of reserved time or actual time from completion report
-    // This matches the admin portal's "actual payment" calculation
-    const actualMinutes = job?.actual_duration_minutes || 0;
-    const reservedHours = job?.reserved_hours || 0;
-    const reservedMinutes = job?.reserved_minutes || 0;
-    const reservedTimeMinutes = (reservedHours * 60) + reservedMinutes;
-    
-    // Use the greater of reserved time or actual time (if completion report submitted)
-    // Otherwise use estimated duration for upcoming jobs
-    let rawBillableMinutes = 0;
-    if (actualMinutes > 0) {
-      // Job has completion report - use greater of reserved or actual
-      rawBillableMinutes = Math.max(reservedTimeMinutes, actualMinutes);
-    } else if (job?.estimated_duration_minutes) {
-      // Job not yet completed - use greater of reserved or estimated
-      rawBillableMinutes = Math.max(reservedTimeMinutes, job.estimated_duration_minutes);
+    if (job?.actual_duration_minutes && (job?.agreed_rate || job?.hourly_rate)) {
+      const hours = parseFloat(job.actual_duration_minutes) / 60;
+      const rate = parseFloat(job.agreed_rate || job.hourly_rate) || 0;
+      return hours * rate;
     }
 
-    if (rawBillableMinutes > 0 && (job?.agreed_rate || job?.hourly_rate)) {
-      // Round up to billing increment (default 15 minutes if not set)
-      const billingIncrement = job?.interpreter_interval_minutes || 15;
-      const billableMinutes = Math.ceil(rawBillableMinutes / billingIncrement) * billingIncrement;
-      const hours = billableMinutes / 60;
+    if (job?.estimated_duration_minutes && (job?.agreed_rate || job?.hourly_rate)) {
+      const hours = parseFloat(job.estimated_duration_minutes) / 60;
       const rate = parseFloat(job.agreed_rate || job.hourly_rate) || 0;
       return hours * rate;
     }

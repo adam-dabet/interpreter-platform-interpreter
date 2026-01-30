@@ -131,27 +131,18 @@ const MySchedule = () => {
   };
 
   const getStatusColor = (job) => {
-    // Check for waiting for assignment first (most important status)
-    if (job.assignment_status === 'available' && job.status === 'finding_interpreter') {
-      return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-    }
-    if (job.assignment_status === 'pending_confirmation') return 'bg-orange-100 text-orange-800 border-orange-300';
-    if (job.status === 'assigned' || job.assignment_status === 'accepted') return 'bg-green-100 text-green-800 border-green-300';
-    if (job.status === 'in_progress') return 'bg-blue-100 text-blue-800 border-blue-300';
     if (job.status === 'finding_interpreter') return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    if (job.status === 'assigned' || job.assignment_status === 'accepted') return 'bg-green-100 text-green-800 border-green-300';
+    if (job.assignment_status === 'pending_confirmation') return 'bg-orange-100 text-orange-800 border-orange-300';
+    if (job.status === 'in_progress') return 'bg-blue-100 text-blue-800 border-blue-300';
     return 'bg-gray-100 text-gray-800 border-gray-300';
   };
 
   const getStatusLabel = (job) => {
-    // Check for waiting for assignment first (most important status)
-    if (job.assignment_status === 'available' && job.status === 'finding_interpreter') {
-      return 'Waiting for Assignment';
-    }
     if (job.assignment_status === 'pending_confirmation') return 'Needs Confirmation';
+    if (job.status === 'finding_interpreter') return 'Available';
     if (job.assignment_status === 'accepted') return 'Confirmed';
     if (job.status === 'in_progress') return 'In Progress';
-    if (job.status === 'assigned') return 'Assigned';
-    if (job.status === 'finding_interpreter') return 'Available';
     return job.status;
   };
 
@@ -205,14 +196,6 @@ const MySchedule = () => {
         </div>
       </div>
 
-      {job.assignment_status === 'available' && job.status === 'finding_interpreter' && (
-        <div className="mt-3 pt-3 pb-2 px-3 border-t border-yellow-200 bg-yellow-50 rounded-lg">
-          <div className="flex items-center text-yellow-800 text-xs font-medium">
-            <ClockIcon className="h-4 w-4 mr-2" />
-            <span>You indicated availability. Waiting for admin to assign this job.</span>
-          </div>
-        </div>
-      )}
       {job.assignment_status === 'pending_confirmation' && (
         <div className="mt-3 pt-3 border-t border-gray-200">
           <div className="flex items-center text-orange-600 text-xs">

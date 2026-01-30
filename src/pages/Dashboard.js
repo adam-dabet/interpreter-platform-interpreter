@@ -66,12 +66,9 @@ const DashboardNew = () => {
     const now = new Date();
 
     // Overdue completion reports (>24 hours)
-    // Only check jobs where the interpreter actually accepted the assignment
     const overdueReports = jobs.filter(job => {
       if (job.status !== 'completed' || job.completion_report_submitted) return false;
       if (!job.completed_at) return false;
-      // Only check if assignment was accepted (not declined, cancelled, available, etc.)
-      if (job.assignment_status !== 'accepted') return false;
       const completedTime = new Date(job.completed_at);
       const hoursSince = (now - completedTime) / (1000 * 60 * 60);
       return hoursSince > 24;
@@ -131,12 +128,9 @@ const DashboardNew = () => {
     }
 
     // Priority 3: Overdue completion report
-    // Only check jobs where the interpreter actually accepted the assignment
     const overdueReport = jobs.find(job => {
       if (job.status !== 'completed' || job.completion_report_submitted) return false;
       if (!job.completed_at) return false;
-      // Only check if assignment was accepted (not declined, cancelled, available, etc.)
-      if (job.assignment_status !== 'accepted') return false;
       const completedTime = new Date(job.completed_at);
       const hoursSince = (now - completedTime) / (1000 * 60 * 60);
       return hoursSince > 24;
@@ -151,12 +145,9 @@ const DashboardNew = () => {
     }
 
     // Priority 4: Completion report due (within 24 hours)
-    // Only check jobs where the interpreter actually accepted the assignment
     const reportDue = jobs.find(job => {
       if (job.status !== 'completed' || job.completion_report_submitted) return false;
       if (!job.completed_at) return false;
-      // Only check if assignment was accepted (not declined, cancelled, available, etc.)
-      if (job.assignment_status !== 'accepted') return false;
       const completedTime = new Date(job.completed_at);
       const hoursSince = (now - completedTime) / (1000 * 60 * 60);
       return hoursSince <= 24;

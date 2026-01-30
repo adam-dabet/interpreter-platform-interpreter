@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion } from 'framer-motion';
 import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import SearchableSelect from '../ui/SearchableSelect';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
 import Button from '../ui/Button';
 import { languagesSchema } from '../../services/validationSchemas';
+import { COMMON_LANGUAGES } from '../../utils/constants';
 
 // Custom validation function that only requires the first language
 const customLanguagesSchema = yup.object({
@@ -30,14 +32,15 @@ const customLanguagesSchema = yup.object({
 });
 
 const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametricData, rejectedFields = [] }) => {
+  const [customLanguage, setCustomLanguage] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  
   // Helper to check if field is rejected
   const isFieldRejected = (fieldName) => rejectedFields.includes(fieldName);
 
   // Ensure all form fields have proper default values to prevent uncontrolled to controlled warnings
   const defaultValues = {
-    languages: data.languages?.length > 0 ? data.languages.map(l => ({
-      language_id: l.language_id || ''
-    })) : [
+    languages: data.languages?.length > 0 ? data.languages : [
       { language_id: '' }
     ]
   };
@@ -81,16 +84,15 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
     // Filter out empty language entries and only submit valid ones
     const validLanguages = formData.languages.filter(lang => 
       lang.language_id && lang.language_id.trim()
-    ).map(lang => ({
-      language_id: lang.language_id
-    }));
+    );
     
     if (validLanguages.length === 0) {
       console.error('No valid languages found');
       return; // Don't submit if no valid languages
     }
     
-    // Language rates are now handled in ServiceTypesStep (per service type)
+    
+    // Submit only the valid languages
     onNext({ ...formData, languages: validLanguages });
   };
 
@@ -104,15 +106,25 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
     }
   };
 
-  // Map all languages from parametric data to options format
-  // Filter out 'agency' language and 'english' if they exist
-  const languageOptions = (parametricData?.languages || [])
-    .filter(lang => {
-      if (!lang.name) return false;
-      const nameLower = lang.name.toLowerCase();
-      return nameLower !== 'agency' && nameLower !== 'english';
-    })
-    .map(lang => ({ value: String(lang.id), label: lang.name }));
+  const addCustomLanguage = () => {
+    if (customLanguage.trim()) {
+      const emptyIndex = fields.findIndex(field => !field.language_id);
+      if (emptyIndex >= 0) {
+        setValue(`languages.${emptyIndex}.language_id`, customLanguage.trim());
+      } else {
+        append({
+          language_id: customLanguage.trim()
+        });
+      }
+      setCustomLanguage('');
+      setShowCustomInput(false);
+    }
+  };
+
+      const languageOptions = [
+        ...(parametricData?.languages?.map(lang => ({ value: lang.id, label: lang.name })) || []),
+        { value: 'other', label: 'Other (specify below)' }
+    ];
 
 
 
@@ -184,14 +196,20 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
                   control={control}
                   render={({ field }) => (
                     <div className={isFieldRejected('languages') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
-                      <SearchableSelect
-                        value={field.value}
-                        onChange={(value) => field.onChange(value)}
+                      <Select
+                        {...field}
                         label="Language"
-                        placeholder="Search and select a language..."
-                        searchPlaceholder="Search languages..."
+                        placeholder="Select a language..."
                         options={languageOptions}
                         error={errors.languages?.[index]?.language_id?.message || (isFieldRejected('languages') ? 'This field needs to be updated' : '')}
+                        onChange={(e) => {
+                          if (e.target.value === 'other') {
+                            setShowCustomInput(true);
+                            field.onChange('');
+                          } else {
+                            field.onChange(e.target.value);
+                          }
+                        }}
                         required
                       />
                     </div>
@@ -210,6 +228,43 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
             </motion.div>
           ))}
         </div>
+
+        {/* Custom Language Input */}
+        {showCustomInput && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="border border-blue-200 rounded-lg p-4 bg-blue-50"
+          >
+            <h4 className="text-md font-medium text-blue-900 mb-3">Add Custom Language</h4>
+            <div className="flex space-x-3">
+              <Input
+                value={customLanguage}
+                onChange={(e) => setCustomLanguage(e.target.value)}
+                placeholder="Enter language name"
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                onClick={addCustomLanguage}
+                disabled={!customLanguage.trim()}
+              >
+                Add
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowCustomInput(false);
+                  setCustomLanguage('');
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </motion.div>
+        )}
 
         {/* Add Language Button */}
         <div className="text-center">

@@ -4,45 +4,7 @@ import { PlusCircle, X } from 'react-feather';
 import AddressAutocomplete from './AddressAutocomplete';
 import toast from 'react-hot-toast';
 
-// Determine API base URL (same logic as api.js)
-const getApiBaseURL = () => {
-  // If explicitly set, use it
-  if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL;
-  }
-  
-  // In production, try to detect the backend URL based on hostname
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    
-    // If we're on providers.theintegritycompanyinc.com, backend should be at backend.theintegritycompanyinc.com
-    if (hostname === 'providers.theintegritycompanyinc.com') {
-      return 'https://backend.theintegritycompanyinc.com/api';
-    }
-    
-    // If we're on admin.theintegritycompanyinc.com, backend should be at backend.theintegritycompanyinc.com
-    if (hostname === 'admin.theintegritycompanyinc.com') {
-      return 'https://backend.theintegritycompanyinc.com/api';
-    }
-    
-    // If we're on portal.theintegritycompanyinc.com, backend should be at backend.theintegritycompanyinc.com
-    if (hostname === 'portal.theintegritycompanyinc.com') {
-      return 'https://backend.theintegritycompanyinc.com/api';
-    }
-    
-    // If we're on a Railway domain, try to infer backend URL
-    if (hostname.includes('.up.railway.app')) {
-      // For Railway deployments, try to construct backend URL
-      // This is a fallback - REACT_APP_API_URL should be set in Railway
-      return '/api';
-    }
-  }
-  
-  // Default fallback for local development
-  return '/api';
-};
-
-const API_BASE = getApiBaseURL();
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 const resultOptions = [
   { label: "Completed", value: "Completed" },

@@ -12,8 +12,7 @@ import ServiceTypesStep from '../components/forms/ServiceTypesStep';
 import CertificatesStep from '../components/forms/CertificatesStep';
 import W9FormStep from '../components/forms/W9FormStep';
 import ReviewStep from '../components/forms/ReviewStep';
-import EmailLookupStep from '../components/forms/EmailLookupStep';
-import api, { interpreterAPI, parametricAPI } from '../services/api';
+import { interpreterAPI, parametricAPI } from '../services/api';
 
 const INTERPRETER_STEPS = [
     {
@@ -68,8 +67,7 @@ const INTERPRETER_STEPS = [
 ];
 
 const InterpreterProfile = () => {
-    const [currentStep, setCurrentStep] = useState(0); // Start at 0 for registration type selection
-    const [registrationType, setRegistrationType] = useState(null); // 'individual' or 'agency'
+    const [currentStep, setCurrentStep] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isEditingFromReview, setIsEditingFromReview] = useState(false);
@@ -91,10 +89,6 @@ const InterpreterProfile = () => {
     const [isProfileCompletion, setIsProfileCompletion] = useState(false);
     const [completionToken, setCompletionToken] = useState(null);
     const [importedData, setImportedData] = useState(null);
-    
-    // Email lookup state
-    const [showEmailLookup, setShowEmailLookup] = useState(false);
-    const [emailLookupLoading, setEmailLookupLoading] = useState(false);
     
     const [formData, setFormData] = useState({
         // Personal Information
@@ -126,9 +120,6 @@ const InterpreterProfile = () => {
         // Languages (array of objects)
         languages: [],
         
-        // Language rates (optional per-language rate overrides)
-        language_rates: [],
-        
         // Service Types (array of IDs)
         service_types: [],
         
@@ -143,10 +134,7 @@ const InterpreterProfile = () => {
         // W-9 Form
         w9_entry_method: '',
         w9_file: null,
-        w9_data: null,
-        
-        // Agency flag
-        is_agency: false
+        w9_data: null
     });
 
     const [profileResult, setProfileResult] = useState(null);
@@ -164,9 +152,6 @@ const InterpreterProfile = () => {
         const completionTok = urlParams.get('token');
         if (completionTok) {
             await loadProfileCompletionData(completionTok);
-            // Skip registration type selection for profile completion
-            setRegistrationType('individual');
-            setCurrentStep(1);
             return; // Don't check for rejection token if completion token exists
         }
         
@@ -174,24 +159,7 @@ const InterpreterProfile = () => {
         const rejectionTok = urlParams.get('rejection_token');
         if (rejectionTok) {
             await loadRejectionData(rejectionTok);
-            // Skip registration type selection for resubmission
-            setRegistrationType('individual');
-            setCurrentStep(1);
-            return; // Don't show email lookup if rejection token exists
         }
-        
-        // If no tokens, show email lookup step first
-        setShowEmailLookup(true);
-    };
-    
-    const handleSelectRegistrationType = (type) => {
-        setRegistrationType(type);
-        setFormData(prev => ({
-            ...prev,
-            is_agency: type === 'agency'
-        }));
-        setCurrentStep(1);
-        setVisitedSteps(new Set([1]));
     };
 
     const loadProfileCompletionData = async (token) => {
@@ -199,9 +167,8 @@ const InterpreterProfile = () => {
             console.log('Found profile completion token, loading imported data...');
             setIsLoading(true);
             
-            // Use the api service for consistent URL handling
-            const response = await api.get(`/profile-completion/validate-token/${token}`);
-            const result = response.data;
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/profile-completion/validate-token/${token}`);
+            const result = await response.json();
             
             if (!result.success) {
                 toast.error(result.message || 'Invalid completion link');
@@ -215,12 +182,7 @@ const InterpreterProfile = () => {
             setCompletionToken(token);
             setImportedData(data);
             
-            // Set registration type based on whether it's an agency
-            const registrationType = data.isAgency ? 'agency' : 'individual';
-            setRegistrationType(registrationType);
-            
             // Pre-fill form with imported data
-            // Note: language_rates are now per (service_type, language) and handled in ServiceTypesStep
             setFormData(prev => ({
                 ...prev,
                 first_name: data.firstName || '',
@@ -235,33 +197,14 @@ const InterpreterProfile = () => {
                 zip_code: data.address?.zipCode || '',
                 business_name: data.businessName || '',
                 languages: data.languages || [],
-                language_rates: data.language_rates || [], // Per (service_type, language) - handled in ServiceTypesStep
-                service_types: data.serviceTypes?.map(st => st.service_type_id) || [],
-                is_agency: data.isAgency || false
+                service_types: data.serviceTypes?.map(st => st.service_type_id) || []
             }));
             
             toast.success('Welcome! Please complete your profile information below.');
             
         } catch (error) {
             console.error('Error loading profile completion data:', error);
-            console.error('Error details:', {
-                message: error.message,
-                response: error.response?.data,
-                status: error.response?.status,
-                token: token ? 'Token provided' : 'No token'
-            });
-            
-            // Provide more specific error messages
-            let errorMessage = 'Failed to load your profile data. Please contact support.';
-            if (error.response?.data?.message) {
-                errorMessage = error.response.data.message;
-            } else if (error.response?.status === 404) {
-                errorMessage = 'Invalid or expired profile completion link. Please request a new link.';
-            } else if (error.response?.status === 400) {
-                errorMessage = error.response.data?.message || 'This link has already been used or has expired.';
-            }
-            
-            toast.error(errorMessage);
+            toast.error('Failed to load your profile data. Please contact support.');
         } finally {
             setIsLoading(false);
         }
@@ -270,92 +213,30 @@ const InterpreterProfile = () => {
     const loadRejectionData = async (token) => {
         try {
             console.log('Found rejection token, loading application data...');
-            setIsLoading(true);
+            const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/interpreters/rejection/${token}`);
+            const data = await response.json();
             
-            // Use the api service for consistent URL handling
-            const response = await api.get(`/interpreters/rejection/${token}`);
-            const result = response.data;
-            
-            if (!result.success) {
-                toast.error(result.message || 'Invalid or expired rejection link');
-                return;
+            if (data.success) {
+                setIsResubmission(true);
+                setRejectionToken(token);
+                setRejectedFields(data.data.rejected_fields || []);
+                setRejectionNote(data.data.rejection_note || '');
+                
+                // Pre-fill form with original data
+                if (data.data.original_submission_data) {
+                    prefillFormData(data.data.original_submission_data);
+                }
+                
+                toast.success('Application loaded! Please update the highlighted fields.');
+            } else {
+                toast.error('Invalid or expired rejection link');
             }
-            
-            const data = result.data;
-            console.log('Loaded rejection data:', data);
-            
-            setIsResubmission(true);
-            setRejectionToken(token);
-            setRejectedFields(data.rejected_fields || []);
-            setRejectionNote(data.rejection_note || '');
-            
-            // Pre-fill form with original data
-            if (data.original_submission_data) {
-                prefillFormData(data.original_submission_data);
-            }
-            
-            toast.success('Application loaded! Please update the highlighted fields.');
-            
         } catch (error) {
             console.error('Error loading rejection data:', error);
-            console.error('Error details:', {
-                message: error.message,
-                response: error.response?.data,
-                status: error.response?.status,
-                token: token ? 'Token provided' : 'No token'
-            });
-            
-            // Provide more specific error messages
-            let errorMessage = 'Failed to load your application data. Please contact support.';
-            if (error.response?.data?.message) {
-                errorMessage = error.response.data.message;
-            } else if (error.response?.status === 404) {
-                errorMessage = 'Invalid or expired rejection link. Please contact support.';
-            } else if (error.response?.status === 400) {
-                errorMessage = error.response.data?.message || 'This link has already been used or has expired.';
-            }
-            
-            toast.error(errorMessage);
+            toast.error('Failed to load application data');
         } finally {
             setIsLoading(false);
         }
-    };
-
-    const handleEmailLookup = async (email) => {
-        setEmailLookupLoading(true);
-        try {
-            const response = await interpreterAPI.lookupByEmail(email);
-            
-            if (response.data.success && response.data.found) {
-                // Check if already registered
-                if (response.data.alreadyRegistered) {
-                    return { 
-                        found: true, 
-                        alreadyRegistered: true,
-                        message: response.data.message || 'This email is already registered. Please log in to access your account.'
-                    };
-                }
-                // Found existing interpreter - email was sent
-                toast.success(response.data.message || 'Please check your email for a link to complete your registration.');
-                return { found: true, message: response.data.message };
-            } else {
-                // Not found - proceed with normal registration
-                return { found: false };
-            }
-        } catch (error) {
-            console.error('Error looking up email:', error);
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to check email. Please try again.';
-            toast.error(errorMessage);
-            throw error;
-        } finally {
-            setEmailLookupLoading(false);
-        }
-    };
-
-    const handleEmailNotFound = () => {
-        // Email not found - proceed with normal registration flow
-        setShowEmailLookup(false);
-        // currentStep will remain 0 for registration type selection
     };
 
     const prefillFormData = (originalData) => {
@@ -513,11 +394,6 @@ const InterpreterProfile = () => {
         if (isEditingFromReview) {
             setIsEditingFromReview(false);
             setCurrentStep(INTERPRETER_STEPS.length);
-        } else if (currentStep === 1 && !isResubmission && !isProfileCompletion) {
-            // Go back to registration type selection (only for new applications)
-            // Once they've started, don't go back to email lookup
-            setCurrentStep(0);
-            setRegistrationType(null);
         } else {
             setCurrentStep(prev => Math.max(prev - 1, 1));
         }
@@ -559,11 +435,6 @@ const InterpreterProfile = () => {
             // Transform service_types if needed
             if (submissionData.service_types) {
                 formDataToSubmit.append('service_types', JSON.stringify(submissionData.service_types));
-            }
-            
-            // Add language_rates (optional per-language rate overrides)
-            if (submissionData.language_rates && submissionData.language_rates.length > 0) {
-                formDataToSubmit.append('language_rates', JSON.stringify(submissionData.language_rates));
             }
             
             // Add certificate metadata if we have certificates
@@ -609,7 +480,7 @@ const InterpreterProfile = () => {
                     submissionData[key].forEach((file, index) => {
                         formDataToSubmit.append('certificates', file);
                     });
-                } else if (key === 'languages' || key === 'language_rates' || key === 'service_types' || key === 'certificates' || key === 'w9_data' || key === 'w9_entry_method' || key === 'w9_file') {
+                } else if (key === 'languages' || key === 'service_types' || key === 'certificates' || key === 'w9_data' || key === 'w9_entry_method' || key === 'w9_file') {
                     // Already handled above
                     return;
                 } else if (submissionData[key] !== null && submissionData[key] !== undefined) {
@@ -641,43 +512,17 @@ const InterpreterProfile = () => {
 
             // Use appropriate endpoint based on whether this is profile completion or new application
             let response;
-            
-            // Debug: Log API configuration
-            const apiBaseURL = process.env.REACT_APP_API_URL || '/api';
-            console.log('API Base URL:', apiBaseURL);
-            console.log('Full endpoint would be:', `${apiBaseURL}/interpreters`);
-            
             if (completionToken) {
                 // Profile completion for imported interpreters
-                // Transform address fields to match backend expectations (address object with street2)
-                const transformedData = {
-                    ...submissionData,
-                    address: {
-                        street: submissionData.street_address || '',
-                        street2: submissionData.street_address_2 || '',
-                        city: submissionData.city || '',
-                        stateId: submissionData.state_id || '',
-                        zipCode: submissionData.zip_code || ''
-                    }
-                };
-                // Remove flat address fields as backend expects the object format
-                delete transformedData.street_address;
-                delete transformedData.street_address_2;
-                delete transformedData.city;
-                delete transformedData.state_id;
-                delete transformedData.zip_code;
-                delete transformedData.formatted_address;
-                delete transformedData.latitude;
-                delete transformedData.longitude;
-                delete transformedData.place_id;
-                delete transformedData.county;
-                
-                // Use the configured api instance which has the correct baseURL
-                response = await api.post(`/profile-completion/submit/${completionToken}`, transformedData, {
+                response = await fetch(`${process.env.REACT_APP_API_URL}/profile-completion/submit/${completionToken}`, {
+                    method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify(submissionData)
                 });
+                const result = await response.json();
+                response = { data: result }; // Normalize response structure
             } else {
                 // Normal new application
                 response = await interpreterAPI.createProfile(formDataToSubmit);
@@ -703,34 +548,9 @@ const InterpreterProfile = () => {
             console.error('Profile submission error:', error);
             
             let errorMessage = 'Failed to create profile';
-            
-            // Handle JSON parsing errors (HTML response instead of JSON)
-            if (error.message && (error.message.includes('Unexpected token') || error.message.includes('<!DOCTYPE') || error.message.includes('not valid JSON'))) {
-                errorMessage = 'The server returned an error page instead of data. This usually means the API endpoint was not found (404) or the server encountered an error. Please check your network connection and try again.';
-            }
-            // Handle axios response errors
-            else if (error.response) {
-                // Check if response data is HTML string
-                if (typeof error.response.data === 'string' && error.response.data.trim().startsWith('<!DOCTYPE')) {
-                    if (error.response.status === 404) {
-                        errorMessage = 'The API endpoint was not found (404). Please verify the server is running and the endpoint is correct.';
-                    } else if (error.response.status >= 500) {
-                        errorMessage = 'Server error occurred. The server may be down or experiencing issues. Please try again later.';
-                    } else {
-                        errorMessage = `Server error (${error.response.status}). Please contact support if this persists.`;
-                    }
-                } else if (error.response.data?.message) {
-                    errorMessage = error.response.data.message;
-                } else {
-                    errorMessage = `Request failed with status ${error.response.status}`;
-                }
-            }
-            // Handle axios request errors (no response)
-            else if (error.request) {
-                errorMessage = 'No response from server. Please check your internet connection and verify the server is accessible.';
-            }
-            // Handle other errors
-            else if (error.message) {
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.message) {
                 errorMessage = error.message;
             }
             
@@ -762,8 +582,7 @@ const InterpreterProfile = () => {
             parametricData,
             isEditing: isEditingFromReview, // User is editing only if they came from review step
             rejectedFields: rejectedFields || [], // Pass rejected fields for highlighting
-            isResubmission,
-            registrationType // Pass registration type for conditional rendering
+            isResubmission
         };
 
         console.log('Rendering step with props:', {
@@ -795,104 +614,6 @@ const InterpreterProfile = () => {
                     <LoadingSpinner size="lg" />
                     <p className="mt-4 text-gray-600">Loading form data...</p>
                 </div>
-            </div>
-        );
-    }
-
-    // Email Lookup Screen (shown before registration type selection)
-    if (showEmailLookup) {
-        return (
-            <div className="min-h-screen bg-gray-50">
-                <div className="max-w-4xl mx-auto px-4 py-8">
-                    {/* Header */}
-                    <div className="text-center mb-8">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                            Interpreter Registration
-                        </h1>
-                        <p className="text-gray-600">
-                            Let's get started with your interpreter profile
-                        </p>
-                    </div>
-
-                    {/* Email Lookup Step */}
-                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-                        <div className="p-8">
-                            <EmailLookupStep
-                                onEmailFound={handleEmailLookup}
-                                onEmailNotFound={handleEmailNotFound}
-                                isLoading={emailLookupLoading}
-                            />
-                        </div>
-                    </div>
-                </div>
-                <Toaster position="top-right" />
-            </div>
-        );
-    }
-
-    // Registration Type Selection Screen (Step 0)
-    if (currentStep === 0) {
-        return (
-            <div className="min-h-screen bg-gray-50">
-                <div className="max-w-4xl mx-auto px-4 py-8">
-                    <div className="text-center mb-8">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                            Join Our Network
-                        </h1>
-                        <p className="text-gray-600">
-                            How would you like to register?
-                        </p>
-                    </div>
-
-                    <div className="max-w-2xl mx-auto">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Individual Option */}
-                            <motion.button
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                                onClick={() => handleSelectRegistrationType('individual')}
-                                className="bg-white rounded-2xl shadow-lg border-2 border-gray-200 p-8 hover:border-blue-500 hover:shadow-xl transition-all duration-200 text-left group"
-                            >
-                                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-blue-200 transition-colors">
-                                    <UserIcon className="w-8 h-8 text-blue-600" />
-                                </div>
-                                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                                    Individual Interpreter
-                                </h3>
-                                <p className="text-gray-600">
-                                    I'm an independent interpreter looking to join the network and receive job assignments.
-                                </p>
-                            </motion.button>
-
-                            {/* Agency Option */}
-                            <motion.button
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
-                                onClick={() => handleSelectRegistrationType('agency')}
-                                className="bg-white rounded-2xl shadow-lg border-2 border-gray-200 p-8 hover:border-purple-500 hover:shadow-xl transition-all duration-200 text-left group"
-                            >
-                                <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-purple-200 transition-colors">
-                                    <BriefcaseIcon className="w-8 h-8 text-purple-600" />
-                                </div>
-                                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                                    Agency / Organization
-                                </h3>
-                                <p className="text-gray-600">
-                                    I represent an agency or organization with multiple interpreters.
-                                </p>
-                            </motion.button>
-                        </div>
-
-                        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <p className="text-sm text-blue-800">
-                                <strong>Note:</strong> Agencies can add individual interpreters to their roster after registration is approved.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <Toaster position="top-right" />
             </div>
         );
     }
@@ -945,19 +666,12 @@ const InterpreterProfile = () => {
                 {/* Header */}
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                        {isResubmission 
-                            ? 'Update Your Application' 
-                            : registrationType === 'agency' 
-                                ? 'Register Your Agency' 
-                                : 'Create Interpreter Profile'
-                        }
+                        {isResubmission ? 'Update Your Application' : 'Create Interpreter Profile'}
                     </h1>
                     <p className="text-gray-600">
                         {isResubmission 
                             ? 'Please review and update the highlighted fields below'
-                            : registrationType === 'agency'
-                                ? 'Complete your agency profile to join our network'
-                                : 'Complete your professional interpreter profile to join our network'
+                            : 'Complete your professional interpreter profile to join our network'
                         }
                     </p>
                 </div>

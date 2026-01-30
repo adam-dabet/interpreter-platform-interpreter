@@ -319,46 +319,15 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
                         <span className="font-medium text-gray-900">{serviceName}</span>
                         <span className="text-sm text-gray-600">
                           {rate.rate_type === 'platform' ? (
-                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded">Platform Rate: ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : rate.rate_unit === '3hours' ? '3hr' : rate.rate_unit === '6hours' ? '6hr' : 'hr'}</span>
+                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded">Platform Rate: ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : 'hr'}</span>
                           ) : (
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">Custom Rate: ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : rate.rate_unit === '3hours' ? '3hr' : rate.rate_unit === '6hours' ? '6hr' : 'hr'}</span>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">Custom Rate: ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : 'hr'}</span>
                           )}
                         </span>
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            )}
-            
-            {data.language_rates && data.language_rates.length > 0 && (
-              <div className="mt-4">
-                <span className="font-medium text-gray-700">Language-Specific Rates:</span>
-                <div className="mt-2 space-y-2">
-                  {data.language_rates.map((lr, index) => {
-                    const serviceName = getServiceTypeName(lr.service_type_id);
-                    const languageName = getLanguageName(lr.language_id);
-                    return (
-                      <div key={index} className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="font-medium text-gray-900">{serviceName}</span>
-                            <span className="mx-2 text-gray-400">→</span>
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-600 text-white">
-                              {languageName}
-                            </span>
-                          </div>
-                          <span className="text-sm font-semibold text-blue-900">
-                            ${Number(lr.rate_amount).toFixed(2)}/{lr.rate_unit === 'minutes' ? 'min' : 'hr'}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="mt-2 text-xs text-gray-600 italic">
-                  These language-specific rates override the base service rates when the corresponding language is selected for a job.
-                </p>
               </div>
             )}
           </div>

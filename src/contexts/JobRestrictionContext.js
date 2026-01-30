@@ -30,12 +30,9 @@ export const JobRestrictionProvider = ({ children }) => {
       const now = new Date();
 
       // Find overdue reports (>24 hours)
-      // Only check jobs where the interpreter actually accepted the assignment
       const overdueReports = jobs.filter(job => {
         if (job.status !== 'completed' || job.completion_report_submitted) return false;
         if (!job.completed_at) return false;
-        // Only check if assignment was accepted (not declined, cancelled, etc.)
-        if (job.assignment_status !== 'accepted') return false;
         const completedTime = new Date(job.completed_at);
         const hoursSince = (now - completedTime) / (1000 * 60 * 60);
         return hoursSince > 24;

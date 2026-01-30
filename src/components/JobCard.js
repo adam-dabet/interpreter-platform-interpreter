@@ -282,37 +282,16 @@ const JobCard = ({
           </div>
         )}
         
-        {/* Estimated Earnings (if available and not paid) */}
-        {!job.interpreter_paid_at && (job.agreed_rate || job.hourly_rate) && (job.estimated_duration_minutes || job.actual_duration_minutes) && (
-          <div className="flex items-center text-sm font-medium text-blue-600">
+        {/* Earnings (if available and not paid) - Use backend calculated values */}
+        {!job.interpreter_paid_at && (job.estimated_earnings || job.calculated_total_payment || job.agreed_rate) && (
+          <div className="flex items-center text-sm font-medium text-green-600">
             <CurrencyDollarIcon className="h-4 w-4 mr-1" />
-            <span>
-              Estimated: {formatCurrency(
-                (() => {
-                  // ALWAYS use backend-calculated payment if the field exists (even if 0)
-                  // Check if the property exists on the object, not just if it's truthy
-                  if ('calculated_payment' in job && job.calculated_payment !== null && job.calculated_payment !== undefined) {
-                    const backendValue = parseFloat(job.calculated_payment);
-                    // Use backend value even if it's 0 (0 is a valid calculated payment)
-                    if (!isNaN(backendValue)) {
-                      return backendValue;
-                    }
-                  }
-                  
-                  // Only fallback if backend value truly doesn't exist
-                  // This should rarely happen if backend is working correctly
-                  const estimatedMinutes = job.estimated_duration_minutes || 0;
-                  const actualMinutes = job.actual_duration_minutes || 0;
-                  const reservedHours = job.reserved_hours || 0;
-                  const reservedMinutes = job.reserved_minutes || 0;
-                  const reservedTimeMinutes = (reservedHours * 60) + reservedMinutes;
-                  const rawMinutes = Math.max(estimatedMinutes, reservedTimeMinutes, actualMinutes);
-                  const billingIncrement = job.interpreter_interval_minutes || 15;
-                  const billableMinutes = Math.ceil(rawMinutes / billingIncrement) * billingIncrement;
-                  return ((job.agreed_rate || job.hourly_rate) * (billableMinutes / 60)) || 0;
-                })()
-              )}
-            </span>
+            {job.estimated_earnings 
+              ? formatCurrency(job.estimated_earnings)
+              : job.calculated_total_payment
+              ? formatCurrency(job.calculated_total_payment)
+              : formatCurrency(job.agreed_rate * (job.estimated_duration_minutes / 60))
+            }
           </div>
         )}
       </div>

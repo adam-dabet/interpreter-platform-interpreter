@@ -13,25 +13,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import axios from 'axios';
 import { formatDate as formatDateUtil, formatTime as formatTimeUtil } from '../utils/dateUtils';
 
-// Determine API base URL with smart hostname detection
-const getApiBaseURL = () => {
-  if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL;
-  }
-  
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    if (hostname === 'providers.theintegritycompanyinc.com' || 
-        hostname === 'admin.theintegritycompanyinc.com' || 
-        hostname === 'portal.theintegritycompanyinc.com') {
-      return 'https://backend.theintegritycompanyinc.com/api';
-    }
-  }
-  
-  return 'http://localhost:3001/api';
-};
-
-const API_BASE = getApiBaseURL();
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 const ConfirmJob = () => {
   const { jobId, token } = useParams();

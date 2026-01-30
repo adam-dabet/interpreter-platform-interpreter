@@ -9,17 +9,13 @@ import {
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import InterpreterCompletionReport from './InterpreterCompletionReport';
-import { getApiBaseURL } from '../services/api';
 
-const API_BASE = getApiBaseURL();
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
   const [showCompletionReport, setShowCompletionReport] = useState(false);
   const [isEndingJob, setIsEndingJob] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [showUnassignModal, setShowUnassignModal] = useState(false);
-  const [unassignReason, setUnassignReason] = useState('');
-  const [isUnassigning, setIsUnassigning] = useState(false);
   
   // Calculate actual duration from magic link timestamps if available
   const calculateActualDuration = () => {
@@ -159,57 +155,6 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
     return job.status === 'in_progress' && job.job_started_at;
   };
 
-  const canUnassign = () => {
-    // Can only unassign if job is assigned or reminders_sent and at least 48 hours away
-    if (!['assigned', 'reminders_sent'].includes(job.status)) {
-      return { allowed: false, reason: 'not-in-correct-status' };
-    }
-
-    const now = new Date();
-    const jobDateTime = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
-    const hoursUntilJob = (jobDateTime - now) / (1000 * 60 * 60);
-
-    if (hoursUntilJob <= 48) {
-      return { allowed: false, reason: 'too-close' };
-    }
-
-    return { allowed: true };
-  };
-
-  const handleUnassign = async () => {
-    try {
-      setIsUnassigning(true);
-      const token = localStorage.getItem('interpreterToken');
-      
-      const response = await fetch(`${API_BASE}/jobs/${job.id}/unassign`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          unassign_reason: unassignReason || 'Provider requested to unassign'
-        })
-      });
-
-      if (response.ok) {
-        toast.success('Successfully unassigned from this job');
-        setShowUnassignModal(false);
-        setUnassignReason('');
-        // Redirect or update the job list
-        window.location.href = '/jobs';
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Failed to unassign from job');
-      }
-    } catch (error) {
-      console.error('Error unassigning from job:', error);
-      toast.error('Failed to unassign from job');
-    } finally {
-      setIsUnassigning(false);
-    }
-  };
-
   const handleEndJob = async () => {
     setIsEndingJob(true);
     try {
@@ -280,6 +225,50 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
     }
   };
 
+  const getPaymentInfo = () => {
+    if (job.status === 'completed' || job.status === 'completion_report') {
+      const actualMinutes = actualDurationMinutes || job.actual_duration_minutes || 0;
+      const bookedMinutes = job.estimated_duration_minutes || 0;
+      const minimumMinutes = Math.max(bookedMinutes, actualMinutes); // Pay for booked time or actual time, whichever is higher
+      
+      // Determine if this is a legal appointment
+      // Only court certified interpreters OR explicitly legal services (not medical-legal or non-legal)
+      const isLegalAppointment = job.interpreter_type_code === 'court_certified' || 
+                                 (job.service_type_name?.toLowerCase().includes('legal') && 
+                                  !job.service_type_name?.toLowerCase().includes('non-legal') &&
+                                  !job.service_type_name?.toLowerCase().includes('medical'));
+      
+      // Set increment based on appointment type
+      const incrementMinutes = isLegalAppointment ? 180 : 15; // 3 hours for legal, 15 minutes for others
+      
+      
+      const paymentAmount = calculateIncrementalPayment(minimumMinutes, job.hourly_rate || 0, incrementMinutes);
+      
+      return {
+        actualMinutes: Math.round(actualMinutes),
+        minimumMinutes: Math.round(minimumMinutes),
+        bookedMinutes: Math.round(bookedMinutes),
+        paymentAmount: paymentAmount.toFixed(2),
+        actualHours: (actualMinutes / 60).toFixed(2),
+        bookedHours: (bookedMinutes / 60).toFixed(2)
+      };
+    }
+    return null;
+  };
+
+  const calculateIncrementalPayment = (totalMinutes, hourlyRate, incrementMinutes) => {
+    if (totalMinutes <= 0) return 0;
+    
+    // Calculate how many increments we need
+    const increments = Math.ceil(totalMinutes / incrementMinutes);
+    const totalIncrementalMinutes = increments * incrementMinutes;
+    const totalHours = totalIncrementalMinutes / 60;
+    const payment = hourlyRate * totalHours;
+    
+    
+    return payment;
+  };
+
   return (
     <div className="space-y-6">
       {/* Workflow Status */}
@@ -348,38 +337,105 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
         </div>
       )}
 
+
+      {/* Payment Information */}
+      {getPaymentInfo() && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <CheckCircleIcon className="h-5 w-5 mr-2 text-green-600" />
+            Payment Information
+            {job.completion_report_submitted && (
+              <span className="ml-2 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                Locked
+              </span>
+            )}
+          </h3>
+          
+          {/* Actual Time Input */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Actual Time for Appointment (minutes)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={actualDurationMinutes}
+                onChange={(e) => setActualDurationMinutes(e.target.value)}
+                placeholder="Enter actual time in minutes"
+                min="0"
+                disabled={job.completion_report_submitted}
+                className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${
+                  job.completion_report_submitted 
+                    ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' 
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
+              />
+              <button
+                type="button"
+                onClick={handleUpdateActualDuration}
+                disabled={job.completion_report_submitted}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  job.completion_report_submitted
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                Update
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {job.completion_report_submitted 
+                ? 'Payment information is locked after completion report submission.'
+                : 'Enter the actual time you spent on this assignment in minutes.'
+              }
+            </p>
+          </div>
+          
+          <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${job.completion_report_submitted ? 'relative' : ''}`}>
+            {job.completion_report_submitted && (
+              <div className="absolute inset-0 bg-gray-100 bg-opacity-75 rounded-lg flex items-center justify-center z-10">
+                <div className="text-center">
+                  <div className="text-sm font-medium text-gray-600 mb-1">Payment Information Locked</div>
+                  <div className="text-xs text-gray-500">Cannot be modified after completion report submission</div>
+                </div>
+              </div>
+            )}
+            
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-sm text-blue-600">Actual Time</div>
+              <div className="text-lg font-semibold text-blue-900">
+                {getPaymentInfo().actualMinutes} minutes
+              </div>
+            </div>
+            
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-sm text-green-600">Booked Time</div>
+              <div className="text-lg font-semibold text-green-900">
+                {getPaymentInfo().bookedMinutes} minutes
+              </div>
+            </div>
+            
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <div className="text-sm text-purple-600">Payment Amount</div>
+              <div className="text-lg font-semibold text-purple-900">
+                ${getPaymentInfo().paymentAmount}
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="text-sm text-yellow-800">
+              <strong>Payment Guarantee:</strong> You will be paid for the booked time ({getPaymentInfo().bookedMinutes} minutes) or actual time, whichever is higher.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Next Steps</h3>
         
         <div className="space-y-4">
-          {/* Unassign Button or Message */}
-          {['assigned', 'reminders_sent'].includes(job.status) && (() => {
-            const unassignCheck = canUnassign();
-            if (unassignCheck.allowed) {
-              return (
-                <button
-                  onClick={() => setShowUnassignModal(true)}
-                  className="w-full flex items-center justify-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
-                  Unassign from Job
-                </button>
-              );
-            } else if (unassignCheck.reason === 'too-close') {
-              return (
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-start">
-                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 mr-2 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-yellow-800">
-                      <strong>Cannot Unassign:</strong> This job is less than 2 days away. If you can no longer make this appointment, please call us at <strong>(555) 123-4567</strong> immediately.
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-          })()}
-
           {/* End Job Button */}
           {canEndJob() && (
             <button
@@ -392,11 +448,10 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
             </button>
           )}
 
-          {/* Completion Report Button */}
+          {/* Completion Report */}
           {canSubmitCompletionReport() && (
             <button
               onClick={() => setShowCompletionReport(true)}
-              data-completion-report-trigger="true"
               className="w-full flex items-center justify-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               <DocumentTextIcon className="h-5 w-5 mr-2" />
@@ -421,6 +476,14 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
             </div>
           )}
 
+          {job.status === 'completed' && !job.completion_report_submitted && (
+            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="text-sm text-orange-800">
+                <strong>Job Completed:</strong> Please submit your completion report above to finalize the assignment.
+              </div>
+            </div>
+          )}
+
           {job.status === 'completion_report' && (
             <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="text-sm text-green-800">
@@ -430,58 +493,6 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
           )}
         </div>
       </div>
-
-
-      {/* Unassign Modal */}
-      {showUnassignModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex items-start mb-4">
-              <ExclamationTriangleIcon className="h-6 w-6 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Unassign from Job</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  Are you sure you want to unassign yourself from this job? This action cannot be undone.
-                </p>
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Reason (optional)
-              </label>
-              <textarea
-                value={unassignReason}
-                onChange={(e) => setUnassignReason(e.target.value)}
-                placeholder="Please provide a reason for unassigning..."
-                rows="3"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                maxLength={500}
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowUnassignModal(false);
-                  setUnassignReason('');
-                }}
-                disabled={isUnassigning}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUnassign}
-                disabled={isUnassigning}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-              >
-                {isUnassigning ? 'Unassigning...' : 'Unassign'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
 
       {/* Completion Report Modal */}

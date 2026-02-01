@@ -113,6 +113,9 @@ export const authAPI = {
 
 // Interpreter API
 export const interpreterAPI = {
+  // Look up interpreter by email; if found and not registered, send invite email
+  lookupByEmail: (email) => api.post('/interpreters/lookup-by-email', { email }).then((r) => r.data),
+
   // Create interpreter profile (with file uploads)
   createProfile: (profileData) => {
     return api.post('/interpreters', profileData, {

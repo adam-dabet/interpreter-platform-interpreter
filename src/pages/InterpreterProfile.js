@@ -12,6 +12,7 @@ import ServiceTypesStep from '../components/forms/ServiceTypesStep';
 import CertificatesStep from '../components/forms/CertificatesStep';
 import W9FormStep from '../components/forms/W9FormStep';
 import ReviewStep from '../components/forms/ReviewStep';
+import EmailLookupStep from '../components/forms/EmailLookupStep';
 import { interpreterAPI, parametricAPI } from '../services/api';
 
 const INTERPRETER_STEPS = [
@@ -89,6 +90,9 @@ const InterpreterProfile = () => {
     const [isProfileCompletion, setIsProfileCompletion] = useState(false);
     const [completionToken, setCompletionToken] = useState(null);
     const [importedData, setImportedData] = useState(null);
+
+    // Email lookup: when true, show "enter email to check if in system" before registration form (only when no token in URL)
+    const [showEmailLookup, setShowEmailLookup] = useState(false);
     
     const [formData, setFormData] = useState({
         // Personal Information
@@ -147,16 +151,20 @@ const InterpreterProfile = () => {
 
     const checkForTokens = async () => {
         const urlParams = new URLSearchParams(window.location.search);
-        
-        // Check for profile completion token (for imported interpreters)
         const completionTok = urlParams.get('token');
-        if (completionTok) {
-            await loadProfileCompletionData(completionTok);
-            return; // Don't check for rejection token if completion token exists
+        const rejectionTok = urlParams.get('rejection_token');
+        
+        // No token: show email lookup first (set immediately to avoid flashing the form)
+        if (!completionTok && !rejectionTok) {
+            setShowEmailLookup(true);
+            return;
         }
         
-        // Check for rejection token (existing flow)
-        const rejectionTok = urlParams.get('rejection_token');
+        if (completionTok) {
+            await loadProfileCompletionData(completionTok);
+            return;
+        }
+        
         if (rejectionTok) {
             await loadRejectionData(rejectionTok);
         }
@@ -614,6 +622,35 @@ const InterpreterProfile = () => {
                     <LoadingSpinner size="lg" />
                     <p className="mt-4 text-gray-600">Loading form data...</p>
                 </div>
+            </div>
+        );
+    }
+
+    // Email lookup step: "Are you already in our system?" — only when visiting /apply with no token
+    if (showEmailLookup) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <div className="max-w-4xl mx-auto px-4 py-8">
+                    <div className="text-center mb-8">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                            Provider Registration
+                        </h1>
+                        <p className="text-gray-600">
+                            Enter your email to see if we already have your information in our system.
+                        </p>
+                    </div>
+                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden p-8 max-w-lg mx-auto">
+                        <EmailLookupStep
+                            onEmailFound={async (email) => {
+                                const result = await interpreterAPI.lookupByEmail(email);
+                                return result;
+                            }}
+                            onEmailNotFound={() => setShowEmailLookup(false)}
+                            isLoading={false}
+                        />
+                    </div>
+                </div>
+                <Toaster position="top-right" />
             </div>
         );
     }

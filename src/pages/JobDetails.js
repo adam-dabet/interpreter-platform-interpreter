@@ -43,7 +43,9 @@ const JobDetails = () => {
   const [confirmationNotes, setConfirmationNotes] = useState('');
   const [showMileagePrompt, setShowMileagePrompt] = useState(false);
   const [mileageRequested, setMileageRequested] = useState(0);
+  const [mileageRate, setMileageRate] = useState(0.70);
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
+  const FEDERAL_MILEAGE_CAP = 0.72;
 
   const getStoredReturnPath = useCallback(() => {
     const statePath = location.state?.returnTo;
@@ -171,26 +173,29 @@ const JobDetails = () => {
     }
   };
   
-  const confirmAvailability = async (mileage) => {
+  const confirmAvailability = async (mileage, rate = null) => {
     try {
       setMileagePromptLoading(true);
-      const response = await jobAPI.indicateAvailability(jobId, parseFloat(mileage) || 0);
+      const miles = parseFloat(mileage) || 0;
+      const effectiveRate = rate != null ? Math.min(FEDERAL_MILEAGE_CAP, Math.max(0, parseFloat(rate) || 0.70)) : null;
+      const response = await jobAPI.indicateAvailability(jobId, miles, effectiveRate);
       
       // Check if auto-assigned as preferred provider
       if (response.data?.auto_assigned) {
-        const message = mileage > 0 
-          ? `🎉 Congratulations! As a preferred provider, you have been automatically assigned to this job! Mileage requested: ${mileage} miles.`
+        const message = miles > 0 
+          ? `🎉 Congratulations! As a preferred provider, you have been automatically assigned to this job! Mileage requested: ${miles} miles.`
           : '🎉 Congratulations! As a preferred provider, you have been automatically assigned to this job!';
         toast.success(message, { duration: 6000 });
       } else {
-        const message = mileage > 0 
-          ? `Availability indicated with ${mileage} miles mileage request! The admin will review and assign.`
+        const message = miles > 0 
+          ? `Availability indicated with ${miles} miles mileage request! The admin will review and assign.`
           : 'Availability indicated! The admin will review responses and assign an interpreter.';
         toast.success(message);
       }
       
       setShowMileagePrompt(false);
       setMileageRequested(0);
+      setMileageRate(0.70);
       await loadJobDetails();
     } catch (error) {
       console.error('Error indicating availability:', error);
@@ -228,15 +233,18 @@ const JobDetails = () => {
     try {
       // Check if this is for availability indication or job acceptance
       if (job.status === 'finding_interpreter') {
-        await confirmAvailability(mileageRequested);
+        await confirmAvailability(mileageRequested, mileageRate);
       } else {
+        const effectiveRate = mileageRequested > 0 ? Math.min(FEDERAL_MILEAGE_CAP, Math.max(0, parseFloat(mileageRate) || 0.70)) : null;
         const response = await jobAPI.acceptJob(jobId, { 
-          mileage_requested: mileageRequested 
+          mileage_requested: mileageRequested,
+          mileage_rate: effectiveRate
         });
         
         toast.success('Job accepted successfully! Your mileage request is pending admin approval.');
         setShowMileagePrompt(false);
         setMileageRequested(0);
+        setMileageRate(0.70);
         navigateBackToPreviousPage();
       }
     } catch (error) {
@@ -265,6 +273,7 @@ const JobDetails = () => {
         toast.success('Job accepted successfully!');
         setShowMileagePrompt(false);
         setMileageRequested(0);
+        setMileageRate(0.70);
         navigateBackToPreviousPage();
       }
     } catch (error) {
@@ -1041,44 +1050,63 @@ const JobDetails = () => {
             {/* Close Button */}
             <button
               onClick={() => {
-                setShowMileagePrompt(false);
-                setMileageRequested(0);
-              }}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <XCircleIcon className="h-6 w-6" />
-            </button>
-            
-            <div className="text-center mb-6">
-              <CheckCircleIcon className="h-16 w-16 text-blue-600 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                Mileage Reimbursement
-              </h2>
-              <p className="text-gray-600 text-sm">
-                Do you need to be reimbursed for mileage to this job location?
-              </p>
-            </div>
+        setShowMileagePrompt(false);
+        setMileageRequested(0);
+        setMileageRate(0.70);
+      }}
+      className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+    >
+      <XCircleIcon className="h-6 w-6" />
+    </button>
+    
+    <div className="text-center mb-6">
+      <CheckCircleIcon className="h-16 w-16 text-blue-600 mx-auto mb-4" />
+      <h2 className="text-xl font-semibold text-gray-900 mb-2">
+        Mileage Reimbursement
+      </h2>
+      <p className="text-gray-600 text-sm">
+        Do you need to be reimbursed for mileage to this job location?
+      </p>
+    </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Miles to job location:
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={mileageRequested}
-                  onChange={(e) => setMileageRequested(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="0"
-                />
-                {mileageRequested > 0 && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    Estimated reimbursement: ${(mileageRequested * 0.7).toFixed(2)}
-                  </p>
-                )}
-              </div>
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Miles to job location:
+        </label>
+        <input
+          type="number"
+          min="0"
+          step="0.1"
+          value={mileageRequested}
+          onChange={(e) => setMileageRequested(parseFloat(e.target.value) || 0)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="0"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Rate per mile ($):
+        </label>
+        <input
+          type="number"
+          min="0"
+          max={FEDERAL_MILEAGE_CAP}
+          step="0.01"
+          value={mileageRate}
+          onChange={(e) => setMileageRate(Math.min(FEDERAL_MILEAGE_CAP, Math.max(0, parseFloat(e.target.value) || 0)))}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="0.70"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Federal cap: ${FEDERAL_MILEAGE_CAP}/mile. Your rate will be capped if higher.
+        </p>
+        {mileageRequested > 0 && (
+          <p className="text-sm text-gray-500 mt-1">
+            Estimated reimbursement: ${(mileageRequested * Math.min(FEDERAL_MILEAGE_CAP, mileageRate || 0.70)).toFixed(2)}
+          </p>
+        )}
+      </div>
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
                 <div className="flex">

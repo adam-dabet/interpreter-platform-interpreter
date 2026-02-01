@@ -141,17 +141,17 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
             newErrors.llc_classification = 'LLC classification is required';
         }
         
-        // TIN validation based on tax classification
-        if (w9Data.tax_classification === 'individual') {
-            if (!w9Data.ssn?.trim()) {
-                newErrors.ssn = 'Social Security Number is required for individual tax classification';
-            } else if (!/^\d{3}-\d{2}-\d{4}$/.test(w9Data.ssn)) {
+        // TIN validation: require at least one of SSN or EIN (provider may enter either)
+        const hasSsn = w9Data.ssn?.trim();
+        const hasEin = w9Data.ein?.trim();
+        if (!hasSsn && !hasEin) {
+            newErrors.ssn = 'Enter either Social Security Number or Employer Identification Number (at least one required)';
+            newErrors.ein = 'Enter either Social Security Number or Employer Identification Number (at least one required)';
+        } else {
+            if (hasSsn && !/^\d{3}-\d{2}-\d{4}$/.test(w9Data.ssn)) {
                 newErrors.ssn = 'SSN must be in format XXX-XX-XXXX';
             }
-        } else {
-            if (!w9Data.ein?.trim()) {
-                newErrors.ein = 'Employer Identification Number is required for business tax classification';
-            } else if (!/^\d{2}-\d{7}$/.test(w9Data.ein)) {
+            if (hasEin && !/^\d{2}-\d{7}$/.test(w9Data.ein)) {
                 newErrors.ein = 'EIN must be in format XX-XXXXXXX';
             }
         }
@@ -481,27 +481,28 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                         Taxpayer Identification Number
                         {(isFieldRejected('w9_ssn') || isFieldRejected('w9_ein')) && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
                     </h5>
+                    <p className="text-xs text-gray-600 mb-3">
+                        Enter either your Social Security Number (SSN) or Employer Identification Number (EIN)—at least one is required.
+                    </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Social security number</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Social Security Number (SSN)</label>
                             <Input
                                 type="text"
                                 value={w9Data.ssn}
                                 onChange={(e) => handleW9DataChange('ssn', e.target.value)}
                                 error={errors.ssn || (isFieldRejected('w9_ssn') ? 'This field needs to be updated' : '')}
                                 placeholder="XXX-XX-XXXX"
-                                required={w9Data.tax_classification === 'individual'}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Employer identification number</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Employer Identification Number (EIN)</label>
                             <Input
                                 type="text"
                                 value={w9Data.ein}
                                 onChange={(e) => handleW9DataChange('ein', e.target.value)}
                                 error={errors.ein || (isFieldRejected('w9_ein') ? 'This field needs to be updated' : '')}
                                 placeholder="XX-XXXXXXX"
-                                required={w9Data.tax_classification !== 'individual'}
                             />
                         </div>
                     </div>

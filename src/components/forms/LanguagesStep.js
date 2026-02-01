@@ -5,7 +5,7 @@ import * as yup from 'yup';
 import { motion } from 'framer-motion';
 import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import Input from '../ui/Input';
-import Select from '../ui/Select';
+import SearchableSelect from '../ui/SearchableSelect';
 import Button from '../ui/Button';
 import { languagesSchema } from '../../services/validationSchemas';
 import { COMMON_LANGUAGES } from '../../utils/constants';
@@ -196,20 +196,21 @@ const LanguagesStep = ({ data, onPrevious, onNext, onUpdate, isEditing, parametr
                   control={control}
                   render={({ field }) => (
                     <div className={isFieldRejected('languages') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
-                      <Select
-                        {...field}
+                      <SearchableSelect
                         label="Language"
                         placeholder="Select a language..."
+                        searchPlaceholder="Search languages..."
                         options={languageOptions}
-                        error={errors.languages?.[index]?.language_id?.message || (isFieldRejected('languages') ? 'This field needs to be updated' : '')}
-                        onChange={(e) => {
-                          if (e.target.value === 'other') {
+                        value={field.value}
+                        onChange={(val) => {
+                          if (val === 'other') {
                             setShowCustomInput(true);
                             field.onChange('');
                           } else {
-                            field.onChange(e.target.value);
+                            field.onChange(val);
                           }
                         }}
+                        error={errors.languages?.[index]?.language_id?.message || (isFieldRejected('languages') ? 'This field needs to be updated' : '')}
                         required
                       />
                     </div>

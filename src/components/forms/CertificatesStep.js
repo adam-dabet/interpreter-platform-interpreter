@@ -6,8 +6,16 @@ import Select from '../ui/Select';
 import FileUpload from '../ui/FileUpload';
 import toast from 'react-hot-toast';
 
+// Certificate type names to exclude from the selection dropdown
+const EXCLUDED_CERTIFICATE_TYPE_NAMES = ['CCHI', 'CMI', 'Oregon HCI Program'];
+
 const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, rejectedFields = [], onUpdate }) => {
     const [isCertified, setIsCertified] = useState(formData.is_certified ?? null); // null, true, false
+
+    // Certificate types available for selection (exclude CCHI, CMI, Oregon HCI Program)
+    const certificateTypeOptions = (parametricData?.certificateTypes || []).filter(
+        (type) => !EXCLUDED_CERTIFICATE_TYPE_NAMES.some((excluded) => (type.name || '').trim() === excluded)
+    );
 
     const normalizeDateValue = (value) => {
         if (!value) return '';
@@ -363,10 +371,10 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                             onChange={(e) => handleCertificateChange(certificate.id, 'certificate_type_id', e.target.value ? parseInt(e.target.value) : '')}
                                             error={errors[`certificate_${certificate.id}_certificate_type_id`]}
                                             required
-                                            options={parametricData?.certificateTypes?.map(type => ({
+                                            options={certificateTypeOptions.map(type => ({
                                                 value: type.id,
                                                 label: type.name
-                                            })) || []}
+                                            }))}
                                             placeholder="Select Certificate Type"
                                         />
                                     </div>

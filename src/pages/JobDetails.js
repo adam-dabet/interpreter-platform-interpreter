@@ -395,9 +395,9 @@ const JobDetails = () => {
                 <ArrowLeftIcon className="h-4 w-4 mr-2" />
                 Back to Previous Page
               </button>
-              {/* Don't show job number for available/unassigned jobs */}
+              {/* Don't show job number for available jobs or when assigned to another interpreter */}
               <h1 className="text-3xl font-bold text-gray-900">
-                {job.status === 'finding_interpreter' 
+                {job.status === 'finding_interpreter' || (job.status === 'assigned' && job.assigned_interpreter_id && profile?.id && String(profile.id) !== String(job.assigned_interpreter_id))
                   ? (job.service_type_name || job.title || 'Job Opportunity')
                   : (job.job_number || job.title)}
               </h1>
@@ -846,12 +846,12 @@ const JobDetails = () => {
                     const isAssignedToCurrentUser = !!(profile?.id && String(profile.id) === String(job.assigned_interpreter_id));
                     if (!isAssignedToCurrentUser) {
                       return (
-                        <div className="text-center py-4">
-                          <div className="text-lg font-semibold text-gray-600 mb-2">
-                            Job Assigned to Another Interpreter
+                        <div className="text-center py-4 p-4 rounded-lg bg-red-50 border border-red-200">
+                          <div className="text-lg font-semibold text-red-700 mb-2">
+                            Not available — assigned to another interpreter
                           </div>
-                          <p className="text-sm text-gray-500">
-                            This job has been assigned to another interpreter.
+                          <p className="text-sm text-red-600">
+                            This appointment is no longer available to you. It has been assigned to another interpreter.
                           </p>
                         </div>
                       );

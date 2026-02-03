@@ -851,7 +851,7 @@ const JobDetails = () => {
                             Job Assigned to Another Interpreter
                           </div>
                           <p className="text-sm text-gray-500">
-                            This job has been assigned to {job.assigned_interpreter_name || 'another interpreter'}.
+                            This job has been assigned to another interpreter.
                           </p>
                         </div>
                       );

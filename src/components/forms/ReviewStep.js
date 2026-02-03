@@ -140,6 +140,18 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
     return 'Unknown Service Type';
   };
 
+  const getServiceTypeCode = (serviceTypeId) => {
+    if (parametricData?.serviceTypes && serviceTypeId) {
+      const serviceType = parametricData.serviceTypes.find(st => 
+        st.id === serviceTypeId || 
+        st.id === parseInt(serviceTypeId) ||
+        String(st.id) === String(serviceTypeId)
+      );
+      return serviceType?.code || null;
+    }
+    return null;
+  };
+
   const getStateName = (stateId) => {
     if (!stateId) return 'Unknown State';
     
@@ -314,14 +326,17 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
                 <div className="mt-2 space-y-2">
                   {data.service_rates.map((rate, index) => {
                     const serviceName = getServiceTypeName(rate.service_type_id);
+                    const serviceCode = getServiceTypeCode(rate.service_type_id);
+                    const isLegalOrVideo = serviceCode === 'legal' || serviceCode === 'video';
+                    const rateUnitDisplay = rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : (isLegalOrVideo && rate.rate_unit === 'hours') ? '3hr' : 'hr';
                     return (
                       <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
                         <span className="font-medium text-gray-900">{serviceName}</span>
                         <span className="text-sm text-gray-600">
                           {rate.rate_type === 'platform' ? (
-                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded">Platform Rate: ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : 'hr'}</span>
+                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded">Platform Rate: ${rate.rate_amount}/{rateUnitDisplay}</span>
                           ) : (
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">Custom Rate: ${rate.rate_amount}/{rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : 'hr'}</span>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">Custom Rate: ${rate.rate_amount}/{rateUnitDisplay}</span>
                           )}
                         </span>
                       </div>

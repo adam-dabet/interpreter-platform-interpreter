@@ -358,7 +358,14 @@ const Profile = () => {
                                 {rate && rate.rate_amount != null ? (
                                     <div className="text-right">
                                         <span className="text-sm font-medium text-gray-900">
-                                            ${rate.rate_amount}/{rate.rate_unit || 'hour'}
+                                            ${rate.rate_amount}/{(() => {
+                                                // Legal and Video Remote Interpretation (Legal) bill per 3 hours; DB stores rate_unit as 'hours'
+                                                const isLegalOrVideo = (rate.service_type_code === 'legal' || rate.service_type_code === 'video') ||
+                                                    (serviceCode === 'legal' || serviceCode === 'video') ||
+                                                    ((serviceName || '').toLowerCase().includes('legal') && !(serviceName || '').toLowerCase().includes('medical'));
+                                                if (isLegalOrVideo && (rate.rate_unit === 'hours' || !rate.rate_unit)) return '3 hours';
+                                                return rate.rate_unit || 'hour';
+                                            })()}
                                         </span>
                                         <p className="text-xs text-gray-500">
                                             {rate.rate_type === 'custom' ? 'Custom Rate' : 'Platform Rate'}

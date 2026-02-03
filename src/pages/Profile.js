@@ -358,13 +358,15 @@ const Profile = () => {
                                 {rate && rate.rate_amount != null ? (
                                     <div className="text-right">
                                         <span className="text-sm font-medium text-gray-900">
-                                            ${rate.rate_amount}/{(() => {
-                                                // Legal and Video Remote Interpretation (Legal) bill per 3 hours; DB stores rate_unit as 'hours'
+                                            {(() => {
+                                                // Legal and VRI (Legal): stored rate is per hour; display as (hourly × 3) per 3 hours
                                                 const isLegalOrVideo = (rate.service_type_code === 'legal' || rate.service_type_code === 'video') ||
                                                     (serviceCode === 'legal' || serviceCode === 'video') ||
                                                     ((serviceName || '').toLowerCase().includes('legal') && !(serviceName || '').toLowerCase().includes('medical'));
-                                                if (isLegalOrVideo && (rate.rate_unit === 'hours' || !rate.rate_unit)) return '3 hours';
-                                                return rate.rate_unit || 'hour';
+                                                const showPer3Hours = isLegalOrVideo && (rate.rate_unit === 'hours' || !rate.rate_unit);
+                                                const amount = showPer3Hours ? (Number(rate.rate_amount) * 3) : Number(rate.rate_amount);
+                                                const unit = showPer3Hours ? '3 hours' : (rate.rate_unit || 'hour');
+                                                return `$${amount.toFixed(2)}/${unit}`;
                                             })()}
                                         </span>
                                         <p className="text-xs text-gray-500">

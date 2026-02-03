@@ -359,12 +359,12 @@ const Profile = () => {
                                     <div className="text-right">
                                         <span className="text-sm font-medium text-gray-900">
                                             {(() => {
-                                                // Legal and VRI (Legal): stored rate is per hour; display as (hourly × 3) per 3 hours
                                                 const isLegalOrVideo = (rate.service_type_code === 'legal' || rate.service_type_code === 'video') ||
                                                     (serviceCode === 'legal' || serviceCode === 'video') ||
                                                     ((serviceName || '').toLowerCase().includes('legal') && !(serviceName || '').toLowerCase().includes('medical'));
                                                 const showPer3Hours = isLegalOrVideo && (rate.rate_unit === 'hours' || !rate.rate_unit);
-                                                const amount = showPer3Hours ? (Number(rate.rate_amount) * 3) : Number(rate.rate_amount);
+                                                const asBlock = rate.legal_video_display_as_block === true;
+                                                const amount = showPer3Hours && !asBlock ? (Number(rate.rate_amount) * 3) : Number(rate.rate_amount);
                                                 const unit = showPer3Hours ? '3 hours' : (rate.rate_unit || 'hour');
                                                 return `$${amount.toFixed(2)}/${unit}`;
                                             })()}

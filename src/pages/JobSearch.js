@@ -668,7 +668,8 @@ const JobSearch = () => {
                               if (serviceRate && serviceRate.rate_amount && serviceRate.rate_unit) {
                                 const isLegalOrVideo = serviceRate.service_type_code === 'legal' || serviceRate.service_type_code === 'video';
                                 const showPer3Hours = isLegalOrVideo && serviceRate.rate_unit === 'hours';
-                                const amount = showPer3Hours ? (Number(serviceRate.rate_amount) * 3) : Number(serviceRate.rate_amount);
+                                const asBlock = serviceRate.legal_video_display_as_block === true;
+                                const amount = showPer3Hours && !asBlock ? (Number(serviceRate.rate_amount) * 3) : Number(serviceRate.rate_amount);
                                 const unitDisplay = showPer3Hours ? '3 hours' : serviceRate.rate_unit;
                                 return `${formatCurrency(amount)}/${unitDisplay}`;
                               }

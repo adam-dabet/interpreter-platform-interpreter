@@ -328,8 +328,9 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
                     const serviceName = getServiceTypeName(rate.service_type_id);
                     const serviceCode = getServiceTypeCode(rate.service_type_id);
                     const isLegalOrVideo = serviceCode === 'legal' || serviceCode === 'video';
-                    const showPer3Hours = isLegalOrVideo && rate.rate_unit === 'hours';
-                    const displayAmount = showPer3Hours ? (Number(rate.rate_amount) * 3) : Number(rate.rate_amount);
+                    const showPer3Hours = isLegalOrVideo && (rate.rate_unit === 'hours' || rate.rate_unit === '3hours');
+                    const asBlock = rate.legal_video_display_as_block === true || rate.rate_unit === '3hours' || rate.rate_unit === '6hours';
+                    const displayAmount = showPer3Hours && !asBlock ? (Number(rate.rate_amount) * 3) : Number(rate.rate_amount);
                     const rateUnitDisplay = rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : showPer3Hours ? '3hr' : 'hr';
                     return (
                       <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">

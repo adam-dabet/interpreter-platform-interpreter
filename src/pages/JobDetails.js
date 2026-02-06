@@ -481,7 +481,7 @@ const JobDetails = () => {
                     <div>
                       <p className="text-sm font-medium text-gray-900">Location</p>
                       <p className="text-sm text-gray-600">
-                        {job.is_remote ? 'Remote Session' : (job.location_address || `${job.location_city}, ${job.location_state}`)}
+                        {job.is_remote ? 'Remote Session' : (job.location_address || job.service_location_address || `${job.location_city || job.service_location_city || ''}, ${job.location_state || job.service_location_state || ''}`.replace(/^, $/, 'N/A'))}
                       </p>
                       {/* Location Contact - Show if name exists */}
                       {job.location_contact_name && job.location_contact_name.trim() && (

@@ -480,6 +480,9 @@ const JobDetails = () => {
                     )}
                     <div>
                       <p className="text-sm font-medium text-gray-900">Location</p>
+                      {!job.is_remote && job.service_location_name && (
+                        <p className="text-sm font-medium text-gray-700">{job.service_location_name}</p>
+                      )}
                       <p className="text-sm text-gray-600">
                         {job.is_remote ? 'Remote Session' : (job.location_address || job.service_location_address || `${job.location_city || job.service_location_city || ''}, ${job.location_state || job.service_location_state || ''}`.replace(/^, $/, 'N/A'))}
                       </p>

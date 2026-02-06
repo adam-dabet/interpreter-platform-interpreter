@@ -217,18 +217,31 @@ const Login = () => {
                 Forgot your password?
               </Link>
             </div>
-            
-            <div className="text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link
-                to="/apply"
-                className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
-              >
-                Apply to become an interpreter
-              </Link>
-            </div>
           </div>
         </motion.form>
+
+        {/* Apply CTA - Made more prominent */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.55 }}
+          className="bg-white rounded-lg shadow-md p-6 border-2 border-blue-100"
+        >
+          <div className="text-center">
+            <p className="text-gray-700 font-medium mb-3">
+              New to our platform?
+            </p>
+            <Link
+              to="/apply"
+              className="inline-block w-full py-3 px-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              Apply to Become an Interpreter
+            </Link>
+            <p className="mt-3 text-xs text-gray-500">
+              Join our network of professional interpreters
+            </p>
+          </div>
+        </motion.div>
 
         {/* Footer */}
         <motion.div
@@ -239,8 +252,8 @@ const Login = () => {
         >
           <p>Need help? Contact our support team</p>
           <p className="mt-1">
-            <a href="mailto:support@interpreterplatform.com" className="text-blue-600 hover:text-blue-500">
-              support@interpreterplatform.com
+            <a href="mailto:generalinbox@theintegritycompanyinc.com" className="text-blue-600 hover:text-blue-500">
+              generalinbox@theintegritycompanyinc.com
             </a>
           </p>
         </motion.div>

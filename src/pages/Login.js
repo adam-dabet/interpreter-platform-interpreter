@@ -252,8 +252,8 @@ const Login = () => {
         >
           <p>Need help? Contact our support team</p>
           <p className="mt-1">
-            <a href="mailto:generalinbox@theintegritycompanyinc.com" className="text-blue-600 hover:text-blue-500">
-              generalinbox@theintegritycompanyinc.com
+            <a href="mailto:providers@theintegritycompanyinc.com" className="text-blue-600 hover:text-blue-500">
+              providers@theintegritycompanyinc.com
             </a>
           </p>
         </motion.div>

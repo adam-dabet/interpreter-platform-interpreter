@@ -5,7 +5,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import toast from 'react-hot-toast';
 
-const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, rejectedFields = [] }) => {
+const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, rejectedFields = [], parametricData }) => {
     
     // Helper to check if a W9 field is rejected
     // Supports both granular field names (old) and grouped section names (new)
@@ -41,6 +41,15 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
         return `${year}-${month}-${day}`;
     };
 
+    // Helper to convert numeric state_id to state abbreviation using parametric data
+    const getStateCodeFromId = (stateId) => {
+        if (!stateId || !parametricData?.usStates) return '';
+        const numericId = typeof stateId === 'string' ? parseInt(stateId, 10) : stateId;
+        if (isNaN(numericId)) return stateId; // Already a state code like 'CA'
+        const stateObj = parametricData.usStates.find(s => s.id === numericId);
+        return stateObj ? stateObj.code : '';
+    };
+
     // Initialize W9 data with address from formData if available
     const getInitialW9Data = () => {
         const existingW9Data = formData.w9_data || {};
@@ -62,7 +71,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
             ein: existingW9Data.ein || '',
             address: existingW9Data.address || formData.street_address || '',
             city: existingW9Data.city || formData.city || '',
-            state: existingW9Data.state || formData.state_id || '',
+            state: existingW9Data.state || getStateCodeFromId(formData.state_id) || '',
             zip_code: existingW9Data.zip_code || formData.zip_code || '',
             account_number: existingW9Data.account_number || '',
             signature: existingW9Data.signature || '',
@@ -613,7 +622,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                 business_name: prev.business_name || fullName || '',
                                 address: formData.street_address || prev.address,
                                 city: formData.city || prev.city,
-                                state: formData.state_id || prev.state,
+                                state: getStateCodeFromId(formData.state_id) || prev.state,
                                 zip_code: formData.zip_code || prev.zip_code
                             }));
                             toast.success('Profile information populated from your profile');

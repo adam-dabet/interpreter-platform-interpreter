@@ -23,6 +23,7 @@ import ConfirmJob from './pages/ConfirmJob';
 import CompletionReportPublic from './pages/CompletionReportPublic';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
+import Feedback from './pages/Feedback';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import { AuthProvider } from './contexts/AuthContext';
@@ -62,6 +63,7 @@ function App() {
             <Route path="/jobs/:jobId/:action/:interpreterId" element={<ProtectedRoute><JobAction /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><Profile /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/profile/edit" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><ProfileEdit /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
+            <Route path="/feedback" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><Feedback /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
           </Routes>
         </div>
       </AuthProvider>

@@ -7,7 +7,8 @@ import {
   UserIcon,
   KeyIcon,
   ArrowRightOnRectangleIcon,
-  BellIcon
+  BellIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -22,6 +23,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Pending', href: '/pending', icon: BellIcon },
     { name: 'My Jobs', href: '/jobs', icon: CalendarIcon },
     { name: 'Profile', href: '/profile', icon: UserIcon },
+    { name: 'Feedback', href: '/feedback', icon: ChatBubbleLeftRightIcon },
   ];
 
   const isActive = (path) => {

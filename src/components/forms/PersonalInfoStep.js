@@ -15,7 +15,6 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
     middle_name: '',
     email: '',
     phone: '',
-    date_of_birth: '',
     gender: '',
     business_name: '',
     sms_consent: false,
@@ -143,24 +142,8 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
           />
         </div>
 
-        {/* Date of Birth and Business Name */}
+        {/* Business Name */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Controller
-            name="date_of_birth"
-            control={control}
-            render={({ field }) => (
-              <div className={isFieldRejected('date_of_birth') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
-                <Input
-                  {...field}
-                  type="date"
-                  label="Date of Birth"
-                  error={errors.date_of_birth?.message || (isFieldRejected('date_of_birth') ? 'This field needs to be updated' : '')}
-                  helper="Optional - helps us verify your identity"
-                />
-              </div>
-            )}
-          />
-          
           <Controller
             name="business_name"
             control={control}

@@ -101,7 +101,6 @@ const InterpreterProfile = () => {
         middle_name: '',
         email: '',
         phone: '',
-        date_of_birth: '',
         gender: '',
         
         // Address Information
@@ -263,7 +262,6 @@ const InterpreterProfile = () => {
             middle_name: interpreter.middle_name || '',
             email: interpreter.email || '',
             phone: interpreter.phone || '',
-            date_of_birth: interpreter.date_of_birth || '',
             gender: interpreter.gender || '',
             sms_consent: interpreter.sms_consent || false, // CRITICAL: SMS consent checkbox
             
@@ -492,17 +490,8 @@ const InterpreterProfile = () => {
                     // Already handled above
                     return;
                 } else if (submissionData[key] !== null && submissionData[key] !== undefined) {
-                    // Handle date formatting for date_of_birth
-                    if (key === 'date_of_birth' && submissionData[key]) {
-                        const date = new Date(submissionData[key]);
-                        if (!isNaN(date.getTime())) {
-                            formDataToSubmit.append(key, date.toISOString().split('T')[0]);
-                        } else {
-                            formDataToSubmit.append(key, submissionData[key]);
-                        }
-                    }
                     // Handle service rates formatting
-                    else if (key === 'service_rates' && submissionData[key]) {
+                    if (key === 'service_rates' && submissionData[key]) {
                         formDataToSubmit.append(key, JSON.stringify(submissionData[key]));
                     }
                     else {

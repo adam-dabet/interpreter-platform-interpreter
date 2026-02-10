@@ -500,6 +500,9 @@ const InterpreterProfile = () => {
                 }
             });
 
+            // Add registration platform identifier
+            formDataToSubmit.append('registration_platform', 'web');
+
             // Debug: Log the form data being submitted
             console.log('InterpreterProfile - Submission data:', submissionData);
             console.log('InterpreterProfile - FormData entries:');

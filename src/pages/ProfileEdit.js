@@ -427,11 +427,8 @@ const ProfileEdit = () => {
             
             // Add all other fields
             Object.keys(submissionData).forEach(key => {
-                if (!['languages', 'service_types', 'service_rates', 'certificates', 'certificateFiles', 'w9_file', 'w9_data'].includes(key)) {
-                    if (key === 'w9_entry_method' && submissionData.w9_file) {
-                        // Already handled above
-                        return;
-                    } else if (submissionData[key] !== null && submissionData[key] !== undefined) {
+                if (!['languages', 'service_types', 'service_rates', 'certificates', 'certificateFiles', 'w9_file', 'w9_data', 'w9_entry_method'].includes(key)) {
+                    if (submissionData[key] !== null && submissionData[key] !== undefined) {
                         // Handle date formatting
                         if (key === 'date_of_birth' && submissionData[key]) {
                             const date = new Date(submissionData[key]);

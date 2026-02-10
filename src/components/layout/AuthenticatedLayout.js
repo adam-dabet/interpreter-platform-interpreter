@@ -4,6 +4,7 @@ import { Bars3Icon } from '@heroicons/react/24/outline';
 import Sidebar from './Sidebar';
 import MobileBottomNav from './MobileBottomNav';
 import BlockingModal from '../BlockingModal';
+import FeedbackWidget from '../FeedbackWidget';
 import jobAPI from '../../services/jobAPI';
 
 const AuthenticatedLayout = ({ children }) => {
@@ -84,6 +85,9 @@ const AuthenticatedLayout = ({ children }) => {
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav />
+
+      {/* Feedback Widget */}
+      <FeedbackWidget />
 
       {/* Blocking Modals */}
       {shouldShowBlocking() && (

@@ -12,7 +12,8 @@ const resultOptions = [
   { label: "Patient No Show", value: "Patient No Show" },
   { label: "Rescheduled", value: "Rescheduled" },
   { label: "Cancelled", value: "Cancelled" },
-  { label: "Cancelled Under 24 hours", value: "Cancelled Under 24 hours" }
+  { label: "Cancelled Under 24 hours", value: "Cancelled Under 24 hours" },
+  { label: "Another provider was used", value: "Another provider was used" }
 ];
 
 const fileStatusOptions = [

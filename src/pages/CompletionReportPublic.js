@@ -221,6 +221,7 @@ const CompletionReportPublic = () => {
                 <option value="completed">Completed</option>
                 <option value="claimant_no_show">Claimant No Show</option>
                 <option value="cancelled">Cancelled</option>
+                <option value="Another provider was used">Another provider was used</option>
               </select>
             </div>
 

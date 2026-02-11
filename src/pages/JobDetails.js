@@ -105,7 +105,33 @@ const JobDetails = () => {
           toast.success('Job declined');
           break;
         case 'start':
-          response = await jobAPI.startJob(jobId);
+          // Get location data for non-remote jobs
+          let locationData = {};
+          if (!job.is_remote) {
+            try {
+              const position = await new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                  reject(new Error('Geolocation is not supported by your browser'));
+                  return;
+                }
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                  enableHighAccuracy: true,
+                  timeout: 10000,
+                  maximumAge: 60000
+                });
+              });
+              locationData = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+              };
+            } catch (geoError) {
+              console.warn('Geolocation error:', geoError);
+              toast.error('Unable to get your location. Please enable location services and try again.');
+              setActionLoading(false);
+              return;
+            }
+          }
+          response = await jobAPI.startJob(jobId, locationData);
           toast.success('Job started successfully!');
           // Reload job details to show updated status
           await loadJobDetails();

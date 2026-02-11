@@ -267,11 +267,17 @@ const JobSearch = () => {
       if (serviceRate && serviceRate.rate_amount) {
         const hours = job.estimated_duration_minutes / 60;
         let earnings = 0;
+        const rateUnit = (serviceRate.rate_unit || 'hours').toLowerCase();
         
-        if (serviceRate.rate_unit === 'minutes') {
+        if (rateUnit === 'minutes') {
           earnings = parseFloat(serviceRate.rate_amount) * job.estimated_duration_minutes;
         } else {
-          earnings = parseFloat(serviceRate.rate_amount) * hours;
+          // Convert block rates (e.g. '3hours', '6hours') to effective hourly rate
+          const blockMatch = rateUnit.match(/^(\d+)hours?$/);
+          const effectiveRate = blockMatch
+            ? parseFloat(serviceRate.rate_amount) / parseInt(blockMatch[1], 10)
+            : parseFloat(serviceRate.rate_amount);
+          earnings = effectiveRate * hours;
         }
         
         console.log('Calculated earnings from service rate:', earnings);

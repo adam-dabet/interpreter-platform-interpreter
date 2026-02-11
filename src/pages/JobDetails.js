@@ -313,11 +313,17 @@ const JobDetails = () => {
       
       if (serviceRate && serviceRate.rate_amount) {
         const hours = job.estimated_duration_minutes / 60;
+        const rateUnit = (serviceRate.rate_unit || 'hours').toLowerCase();
         
-        if (serviceRate.rate_unit === 'minutes') {
+        if (rateUnit === 'minutes') {
           basePayment = serviceRate.rate_amount * job.estimated_duration_minutes;
         } else {
-          basePayment = serviceRate.rate_amount * hours;
+          // Convert block rates (e.g. '3hours', '6hours') to effective hourly rate
+          const blockMatch = rateUnit.match(/^(\d+)hours?$/);
+          const effectiveHourlyRate = blockMatch
+            ? serviceRate.rate_amount / parseInt(blockMatch[1], 10)
+            : serviceRate.rate_amount;
+          basePayment = effectiveHourlyRate * hours;
         }
       }
     }
@@ -740,11 +746,18 @@ const JobDetails = () => {
                                 rate => rate.service_type_id === job.service_type_id
                               );
                               if (serviceRate && serviceRate.rate_amount && serviceRate.rate_unit) {
-                                if (serviceRate.rate_unit === 'minutes') {
+                                const rateUnit = (serviceRate.rate_unit || 'hours').toLowerCase();
+                                if (rateUnit === 'minutes') {
                                   return `${formatCurrency(serviceRate.rate_amount)}/min × ${job.estimated_duration_minutes} min = ${formatCurrency(serviceRate.rate_amount * job.estimated_duration_minutes)}`;
-                                } else {
-                                  return `${formatCurrency(serviceRate.rate_amount)}/hour × ${hours.toFixed(1)} hours = ${formatCurrency(serviceRate.rate_amount * hours)}`;
                                 }
+                                // Handle block rates like '3hours', '6hours'
+                                const blockMatch = rateUnit.match(/^(\d+)hours?$/);
+                                if (blockMatch) {
+                                  const blockHours = parseInt(blockMatch[1], 10);
+                                  const effectiveHourly = serviceRate.rate_amount / blockHours;
+                                  return `${formatCurrency(serviceRate.rate_amount)}/${blockHours}hr (${formatCurrency(effectiveHourly)}/hr) × ${hours.toFixed(1)} hours = ${formatCurrency(effectiveHourly * hours)}`;
+                                }
+                                return `${formatCurrency(serviceRate.rate_amount)}/hour × ${hours.toFixed(1)} hours = ${formatCurrency(serviceRate.rate_amount * hours)}`;
                               }
                             }
                             if (job.hourly_rate) {

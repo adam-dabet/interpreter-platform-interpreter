@@ -255,7 +255,15 @@ const ProfileEdit = () => {
                     rate_amount: rate.rate_amount,
                     rate_type: rate.rate_type,
                     rate_unit: rate.rate_unit,
-                    service_type_name: rate.service_type_name
+                    service_type_name: rate.service_type_name,
+                    minimum_hours: rate.minimum_hours,
+                    interval_minutes: rate.interval_minutes,
+                    custom_minimum_hours: rate.custom_minimum_hours,
+                    custom_interval_minutes: rate.custom_interval_minutes,
+                    second_interval_rate_amount: rate.second_interval_rate_amount,
+                    second_interval_rate_unit: rate.second_interval_rate_unit,
+                    custom_second_interval_rate_amount: rate.custom_second_interval_rate_amount,
+                    custom_second_interval_rate_unit: rate.custom_second_interval_rate_unit
                 })) || [],
                 
                 // Certificates - with all metadata

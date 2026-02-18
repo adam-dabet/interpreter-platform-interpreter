@@ -117,6 +117,9 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
   }, [jobData?.assigned_interpreter_email, jobData?.interpreter_email, jobData?.email]);
 
   const [rescheduledDate, setRescheduledDate] = useState("");
+  const [rescheduledHour, setRescheduledHour] = useState(null);
+  const [rescheduledMinute, setRescheduledMinute] = useState(null);
+  const [rescheduledPeriod, setRescheduledPeriod] = useState(null);
 
   const [followUpDate, setFollowUpDate] = useState("");
   const [followUpHour, setFollowUpHour] = useState(null);
@@ -210,10 +213,13 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
         throw new Error("End time must be after start time");
       }
 
-      // 4a. Validate rescheduled date if "Rescheduled Under 24 Hours" is selected
+      // 4a. Validate rescheduled date and time if "Rescheduled Under 24 Hours" is selected
       if (formData.result?.value === "Rescheduled Under 24 Hours") {
         if (!rescheduledDate) {
           throw new Error("New appointment date is required when result is 'Rescheduled Under 24 Hours'");
+        }
+        if (!rescheduledHour || !rescheduledMinute || !rescheduledPeriod) {
+          throw new Error("New appointment time is required when result is 'Rescheduled Under 24 Hours'");
         }
       }
 
@@ -281,6 +287,7 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
 
       if (formData.result?.value === "Rescheduled Under 24 Hours" && rescheduledDate) {
         data.append("rescheduled_date", rescheduledDate);
+        data.append("rescheduled_time", getTimeString(rescheduledHour, rescheduledMinute, rescheduledPeriod));
       }
 
       files.forEach((file) => data.append("documents", file));
@@ -316,6 +323,9 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
       setEndMinute(null);
       setEndPeriod(null);
       setRescheduledDate("");
+      setRescheduledHour(null);
+      setRescheduledMinute(null);
+      setRescheduledPeriod(null);
       setFollowUpDate("");
       setFollowUpHour(null);
       setFollowUpMinute(null);
@@ -490,19 +500,49 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
             <div className="space-y-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
               <h3 className="text-lg font-semibold text-orange-800">Rescheduled Appointment</h3>
               <p className="text-sm text-orange-700">
-                This appointment was rescheduled with less than 24 hours notice. Please enter the new appointment date.
+                This appointment was rescheduled with less than 24 hours notice. Please enter the new appointment date and time.
               </p>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  New Appointment Date *
-                </label>
-                <input
-                  type="date"
-                  value={rescheduledDate}
-                  onChange={(e) => setRescheduledDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  required
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Appointment Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={rescheduledDate}
+                    onChange={(e) => setRescheduledDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Appointment Time *
+                  </label>
+                  <div className="flex space-x-2">
+                    <Select
+                      value={rescheduledHour}
+                      onChange={setRescheduledHour}
+                      options={hourOptions}
+                      placeholder="Hour"
+                      className="flex-1"
+                    />
+                    <Select
+                      value={rescheduledMinute}
+                      onChange={setRescheduledMinute}
+                      options={minuteOptions}
+                      placeholder="Min"
+                      className="flex-1"
+                    />
+                    <Select
+                      value={rescheduledPeriod}
+                      onChange={setRescheduledPeriod}
+                      options={periodOptions}
+                      placeholder="AM/PM"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}

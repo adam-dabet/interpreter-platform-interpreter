@@ -242,8 +242,16 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
         { value: 'WI', label: 'Wisconsin' }, { value: 'WY', label: 'Wyoming' }, { value: 'DC', label: 'District of Columbia' }
     ];
 
-    // Check if any W9 fields are rejected
-    const hasRejectedW9Fields = rejectedFields.some(field => field.startsWith('w9_'));
+    // Check if any W9 fields are rejected AND still empty
+    const hasEmptyRejectedW9Fields = rejectedFields.some(field => {
+        if (!field.startsWith('w9_')) return false;
+        if (field === 'w9_business_info' || field === 'w9_business_name') return !w9Data.business_name?.trim();
+        if (field === 'w9_tax_info' || field === 'w9_tax_classification') return !w9Data.tax_classification;
+        if (field === 'w9_tax_id' || field === 'w9_ssn' || field === 'w9_ein') return !w9Data.ssn?.trim() && !w9Data.ein?.trim();
+        if (field === 'w9_address') return !w9Data.address?.trim() || !w9Data.city?.trim() || !w9Data.state || !w9Data.zip_code?.trim();
+        return false;
+    });
+    const hasRejectedW9Fields = hasEmptyRejectedW9Fields;
     
     return (
         <div className="space-y-6">
@@ -289,12 +297,12 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Line 1: Name of entity/individual
                     </label>
-                    <div className={isFieldRejected('w9_business_name') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
+                    <div className={isFieldRejected('w9_business_name') && !w9Data.business_name?.trim() ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>
                         <Input
                             type="text"
                             value={w9Data.business_name}
                             onChange={(e) => handleW9DataChange('business_name', e.target.value)}
-                            error={errors.business_name || (isFieldRejected('w9_business_name') ? 'This field needs to be updated' : '')}
+                            error={errors.business_name || (isFieldRejected('w9_business_name') && !w9Data.business_name?.trim() ? 'This field needs to be updated' : '')}
                             placeholder="Enter your full name or business name"
                             required
                         />
@@ -318,10 +326,10 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                 </div>
 
                 {/* Line 3a: Federal tax classification */}
-                <div className={`mb-4 ${isFieldRejected('w9_tax_classification') ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
+                <div className={`mb-4 ${isFieldRejected('w9_tax_classification') && !w9Data.tax_classification ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Line 3a: Check appropriate box for federal tax classification
-                        {isFieldRejected('w9_tax_classification') && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
+                        {isFieldRejected('w9_tax_classification') && !w9Data.tax_classification && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
                     </label>
                     <p className="text-xs text-gray-500 mb-2">Check only one of the following seven boxes.</p>
                     <div className="space-y-2">
@@ -416,26 +424,26 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                 </div>
 
                 {/* Line 5: Address */}
-                <div className={`mb-4 ${isFieldRejected('w9_address') ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
+                <div className={`mb-4 ${isFieldRejected('w9_address') && !w9Data.address?.trim() ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Line 5: Address (number, street, and apt. or suite no.)
-                        {isFieldRejected('w9_address') && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
+                        {isFieldRejected('w9_address') && !w9Data.address?.trim() && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
                     </label>
                     <Input
                         type="text"
                         value={w9Data.address}
                         onChange={(e) => handleW9DataChange('address', e.target.value)}
-                        error={errors.address || (isFieldRejected('w9_address') ? 'This field needs to be updated' : '')}
+                        error={errors.address || (isFieldRejected('w9_address') && !w9Data.address?.trim() ? 'This field needs to be updated' : '')}
                         placeholder="Street address"
                         required
                     />
                 </div>
 
                 {/* Line 6: City, state, and ZIP code */}
-                <div className={`mb-4 ${isFieldRejected('w9_address') ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
+                <div className={`mb-4 ${isFieldRejected('w9_address') && (!w9Data.city?.trim() || !w9Data.state || !w9Data.zip_code?.trim()) ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Line 6: City, state, and ZIP code
-                        {isFieldRejected('w9_address') && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
+                        {isFieldRejected('w9_address') && (!w9Data.city?.trim() || !w9Data.state || !w9Data.zip_code?.trim()) && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
                     </label>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
@@ -443,7 +451,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                 type="text"
                                 value={w9Data.city}
                                 onChange={(e) => handleW9DataChange('city', e.target.value)}
-                                error={errors.city || (isFieldRejected('w9_city') ? 'This field needs to be updated' : '')}
+                                error={errors.city || (isFieldRejected('w9_city') && !w9Data.city?.trim() ? 'This field needs to be updated' : '')}
                                 placeholder="City"
                                 required
                             />
@@ -452,7 +460,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                             <Select
                                 value={w9Data.state}
                                 onChange={(e) => handleW9DataChange('state', e.target.value)}
-                                error={errors.state || (isFieldRejected('w9_state') ? 'This field needs to be updated' : '')}
+                                error={errors.state || (isFieldRejected('w9_state') && !w9Data.state ? 'This field needs to be updated' : '')}
                                 required
                                 options={usStates}
                                 placeholder="State"
@@ -463,7 +471,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                 type="text"
                                 value={w9Data.zip_code}
                                 onChange={(e) => handleW9DataChange('zip_code', e.target.value)}
-                                error={errors.zip_code || (isFieldRejected('w9_zip_code') ? 'This field needs to be updated' : '')}
+                                error={errors.zip_code || (isFieldRejected('w9_zip_code') && !w9Data.zip_code?.trim() ? 'This field needs to be updated' : '')}
                                 placeholder="ZIP code"
                                 required
                             />
@@ -485,10 +493,10 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                 </div>
 
                 {/* TIN Section */}
-                <div className={`mb-6 ${isFieldRejected('w9_ssn') || isFieldRejected('w9_ein') ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
+                <div className={`mb-6 ${(isFieldRejected('w9_ssn') || isFieldRejected('w9_ein')) && !w9Data.ssn?.trim() && !w9Data.ein?.trim() ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
                     <h5 className="text-md font-medium text-gray-700 mb-3">
                         Taxpayer Identification Number
-                        {(isFieldRejected('w9_ssn') || isFieldRejected('w9_ein')) && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
+                        {(isFieldRejected('w9_ssn') || isFieldRejected('w9_ein')) && !w9Data.ssn?.trim() && !w9Data.ein?.trim() && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
                     </h5>
                     <p className="text-xs text-gray-600 mb-3">
                         Enter either your Social Security Number (SSN) or Employer Identification Number (EIN)—at least one is required.
@@ -500,7 +508,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                 type="text"
                                 value={w9Data.ssn}
                                 onChange={(e) => handleW9DataChange('ssn', e.target.value)}
-                                error={errors.ssn || (isFieldRejected('w9_ssn') ? 'This field needs to be updated' : '')}
+                                error={errors.ssn || (isFieldRejected('w9_ssn') && !w9Data.ssn?.trim() && !w9Data.ein?.trim() ? 'Please enter SSN or EIN' : '')}
                                 placeholder="XXX-XX-XXXX"
                             />
                         </div>
@@ -510,7 +518,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                 type="text"
                                 value={w9Data.ein}
                                 onChange={(e) => handleW9DataChange('ein', e.target.value)}
-                                error={errors.ein || (isFieldRejected('w9_ein') ? 'This field needs to be updated' : '')}
+                                error={errors.ein || (isFieldRejected('w9_ein') && !w9Data.ssn?.trim() && !w9Data.ein?.trim() ? 'Please enter SSN or EIN' : '')}
                                 placeholder="XX-XXXXXXX"
                             />
                         </div>

@@ -10,7 +10,9 @@ const resultOptions = [
   { label: "Completed", value: "Completed" },
   { label: "Completed with follow up", value: "Completed with follow up" },
   { label: "Patient No Show", value: "Patient No Show" },
+  { label: "Provider Missed Appointment", value: "Provider Missed Appointment" },
   { label: "Rescheduled", value: "Rescheduled" },
+  { label: "Rescheduled Under 24 Hours", value: "Rescheduled Under 24 Hours" },
   { label: "Cancelled", value: "Cancelled" },
   { label: "Cancelled Under 24 hours", value: "Cancelled Under 24 hours" },
   { label: "Another provider was used", value: "Another provider was used" }
@@ -114,6 +116,8 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
     }));
   }, [jobData?.assigned_interpreter_email, jobData?.interpreter_email, jobData?.email]);
 
+  const [rescheduledDate, setRescheduledDate] = useState("");
+
   const [followUpDate, setFollowUpDate] = useState("");
   const [followUpHour, setFollowUpHour] = useState(null);
   const [followUpMinute, setFollowUpMinute] = useState(null);
@@ -206,6 +210,13 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
         throw new Error("End time must be after start time");
       }
 
+      // 4a. Validate rescheduled date if "Rescheduled Under 24 Hours" is selected
+      if (formData.result?.value === "Rescheduled Under 24 Hours") {
+        if (!rescheduledDate) {
+          throw new Error("New appointment date is required when result is 'Rescheduled Under 24 Hours'");
+        }
+      }
+
       // 4. Validate follow-up information if "Completed with follow up" is selected
       if (formData.result?.value === "Completed with follow up") {
         // Check follow-up date
@@ -268,6 +279,10 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
         data.append("follow_up_available", isAvailable ? "Yes" : "No");
       }
 
+      if (formData.result?.value === "Rescheduled Under 24 Hours" && rescheduledDate) {
+        data.append("rescheduled_date", rescheduledDate);
+      }
+
       files.forEach((file) => data.append("documents", file));
 
       const token = localStorage.getItem('interpreterToken');
@@ -300,6 +315,7 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
       setEndHour(null);
       setEndMinute(null);
       setEndPeriod(null);
+      setRescheduledDate("");
       setFollowUpDate("");
       setFollowUpHour(null);
       setFollowUpMinute(null);
@@ -469,6 +485,27 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
               required
             />
           </div>
+
+          {formData.result?.value === "Rescheduled Under 24 Hours" && (
+            <div className="space-y-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
+              <h3 className="text-lg font-semibold text-orange-800">Rescheduled Appointment</h3>
+              <p className="text-sm text-orange-700">
+                This appointment was rescheduled with less than 24 hours notice. Please enter the new appointment date.
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  New Appointment Date *
+                </label>
+                <input
+                  type="date"
+                  value={rescheduledDate}
+                  onChange={(e) => setRescheduledDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  required
+                />
+              </div>
+            </div>
+          )}
 
           {formData.result?.value === "Completed with follow up" && (
             <div className="space-y-6 p-4 bg-gray-50 rounded-lg border border-gray-200">

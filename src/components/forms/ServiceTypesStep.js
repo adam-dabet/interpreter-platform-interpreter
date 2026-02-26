@@ -324,7 +324,10 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     prev[serviceTypeId]?.second_interval_rate_amount || null,
                 second_interval_rate_unit: rateType === 'platform' ? 
                     serviceType?.platform_second_interval_rate_unit : 
-                    prev[serviceTypeId]?.second_interval_rate_unit || ((serviceType?.code === 'legal' || serviceType?.code === 'video') ? '3hours' : 'hours')
+                    prev[serviceTypeId]?.second_interval_rate_unit || ((serviceType?.code === 'legal' || serviceType?.code === 'video') ? '6hours' : 'hours'),
+                custom_second_interval_rate_unit: rateType === 'custom' && (serviceType?.code === 'legal' || serviceType?.code === 'video')
+                    ? (prev[serviceTypeId]?.custom_second_interval_rate_unit || '6hours')
+                    : (prev[serviceTypeId]?.custom_second_interval_rate_unit || null)
             }
         }));
     };
@@ -335,12 +338,13 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             String(st.id) === String(serviceTypeId) || st.id === serviceTypeId
         );
         
-        // Normalize rate_unit for legal/video: if 'hours' is set, convert to '3hours'
+        // Normalize legal/video units: primary defaults to 3hours, second interval defaults to 6hours.
         let normalizedValue = value;
-        if ((field === 'rate_unit' || field === 'custom_second_interval_rate_unit') && 
-            (serviceType?.code === 'legal' || serviceType?.code === 'video') && 
-            value === 'hours') {
+        if ((serviceType?.code === 'legal' || serviceType?.code === 'video') && field === 'rate_unit' && value === 'hours') {
             normalizedValue = '3hours';
+        }
+        if ((serviceType?.code === 'legal' || serviceType?.code === 'video') && field === 'custom_second_interval_rate_unit' && value === 'hours') {
+            normalizedValue = '6hours';
         }
         
         setServiceRates(prev => ({
@@ -374,6 +378,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             }
             
             if (rate.rate_type === 'custom') {
+                const isLegalOrVideo = serviceType?.code === 'legal' || serviceType?.code === 'video';
                 if (!rate.rate_amount || rate.rate_amount <= 0) {
                     newErrors.service_rates = 'Custom rates must have a valid amount';
                     break;
@@ -386,11 +391,11 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     newErrors.service_rates = 'Custom rates must specify time unit';
                     break;
                 }
-                if (serviceType?.platform_second_interval_rate_amount && (!rate.custom_second_interval_rate_amount || rate.custom_second_interval_rate_amount <= 0)) {
+                if ((serviceType?.platform_second_interval_rate_amount || isLegalOrVideo) && (!rate.custom_second_interval_rate_amount || rate.custom_second_interval_rate_amount <= 0)) {
                     newErrors.service_rates = 'Second increment rate must have a valid amount';
                     break;
                 }
-                if (serviceType?.platform_second_interval_rate_amount && rate.custom_second_interval_rate_amount > 1000) {
+                if ((serviceType?.platform_second_interval_rate_amount || isLegalOrVideo) && rate.custom_second_interval_rate_amount > 1000) {
                     newErrors.service_rates = 'Second increment rate cannot exceed $1000';
                     break;
                 }
@@ -915,26 +920,53 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                 )}
                                                 
                                                 {/* Second Increment Rate Fields */}
-                                                {serviceType.platform_second_interval_rate_amount && (
+                                                {(serviceType.platform_second_interval_rate_amount || serviceType.code === 'legal' || serviceType.code === 'video') && (
                                                     <div className="border-t pt-3">
-                                                        <h6 className="text-sm font-medium text-gray-700 mb-2">Second Increment Rate (After Minimum)</h6>
-                                                        <div className="flex gap-2">
-                                                            <Input
-                                                                type="number"
-                                                                placeholder="55.00"
-                                                                value={rate.custom_second_interval_rate_amount || rate.second_interval_rate_amount || ''}
-                                                                onChange={(e) => handleCustomRateChange(serviceTypeId, 'custom_second_interval_rate_amount', parseFloat(e.target.value))}
-                                                                className="flex-1"
-                                                                label="Second Rate Amount"
-                                                            />
-                                                            <Select
-                                                                options={RATE_UNITS}
-                                                                value={rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit || 'hours'}
-                                                                onChange={(e) => handleCustomRateChange(serviceTypeId, 'custom_second_interval_rate_unit', e.target.value)}
-                                                                className="w-32"
-                                                                label="Second Rate Unit"
-                                                            />
-                                                        </div>
+                                                        <h6 className="text-sm font-medium text-gray-700 mb-2">
+                                                            {serviceType.code === 'legal' || serviceType.code === 'video'
+                                                                ? 'Second Rate (Per 6 Hours)'
+                                                                : 'Second Increment Rate (After Minimum)'}
+                                                        </h6>
+                                                        {(serviceType.code === 'legal' || serviceType.code === 'video') ? (
+                                                            <div className="flex gap-2">
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="650.00"
+                                                                    value={rate.custom_second_interval_rate_amount || ''}
+                                                                    onChange={(e) => handleCustomRateChange(serviceTypeId, 'custom_second_interval_rate_amount', parseFloat(e.target.value))}
+                                                                    className="flex-1"
+                                                                    label="Rate Amount"
+                                                                />
+                                                                <div className="w-32">
+                                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Rate Unit</label>
+                                                                    <select
+                                                                        value={rate.custom_second_interval_rate_unit || '6hours'}
+                                                                        onChange={(e) => handleCustomRateChange(serviceTypeId, 'custom_second_interval_rate_unit', e.target.value)}
+                                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                    >
+                                                                        <option value="6hours">Per 6 Hours</option>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex gap-2">
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="55.00"
+                                                                    value={rate.custom_second_interval_rate_amount || rate.second_interval_rate_amount || ''}
+                                                                    onChange={(e) => handleCustomRateChange(serviceTypeId, 'custom_second_interval_rate_amount', parseFloat(e.target.value))}
+                                                                    className="flex-1"
+                                                                    label="Second Rate Amount"
+                                                                />
+                                                                <Select
+                                                                    options={RATE_UNITS}
+                                                                    value={rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit || 'hours'}
+                                                                    onChange={(e) => handleCustomRateChange(serviceTypeId, 'custom_second_interval_rate_unit', e.target.value)}
+                                                                    className="w-32"
+                                                                    label="Second Rate Unit"
+                                                                />
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>

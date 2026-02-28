@@ -24,10 +24,12 @@ const JobDashboardNew = () => {
   const [jobs, setJobs] = useState([]);
   const [earnings, setEarnings] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
   const [earningsPeriod, setEarningsPeriod] = useState('all');
   const [earningsLoading, setEarningsLoading] = useState(false);
   const [showCompletionReport, setShowCompletionReport] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
+  const jobsPerPage = 24;
 
   useEffect(() => {
     loadJobs();
@@ -39,11 +41,31 @@ const JobDashboardNew = () => {
     }
   }, [activeTab, earningsPeriod]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
   const loadJobs = async () => {
     try {
       setLoading(true);
-      const response = await jobAPI.getMyJobs({ limit: 100 });
-      setJobs(response.data.data.jobs);
+      // Pull every page from the API so users can paginate through full history.
+      const pageSize = 100;
+      let page = 1;
+      let totalPages = 1;
+      const allJobs = [];
+
+      do {
+        const response = await jobAPI.getMyJobs({ page, limit: pageSize });
+        const data = response?.data?.data || {};
+        const pageJobs = data.jobs || [];
+        const pagination = data.pagination || {};
+
+        allJobs.push(...pageJobs);
+        totalPages = pagination.total_pages || 1;
+        page += 1;
+      } while (page <= totalPages);
+
+      setJobs(allJobs);
     } catch (error) {
       console.error('Error loading jobs:', error);
       toast.error('Failed to load jobs');
@@ -400,6 +422,17 @@ const JobDashboardNew = () => {
   };
 
   const filteredJobs = getFilteredJobs();
+  const totalFilteredPages = Math.max(1, Math.ceil(filteredJobs.length / jobsPerPage));
+  const currentSafePage = Math.min(currentPage, totalFilteredPages);
+  const startIndex = (currentSafePage - 1) * jobsPerPage;
+  const endIndex = Math.min(startIndex + jobsPerPage, filteredJobs.length);
+  const paginatedJobs = filteredJobs.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    if (currentPage > totalFilteredPages) {
+      setCurrentPage(totalFilteredPages);
+    }
+  }, [currentPage, totalFilteredPages]);
 
   if (loading) {
     return (
@@ -667,11 +700,11 @@ const JobDashboardNew = () => {
             ) : (
               <>
                 <div className="mb-4 text-sm text-gray-600">
-                  Showing {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'}
+                  Showing {filteredJobs.length === 0 ? 0 : startIndex + 1}-{endIndex} of {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredJobs.map((job) => (
+                  {paginatedJobs.map((job) => (
                     <JobCard
                       key={job.id} 
                       job={job}
@@ -692,6 +725,30 @@ const JobDashboardNew = () => {
                     />
                   ))}
                 </div>
+
+                {filteredJobs.length > jobsPerPage && (
+                  <div className="mt-8 flex items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={currentSafePage === 1}
+                      className="px-4 py-2 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-600">
+                      Page {currentSafePage} of {totalFilteredPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalFilteredPages))}
+                      disabled={currentSafePage === totalFilteredPages}
+                      className="px-4 py-2 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>

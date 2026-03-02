@@ -216,6 +216,7 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
+          client_timezone_offset_minutes: new Date().getTimezoneOffset(),
           actual_duration_minutes: actualDurationMinutes || 60 // Use input value or default to 1 hour
         })
       });

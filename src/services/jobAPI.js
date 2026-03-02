@@ -13,7 +13,10 @@ const jobAPI = {
     api.post(`/jobs/${jobId}/indicate-available`, { mileage_requested, mileage_rate: mileage_requested > 0 ? mileage_rate : undefined }),
   indicateNotAvailable: (jobId, reason = '') => api.post(`/jobs/${jobId}/indicate-not-available`, { reason }),
   startJob: (jobId, locationData = {}) => api.post(`/interpreters/jobs/${jobId}/start`, locationData),
-  endJob: (jobId) => api.post(`/interpreters/jobs/${jobId}/end`),
+  endJob: (jobId, data = {}) => api.post(`/interpreters/jobs/${jobId}/end`, {
+    client_timezone_offset_minutes: new Date().getTimezoneOffset(),
+    ...data
+  }),
   submitCompletionReport: (jobId, reportData) => api.post(`/jobs/${jobId}/completion-report`, reportData),
   getEarnings: (params = {}) => api.get('/interpreters/earnings', { params }),
 };

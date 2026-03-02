@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
 const JobTimer = () => {
+  const TWO_HOUR_MINIMUM_SECONDS = 2 * 60 * 60;
   const { token } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -121,6 +122,21 @@ const JobTimer = () => {
   };
 
   const endJob = async () => {
+    const elapsedSeconds = elapsedTime > 0
+      ? elapsedTime
+      : (jobData?.jobStartedAt ? Math.max(0, Math.floor((Date.now() - new Date(jobData.jobStartedAt).getTime()) / 1000)) : 0);
+
+    if (elapsedSeconds > 0 && elapsedSeconds < TWO_HOUR_MINIMUM_SECONDS) {
+      const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+      const shouldContinue = window.confirm(
+        `This job is being completed before the 2-hour minimum (${elapsedMinutes} minutes elapsed). Do you want to continue?`
+      );
+
+      if (!shouldContinue) {
+        return;
+      }
+    }
+
     setEnding(true);
     try {
       const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';

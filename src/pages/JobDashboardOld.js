@@ -46,6 +46,7 @@ const JobDashboard = () => {
   const [mileageRate, setMileageRate] = useState(0.70);
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
   const FEDERAL_MILEAGE_CAP = 0.72;
+  const TWO_HOUR_MINIMUM_MINUTES = 120;
   const [earningsPeriod, setEarningsPeriod] = useState('week');
   const [earningsLoading, setEarningsLoading] = useState(false);
 
@@ -105,6 +106,24 @@ const JobDashboard = () => {
     }
   };
 
+  const getCompletionElapsedMinutes = (job) => {
+    if (!job) return null;
+
+    let referenceTime = null;
+
+    if (job.job_started_at || job.in_progress_at) {
+      referenceTime = new Date(job.job_started_at || job.in_progress_at);
+    } else if (job.scheduled_date && (job.arrival_time || job.scheduled_time)) {
+      referenceTime = new Date(`${job.scheduled_date}T${job.arrival_time || job.scheduled_time}`);
+    }
+
+    if (!referenceTime || Number.isNaN(referenceTime.getTime())) {
+      return null;
+    }
+
+    return (Date.now() - referenceTime.getTime()) / (1000 * 60);
+  };
+
   const handleJobAction = async (jobId, action, data = {}) => {
     try {
       let response;
@@ -127,6 +146,20 @@ const JobDashboard = () => {
           toast.success('Job started successfully!');
           break;
         case 'end':
+          {
+            const currentJob = jobs.find(j => String(j.id) === String(jobId));
+            const elapsedMinutes = getCompletionElapsedMinutes(currentJob);
+            if (elapsedMinutes !== null && elapsedMinutes < TWO_HOUR_MINIMUM_MINUTES) {
+              const roundedElapsed = Math.max(0, Math.floor(elapsedMinutes));
+              const shouldContinue = window.confirm(
+                `This job is being completed before the 2-hour minimum (${roundedElapsed} minutes elapsed). Do you want to continue?`
+              );
+
+              if (!shouldContinue) {
+                return;
+              }
+            }
+          }
           response = await jobAPI.endJob(jobId);
           toast.success('Job ended successfully!');
           break;

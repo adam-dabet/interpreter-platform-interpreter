@@ -28,6 +28,7 @@ import { formatDate, formatTime, formatCurrency, getTimeUntilJob } from '../util
 
 const LAST_LIST_ROUTE_KEY = 'interpreterLastJobListRoute';
 const DEFAULT_RETURN_PATH = '/jobs';
+const TWO_HOUR_MINIMUM_MINUTES = 120;
 
 const JobDetails = () => {
   const { jobId } = useParams();
@@ -84,6 +85,36 @@ const JobDetails = () => {
     }
   };
 
+  const isAfterArrivalTime = useCallback(() => {
+    if (!job?.scheduled_date) return true;
+
+    const arrivalOrScheduledTime = job.arrival_time || job.scheduled_time;
+    if (!arrivalOrScheduledTime) return true;
+
+    const arrivalDateTime = new Date(`${job.scheduled_date}T${arrivalOrScheduledTime}`);
+    if (Number.isNaN(arrivalDateTime.getTime())) return true;
+
+    return new Date() >= arrivalDateTime;
+  }, [job]);
+
+  const getCompletionElapsedMinutes = useCallback(() => {
+    if (!job) return null;
+
+    let referenceTime = null;
+
+    if (job.job_started_at || job.in_progress_at) {
+      referenceTime = new Date(job.job_started_at || job.in_progress_at);
+    } else if (job.scheduled_date && (job.arrival_time || job.scheduled_time)) {
+      referenceTime = new Date(`${job.scheduled_date}T${job.arrival_time || job.scheduled_time}`);
+    }
+
+    if (!referenceTime || Number.isNaN(referenceTime.getTime())) {
+      return null;
+    }
+
+    return (Date.now() - referenceTime.getTime()) / (1000 * 60);
+  }, [job]);
+
   const handleJobAction = async (action, data = {}) => {
     try {
       setActionLoading(true);
@@ -137,8 +168,21 @@ const JobDetails = () => {
           await loadJobDetails();
           return; // Don't navigate away
         case 'end':
+          {
+            const elapsedMinutes = getCompletionElapsedMinutes();
+            if (elapsedMinutes !== null && elapsedMinutes < TWO_HOUR_MINIMUM_MINUTES) {
+              const roundedElapsed = Math.max(0, Math.floor(elapsedMinutes));
+              const shouldContinue = window.confirm(
+                `This job is being completed before the 2-hour minimum (${roundedElapsed} minutes elapsed). Do you want to continue?`
+              );
+
+              if (!shouldContinue) {
+                return;
+              }
+            }
+          }
           response = await jobAPI.endJob(jobId);
-          toast.success('Job ended successfully!');
+          toast.success('Job completed successfully!');
           // Reload job details to show updated status
           await loadJobDetails();
           return; // Don't navigate away
@@ -1009,7 +1053,19 @@ const JobDetails = () => {
                         disabled={actionLoading}
                       >
                         <StopIcon className="h-4 w-4 mr-2" />
-                        {actionLoading ? 'Ending...' : 'End Job'}
+                        {actionLoading ? 'Completing...' : 'Complete Job'}
+                      </Button>
+                    )}
+
+                    {(job.status === 'assigned' || job.status === 'reminders_sent') && (
+                      <Button
+                        className="w-full"
+                        onClick={() => handleJobAction('end')}
+                        disabled={actionLoading || !isAfterArrivalTime()}
+                        variant="secondary"
+                      >
+                        <StopIcon className="h-4 w-4 mr-2" />
+                        {actionLoading ? 'Completing...' : 'Complete Job'}
                       </Button>
                     )}
                   </div>
@@ -1017,9 +1073,16 @@ const JobDetails = () => {
                   {/* Instructions */}
                   <div className="text-sm text-gray-600 text-center">
                     {job.status === 'in_progress' ? (
-                      <p>Click "End Job" when the appointment is complete</p>
+                      <p>Click "Complete Job" when the appointment is complete</p>
                     ) : (
-                      <p>Click "Start Job" when you arrive at the appointment location</p>
+                      <p>
+                        You can start the job at the appointment location, or complete it directly after the arrival time.
+                      </p>
+                    )}
+                    {(job.status === 'assigned' || job.status === 'reminders_sent') && !isAfterArrivalTime() && (
+                      <p className="mt-2 text-amber-600">
+                        "Complete Job" becomes available after the scheduled arrival time.
+                      </p>
                     )}
                   </div>
                 </div>

@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import InterpreterCompletionReport from './InterpreterCompletionReport';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const TWO_HOUR_MINIMUM_MINUTES = 120;
 
 const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
   const [showCompletionReport, setShowCompletionReport] = useState(false);
@@ -155,7 +156,35 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
     return job.status === 'in_progress' && job.job_started_at;
   };
 
+  const getCompletionElapsedMinutes = () => {
+    let referenceTime = null;
+
+    if (job.job_started_at || job.in_progress_at) {
+      referenceTime = new Date(job.job_started_at || job.in_progress_at);
+    } else if (job.scheduled_date && (job.arrival_time || job.scheduled_time)) {
+      referenceTime = new Date(`${job.scheduled_date}T${job.arrival_time || job.scheduled_time}`);
+    }
+
+    if (!referenceTime || Number.isNaN(referenceTime.getTime())) {
+      return null;
+    }
+
+    return (Date.now() - referenceTime.getTime()) / (1000 * 60);
+  };
+
   const handleEndJob = async () => {
+    const elapsedMinutes = getCompletionElapsedMinutes();
+    if (elapsedMinutes !== null && elapsedMinutes < TWO_HOUR_MINIMUM_MINUTES) {
+      const roundedElapsed = Math.max(0, Math.floor(elapsedMinutes));
+      const shouldContinue = window.confirm(
+        `This job is being completed before the 2-hour minimum (${roundedElapsed} minutes elapsed). Do you want to continue?`
+      );
+
+      if (!shouldContinue) {
+        return;
+      }
+    }
+
     setIsEndingJob(true);
     try {
       const token = localStorage.getItem('interpreterToken');

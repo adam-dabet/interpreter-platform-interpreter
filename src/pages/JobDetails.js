@@ -30,6 +30,27 @@ const LAST_LIST_ROUTE_KEY = 'interpreterLastJobListRoute';
 const DEFAULT_RETURN_PATH = '/jobs';
 const TWO_HOUR_MINIMUM_MINUTES = 120;
 
+const getDatePart = (dateValue) => {
+  if (!dateValue) return null;
+  const match = String(dateValue).match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : null;
+};
+
+const getTimePart = (timeValue) => {
+  if (!timeValue) return null;
+  const match = String(timeValue).match(/^(\d{2}:\d{2}(?::\d{2})?)/);
+  return match ? match[1] : null;
+};
+
+const buildJobDateTime = (dateValue, timeValue) => {
+  const datePart = getDatePart(dateValue);
+  const timePart = getTimePart(timeValue);
+  if (!datePart || !timePart) return null;
+
+  const dateTime = new Date(`${datePart}T${timePart}`);
+  return Number.isNaN(dateTime.getTime()) ? null : dateTime;
+};
+
 const JobDetails = () => {
   const { jobId } = useParams();
   const navigate = useNavigate();
@@ -91,8 +112,8 @@ const JobDetails = () => {
     const arrivalOrScheduledTime = job.arrival_time || job.scheduled_time;
     if (!arrivalOrScheduledTime) return true;
 
-    const arrivalDateTime = new Date(`${job.scheduled_date}T${arrivalOrScheduledTime}`);
-    if (Number.isNaN(arrivalDateTime.getTime())) return true;
+    const arrivalDateTime = buildJobDateTime(job.scheduled_date, arrivalOrScheduledTime);
+    if (!arrivalDateTime) return true;
 
     return new Date() >= arrivalDateTime;
   }, [job]);
@@ -105,7 +126,7 @@ const JobDetails = () => {
     if (job.job_started_at || job.in_progress_at) {
       referenceTime = new Date(job.job_started_at || job.in_progress_at);
     } else if (job.scheduled_date && (job.arrival_time || job.scheduled_time)) {
-      referenceTime = new Date(`${job.scheduled_date}T${job.arrival_time || job.scheduled_time}`);
+      referenceTime = buildJobDateTime(job.scheduled_date, job.arrival_time || job.scheduled_time);
     }
 
     if (!referenceTime || Number.isNaN(referenceTime.getTime())) {

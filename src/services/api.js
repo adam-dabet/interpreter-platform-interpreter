@@ -33,14 +33,26 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    const buildApiError = (message) => {
+      const normalizedError = new Error(message);
+      // Preserve axios metadata so callers can branch on status/code.
+      normalizedError.code = error.code;
+      normalizedError.config = error.config;
+      normalizedError.request = error.request;
+      normalizedError.response = error.response;
+      normalizedError.status = error.response?.status;
+      normalizedError.isAxiosError = !!error.isAxiosError;
+      return normalizedError;
+    };
+
     console.error('API Response Error:', error);
     
     if (error.response?.status === 429) {
-      throw new Error('Too many requests. Please try again later.');
+      throw buildApiError('Too many requests. Please try again later.');
     }
     
     if (error.response?.status >= 500) {
-      throw new Error('Server error. Please try again later.');
+      throw buildApiError('Server error. Please try again later.');
     }
     
     if (error.response?.data?.message) {
@@ -49,12 +61,12 @@ api.interceptors.response.use(
         const errorMessages = error.response.data.errors.map(err => 
           `${err.path}: ${err.msg}`
         ).join(', ');
-        throw new Error(`Validation errors: ${errorMessages}`);
+        throw buildApiError(`Validation errors: ${errorMessages}`);
       }
-      throw new Error(error.response.data.message);
+      throw buildApiError(error.response.data.message);
     }
     
-    throw new Error(error.message || 'An unexpected error occurred');
+    throw buildApiError(error.message || 'An unexpected error occurred');
   }
 );
 

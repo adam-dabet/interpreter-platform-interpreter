@@ -58,6 +58,7 @@ const JobDetails = () => {
   const { canAcceptJobs, showJobAcceptanceBlocked } = useJobRestrictions();
   const { profile } = useAuth();
   const [job, setJob] = useState(null);
+  const [isUnavailableToInterpreter, setIsUnavailableToInterpreter] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [confirmationLoading, setConfirmationLoading] = useState(false);
@@ -96,11 +97,24 @@ const JobDetails = () => {
   const loadJobDetails = async () => {
     try {
       setLoading(true);
+      setIsUnavailableToInterpreter(false);
       const response = await jobAPI.getJobById(jobId);
       setJob(response.data.data);
     } catch (error) {
       console.error('Error loading job details:', error);
-      toast.error('Failed to load job details');
+      const message = error.response?.data?.message || '';
+      const code = error.response?.data?.code;
+      const isAssignedToAnotherInterpreter =
+        error.response?.status === 403 &&
+        (code === 'JOB_ASSIGNED_TO_ANOTHER_INTERPRETER' ||
+          message === 'This appointment was assigned to another interpreter and is no longer available to you');
+
+      if (isAssignedToAnotherInterpreter) {
+        setIsUnavailableToInterpreter(true);
+        setJob(null);
+      } else {
+        toast.error('Failed to load job details');
+      }
     } finally {
       setLoading(false);
     }
@@ -458,6 +472,24 @@ const JobDetails = () => {
   }
 
   if (!job) {
+    if (isUnavailableToInterpreter) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center max-w-lg px-6">
+            <h2 className="text-xl font-semibold text-gray-900">
+              This appointment was assigned to another interpreter and is no longer available to you
+            </h2>
+            <Button
+              className="mt-6"
+              onClick={navigateBackToPreviousPage}
+            >
+              Back to Previous Page
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

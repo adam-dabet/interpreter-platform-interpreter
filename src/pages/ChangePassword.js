@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 const ChangePassword = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isFirstTimePasswordChange = user?.passwordChanged === false;
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -68,6 +69,48 @@ const ChangePassword = () => {
   
   const passwordStrength = getPasswordStrength();
 
+  const buildDetailedError = (error) => {
+    const fieldErrors = {};
+
+    if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+      error.response.data.errors.forEach((err) => {
+        if (err.path) {
+          fieldErrors[err.path] = err.msg;
+        }
+      });
+
+      const combinedMessage = error.response.data.errors
+        .map((err) => err.msg)
+        .filter(Boolean)
+        .join(', ');
+
+      return {
+        message: combinedMessage || 'Please check the highlighted fields and try again.',
+        fieldErrors
+      };
+    }
+
+    if (error.response?.status === 401) {
+      fieldErrors.currentPassword = 'Current password is incorrect';
+      return {
+        message: error.response?.data?.message || 'Current password is incorrect',
+        fieldErrors
+      };
+    }
+
+    if (error.response?.status === 400 && error.response?.data?.message) {
+      return {
+        message: error.response.data.message,
+        fieldErrors
+      };
+    }
+
+    return {
+      message: error.response?.data?.message || error.message || 'Failed to change password. Please try again.',
+      fieldErrors
+    };
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -120,7 +163,11 @@ const ChangePassword = () => {
       }
     } catch (error) {
       console.error('Change password error:', error);
-      toast.error(error.response?.data?.message || 'Failed to change password. Please try again.');
+      const { message, fieldErrors } = buildDetailedError(error);
+      if (Object.keys(fieldErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...fieldErrors }));
+      }
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -172,6 +219,12 @@ const ChangePassword = () => {
           className="mt-8 space-y-6"
           onSubmit={handleSubmit}
         >
+          {isFirstTimePasswordChange && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              Use the temporary password from your approval email as your current password.
+            </div>
+          )}
+
           <div className="space-y-4">
             {/* Current Password */}
             <div>

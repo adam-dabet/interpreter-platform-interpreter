@@ -642,6 +642,17 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
                     </p>
                     
                     <div className="mt-2">
+                      <p className="font-semibold mb-1">Portal Use & Invoicing:</p>
+                      <p>
+                        When Contractor uses the Company portal, submission of a separate invoice is not required.
+                        Payout is calculated automatically from the Completion Report. If Contractor does not use
+                        the portal, Contractor shall email a personal invoice to ap@theintegritycompanyinc.com
+                        including job number, date of service, start and end times, total hours worked, and
+                        approved mileage.
+                      </p>
+                    </div>
+
+                    <div className="mt-2">
                       <p className="font-semibold mb-1">Invoices:</p>
                       <p>
                         Contractor must submit an invoice for every job performed. Each invoice shall include: 
@@ -715,6 +726,11 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
                       Contractor agrees to comply fully with the Health Insurance Portability and Accountability Act 
                       of 1996 (HIPAA) and all related regulations, including safeguarding PHI, limiting access only 
                       to authorized individuals, and reporting any suspected or actual breaches immediately to Company.
+                    </p>
+                    <p>
+                      Contractor also agrees to comply with the Health Information Technology for Economic and Clinical
+                      Health Act (HITECH), the California Confidentiality of Medical Information Act (CMIA), and other
+                      applicable privacy laws.
                     </p>
                     <p>
                       <span className="font-semibold">Definition of Confidential Information:</span> Information is 
@@ -855,6 +871,77 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
                   <p>
                     This Agreement constitutes the entire understanding between the parties and supersedes all prior 
                     agreements or understandings, whether oral or written.
+                  </p>
+                </section>
+
+                <section>
+                  <h2 className="text-lg font-bold text-gray-900 mb-2">13. Court Interpreter Assignments</h2>
+                  <p>
+                    Court interpretation assignments are billed based on minimum time blocks due to scheduling
+                    requirements. A half-day assignment is billed at a minimum of three (3) hours. A full-day
+                    assignment is billed at six (6) hours. A ten (10) minute grace period applies after the minimum
+                    time block. If exceeded, additional time is billed in one (1) hour increments.
+                  </p>
+                </section>
+
+                <section>
+                  <h2 className="text-lg font-bold text-gray-900 mb-2">14. Authorization for Extended Court Assignments</h2>
+                  <p>
+                    If an assignment is expected to exceed three (3) hours, Contractor must contact The Integrity
+                    Company to request authorization before converting the assignment to a full day. Only The Integrity
+                    Company may authorize conversion of a half-day assignment to a full-day assignment.
+                  </p>
+                </section>
+
+                <section>
+                  <h2 className="text-lg font-bold text-gray-900 mb-2">15. Interpreter Availability During Proceedings</h2>
+                  <p>
+                    Contractor must remain reasonably available and on-site during scheduled assignments unless released
+                    by Company or the requesting party. Breaks, recesses, or scheduling delays are considered part of
+                    the assignment.
+                  </p>
+                </section>
+
+                <section>
+                  <h2 className="text-lg font-bold text-gray-900 mb-2">16. Claimant No-Show Procedure</h2>
+                  <p>
+                    If a claimant fails to appear, Contractor must contact the facility before leaving. Only The
+                    Integrity Company may authorize Contractor to leave the assignment.
+                  </p>
+                </section>
+
+                <section>
+                  <h2 className="text-lg font-bold text-gray-900 mb-2">17. Technology & Portal Security</h2>
+                  <p>
+                    Portal access is granted solely to Contractor and credentials must not be shared. Contractor must
+                    protect login credentials and maintain secure devices. Unauthorized disclosure of PHI or client
+                    information may result in termination.
+                  </p>
+                </section>
+
+                <section>
+                  <h2 className="text-lg font-bold text-gray-900 mb-2">18. Interpreter Network Protection</h2>
+                  <p>
+                    Contractor agrees not to recruit or solicit interpreters from The Integrity Company network for
+                    competing services for twenty-four (24) months.
+                  </p>
+                </section>
+
+                <section>
+                  <h2 className="text-lg font-bold text-gray-900 mb-2">19. Extended Client Non-Solicitation Period</h2>
+                  <p>
+                    In addition to Section 7 above, Contractor shall not solicit or accept direct work from clients
+                    introduced by The Integrity Company for twenty-four (24) months following termination, subject to
+                    applicable law.
+                  </p>
+                </section>
+
+                <section>
+                  <h2 className="text-lg font-bold text-gray-900 mb-2">20. Professional Conduct and Background Checks</h2>
+                  <p>
+                    Contractor must maintain professional appearance and conduct when representing Company, follow
+                    professional interpreter ethics standards, and may be required to pass background checks when
+                    required by clients, courts, or insurance carriers.
                   </p>
                 </section>
 

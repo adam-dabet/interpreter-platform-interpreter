@@ -39,6 +39,26 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
         }
     }, [formData.service_types]);
 
+    const normalizeLegalVideoPrimaryUnit = (serviceTypeCode, rateUnit) => {
+        const normalizedUnit = String(rateUnit || '').toLowerCase().trim();
+        if (serviceTypeCode === 'legal' || serviceTypeCode === 'video') {
+            if (!normalizedUnit || normalizedUnit === 'hour' || normalizedUnit === 'hours') {
+                return '3hours';
+            }
+        }
+        return normalizedUnit || 'hours';
+    };
+
+    const normalizeLegalVideoSecondUnit = (serviceTypeCode, rateUnit) => {
+        const normalizedUnit = String(rateUnit || '').toLowerCase().trim();
+        if (serviceTypeCode === 'legal' || serviceTypeCode === 'video') {
+            if (!normalizedUnit || normalizedUnit === 'hour' || normalizedUnit === 'hours') {
+                return '6hours';
+            }
+        }
+        return normalizedUnit || 'hours';
+    };
+
     // Initialize service rates from formData
     useEffect(() => {
         if (formData.service_rates && parametricData?.serviceTypes) {
@@ -51,9 +71,20 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     if (rate.service_type_id) {
                         // Use string ID as key for consistency
                         const key = String(rate.service_type_id);
+                        const serviceType = parametricData.serviceTypes.find(st =>
+                            String(st.id) === key || st.id === rate.service_type_id
+                        );
+                        const serviceTypeCode = serviceType?.code;
+                        const normalizedRateUnit = normalizeLegalVideoPrimaryUnit(serviceTypeCode, rate.rate_unit);
+                        const normalizedSecondIntervalUnit = normalizeLegalVideoSecondUnit(
+                            serviceTypeCode,
+                            rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit
+                        );
                         ratesObject[key] = {
                             ...rate,
-                            service_type_id: key // Ensure service_type_id is string
+                            service_type_id: key, // Ensure service_type_id is string
+                            rate_unit: normalizedRateUnit,
+                            custom_second_interval_rate_unit: normalizedSecondIntervalUnit
                         };
                     }
                 });
@@ -67,7 +98,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
 
     // Initialize language rates from formData
     useEffect(() => {
-        if (formData.language_rates && Array.isArray(formData.language_rates)) {
+        if (formData.language_rates && Array.isArray(formData.language_rates) && parametricData?.serviceTypes) {
             const langRatesObj = {};
             const sameRatesState = {};
             
@@ -77,12 +108,16 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             formData.language_rates.forEach(lr => {
                 const stKey = String(lr.service_type_id);
                 const langKey = String(lr.language_id);
+                const serviceType = parametricData.serviceTypes.find(st =>
+                    String(st.id) === stKey || st.id === lr.service_type_id
+                );
+                const serviceTypeCode = serviceType?.code;
                 if (!langRatesObj[stKey]) {
                     langRatesObj[stKey] = {};
                 }
                 langRatesObj[stKey][langKey] = {
                     rate_amount: String(lr.rate_amount || ''),
-                    rate_unit: lr.rate_unit || 'hours'
+                    rate_unit: normalizeLegalVideoPrimaryUnit(serviceTypeCode, lr.rate_unit)
                 };
                 // If language has custom rates, mark as not using same rates
                 languagesWithCustomRates.add(langKey);
@@ -112,7 +147,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             });
             setUseSameRatesForLanguage(prev => ({ ...prev, ...sameRatesState }));
         }
-    }, [formData.language_rates, formData.languages]);
+    }, [formData.language_rates, formData.languages, parametricData?.serviceTypes]);
 
     // Ensure all selected service types have rates (create defaults if missing)
     useEffect(() => {
@@ -409,6 +444,14 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
     const handleLanguageRateChange = (serviceTypeId, languageId, field, value) => {
         const stKey = String(serviceTypeId);
         const langKey = String(languageId);
+        const serviceType = parametricData?.serviceTypes?.find(st =>
+            String(st.id) === stKey || st.id === serviceTypeId
+        );
+        const serviceTypeCode = serviceType?.code;
+        const normalizedValue = (field === 'rate_unit')
+            ? normalizeLegalVideoPrimaryUnit(serviceTypeCode, value)
+            : value;
+
         setLanguageRates(prev => {
             const updated = { ...prev };
             if (!updated[stKey]) {
@@ -417,7 +460,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             if (!updated[stKey][langKey]) {
                 updated[stKey][langKey] = { rate_amount: '', rate_unit: 'hours' };
             }
-            updated[stKey][langKey][field] = value;
+            updated[stKey][langKey][field] = normalizedValue;
             return updated;
         });
         

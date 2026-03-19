@@ -11,6 +11,7 @@ const JobAction = () => {
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [showMileagePrompt, setShowMileagePrompt] = useState(false);
+  const [showMileageFields, setShowMileageFields] = useState(false);
   const [mileageRequested, setMileageRequested] = useState(0);
   const [mileageRate, setMileageRate] = useState(0.70);
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
@@ -39,6 +40,7 @@ const JobAction = () => {
       if (action === 'accept') {
         // For accept action, always show mileage prompt first
         setShowMileagePrompt(true);
+        setShowMileageFields(false);
         setLoading(false);
         return;
       } else {
@@ -83,6 +85,8 @@ const JobAction = () => {
       
       toast.success('Job accepted successfully! Your mileage request is pending admin approval.');
       setShowMileagePrompt(false);
+      setShowMileageFields(false);
+      setMileageRequested(0);
       setMileageRate(0.70);
       setCompleted(true);
       
@@ -104,6 +108,8 @@ const JobAction = () => {
       
       toast.success('Job accepted successfully!');
       setShowMileagePrompt(false);
+      setShowMileageFields(false);
+      setMileageRequested(0);
       setCompleted(true);
       
       setTimeout(() => {
@@ -144,6 +150,7 @@ const JobAction = () => {
             <button
               onClick={() => {
                 setShowMileagePrompt(false);
+                setShowMileageFields(false);
                 setMileageRequested(0);
                 setMileageRate(0.70);
               }}
@@ -177,46 +184,67 @@ const JobAction = () => {
                   </div>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Miles to job location:
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={mileageRequested}
-                  onChange={(e) => setMileageRequested(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="0"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Leave at 0 when mileage is not needed.
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rate per mile ($):
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max={FEDERAL_MILEAGE_CAP}
-                  step="0.01"
-                  value={mileageRate}
-                  onChange={(e) => setMileageRate(Math.min(FEDERAL_MILEAGE_CAP, Math.max(0, parseFloat(e.target.value) || 0)))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="0.70"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Federal cap: ${FEDERAL_MILEAGE_CAP}/mile.
-                </p>
-                {mileageRequested > 0 && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    Estimated reimbursement: ${(mileageRequested * Math.min(FEDERAL_MILEAGE_CAP, mileageRate || 0.70)).toFixed(2)}
-                  </p>
-                )}
-              </div>
+              {!showMileageFields ? (
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleNoMileage}
+                    disabled={mileagePromptLoading}
+                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {mileagePromptLoading ? 'Submitting...' : 'Proceed with no mileage'}
+                  </button>
+                  <button
+                    onClick={() => setShowMileageFields(true)}
+                    disabled={mileagePromptLoading}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Enter mileage
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Miles to job location:
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={mileageRequested}
+                      onChange={(e) => setMileageRequested(parseFloat(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="0"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Leave at 0 when mileage is not needed.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Rate per mile ($):
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max={FEDERAL_MILEAGE_CAP}
+                      step="0.01"
+                      value={mileageRate}
+                      onChange={(e) => setMileageRate(Math.min(FEDERAL_MILEAGE_CAP, Math.max(0, parseFloat(e.target.value) || 0)))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="0.70"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Federal cap: ${FEDERAL_MILEAGE_CAP}/mile.
+                    </p>
+                    {mileageRequested > 0 && (
+                      <p className="text-sm text-gray-500 mt-1">
+                        Estimated reimbursement: ${(mileageRequested * Math.min(FEDERAL_MILEAGE_CAP, mileageRate || 0.70)).toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
                 <div className="flex">
@@ -233,22 +261,27 @@ const JobAction = () => {
                 </div>
               </div>
 
-              <div className="flex space-x-3">
-                <button
-                  onClick={handleNoMileage}
-                  disabled={mileagePromptLoading}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  No Mileage Needed
-                </button>
-                <button
-                  onClick={handleMileageSubmit}
-                  disabled={mileagePromptLoading || mileageRequested <= 0}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {mileagePromptLoading ? 'Submitting...' : 'Request Mileage'}
-                </button>
-              </div>
+              {showMileageFields && (
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowMileageFields(false);
+                      setMileageRequested(0);
+                    }}
+                    disabled={mileagePromptLoading}
+                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleMileageSubmit}
+                    disabled={mileagePromptLoading || mileageRequested <= 0}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {mileagePromptLoading ? 'Submitting...' : 'Request Mileage'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

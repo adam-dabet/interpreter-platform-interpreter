@@ -9,7 +9,7 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 const resultOptions = [
   { label: "Completed", value: "Completed" },
   { label: "Completed with follow up", value: "Completed with follow up" },
-  { label: "Patient No Show", value: "Patient No Show" },
+  { label: "Claimant No Show", value: "Claimant No Show" },
   { label: "Provider Missed Appointment", value: "Provider Missed Appointment" },
   { label: "Rescheduled", value: "Rescheduled" },
   { label: "Rescheduled Under 24 Hours", value: "Rescheduled Under 24 Hours" },

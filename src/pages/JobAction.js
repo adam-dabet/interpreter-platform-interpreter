@@ -187,18 +187,18 @@ const JobAction = () => {
               {!showMileageFields ? (
                 <div className="flex space-x-3">
                   <button
-                    onClick={handleNoMileage}
+                    onClick={() => setShowMileageFields(true)}
                     disabled={mileagePromptLoading}
                     className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {mileagePromptLoading ? 'Submitting...' : 'Proceed with no mileage'}
+                    Enter mileage
                   </button>
                   <button
-                    onClick={() => setShowMileageFields(true)}
+                    onClick={handleNoMileage}
                     disabled={mileagePromptLoading}
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    Enter mileage
+                    {mileagePromptLoading ? 'Submitting...' : 'Proceed with no mileage'}
                   </button>
                 </div>
               ) : (

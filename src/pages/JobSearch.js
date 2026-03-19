@@ -784,7 +784,7 @@ const JobSearch = () => {
                           </div>
                           <div className="ml-3">
                             <p className="text-sm text-red-700">
-                              <strong>Please note:</strong> Mileage requests for assignments under a 25-mile radius will not be approved. Please avoid entering mileage unless it is truly necessary.
+                              <strong>Please note:</strong> Mileage requests for assignments under a 25-mile radius will not be approved. Please avoid entering mileage unless it is truly over 25 miles from your location.
                             </p>
                           </div>
                         </div>

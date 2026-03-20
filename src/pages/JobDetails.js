@@ -869,6 +869,17 @@ const JobDetails = () => {
                 </p>
                         <div className="text-xs text-gray-400 mb-4">
                           {(() => {
+                            // Flat rate set by admin takes priority over all other rate displays
+                            if (job.use_interpreter_flat_rate && parseFloat(job.interpreter_flat_rate || 0) > 0) {
+                              const flatRateAmount = parseFloat(job.interpreter_flat_rate);
+                              const flatRateHours = parseFloat(job.interpreter_flat_rate_hours || 3);
+                              const estimatedHours = (parseFloat(job.estimated_duration_minutes) || 0) / 60;
+                              if (flatRateHours > 0 && estimatedHours > flatRateHours) {
+                                const blocks = Math.ceil(estimatedHours / flatRateHours);
+                                return `${formatCurrency(flatRateAmount)} flat rate × ${blocks} blocks = ${formatCurrency(flatRateAmount * blocks)}`;
+                              }
+                              return `${formatCurrency(flatRateAmount)} flat rate (covers ${flatRateHours} hours)`;
+                            }
                             const estimatedMinutes = parseFloat(job.estimated_duration_minutes) || 0;
                             const minimumHours = parseFloat(job.interpreter_minimum_hours) || 1;
                             const minimumMinutes = minimumHours * 60;

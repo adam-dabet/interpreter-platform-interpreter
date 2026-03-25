@@ -95,6 +95,28 @@ const JobDetails = () => {
     loadJobDetails();
   }, [jobId]);
 
+  // Email "CONFIRM ASSIGNMENT" links include ?confirmAvailability=1 — open modal once job + profile are ready
+  useEffect(() => {
+    if (!job || loading) return;
+    const params = new URLSearchParams(location.search);
+    if (params.get('confirmAvailability') !== '1') return;
+    if (profile === null) return;
+
+    const isAssignedToCurrentUser = !!(
+      profile?.id && String(profile.id) === String(job.assigned_interpreter_id)
+    );
+    const shouldPrompt =
+      job.status === 'assigned' && job.confirmation_status === 'pending';
+
+    if (isAssignedToCurrentUser && shouldPrompt) {
+      setShowConfirmationModal(true);
+    }
+
+    params.delete('confirmAvailability');
+    const qs = params.toString();
+    navigate(`${location.pathname}${qs ? `?${qs}` : ''}`, { replace: true });
+  }, [job, loading, location.search, location.pathname, profile, navigate]);
+
   const loadJobDetails = async () => {
     try {
       setLoading(true);

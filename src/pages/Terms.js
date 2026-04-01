@@ -63,6 +63,11 @@ const Terms = () => {
                 Contractor shall determine the method, manner, and means of performing services, subject 
                 only to the requirements of the assignment.
               </li>
+              <li>
+                If Contractor plans to have any assignment performed by any person other than Contractor
+                personally (including subcontracting or delegation of interpreting services), Contractor
+                must notify Company in advance, before such arrangement occurs.
+              </li>
             </ul>
           </section>
 

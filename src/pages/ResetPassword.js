@@ -338,8 +338,8 @@ const ResetPassword = () => {
         >
           <p>Need help? Contact our support team</p>
           <p className="mt-1">
-            <a href="mailto:support@theintegritycompanyinc.com" className="text-blue-600 hover:text-blue-500">
-              support@theintegritycompanyinc.com
+            <a href="mailto:customerservice@theintegritycompanyinc.com" className="text-blue-600 hover:text-blue-500">
+              customerservice@theintegritycompanyinc.com
             </a>
           </p>
         </motion.div>

@@ -434,7 +434,7 @@ const Terms = () => {
               <p>2424 Vista Way, Suite 125</p>
               <p>Oceanside, CA 92054</p>
               <p className="mt-2">Phone: 888-418-2565</p>
-              <p>Email: support@theintegritycompanyinc.com</p>
+              <p>Email: customerservice@theintegritycompanyinc.com</p>
             </div>
           </div>
 

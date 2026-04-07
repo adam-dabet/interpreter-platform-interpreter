@@ -4,6 +4,7 @@ import jobAPI from '../services/jobAPI';
 import { toast } from 'react-hot-toast';
 import Layout from '../components/layout/Layout';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { milesInputToNumber, isPartialMilesInput } from '../utils/mileageInputUtils';
 
 const JobAction = () => {
   const { jobId, action, interpreterId } = useParams();
@@ -12,7 +13,8 @@ const JobAction = () => {
   const [completed, setCompleted] = useState(false);
   const [showMileagePrompt, setShowMileagePrompt] = useState(false);
   const [showMileageFields, setShowMileageFields] = useState(false);
-  const [mileageRequested, setMileageRequested] = useState(0);
+  const [mileageMilesInput, setMileageMilesInput] = useState('0');
+  const mileageRequested = milesInputToNumber(mileageMilesInput);
   const [mileageRate, setMileageRate] = useState(0.70);
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
   const FEDERAL_MILEAGE_CAP = 0.72;
@@ -86,7 +88,7 @@ const JobAction = () => {
       toast.success('Job accepted successfully! Your mileage request is pending admin approval.');
       setShowMileagePrompt(false);
       setShowMileageFields(false);
-      setMileageRequested(0);
+      setMileageMilesInput('0');
       setMileageRate(0.70);
       setCompleted(true);
       
@@ -109,7 +111,7 @@ const JobAction = () => {
       toast.success('Job accepted successfully!');
       setShowMileagePrompt(false);
       setShowMileageFields(false);
-      setMileageRequested(0);
+      setMileageMilesInput('0');
       setCompleted(true);
       
       setTimeout(() => {
@@ -151,7 +153,7 @@ const JobAction = () => {
               onClick={() => {
                 setShowMileagePrompt(false);
                 setShowMileageFields(false);
-                setMileageRequested(0);
+                setMileageMilesInput('0');
                 setMileageRate(0.70);
               }}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
@@ -208,16 +210,19 @@ const JobAction = () => {
                       Miles to job location:
                     </label>
                     <input
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      value={mileageRequested}
-                      onChange={(e) => setMileageRequested(parseFloat(e.target.value) || 0)}
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      value={mileageMilesInput}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (isPartialMilesInput(v)) setMileageMilesInput(v);
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="0"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Leave at 0 when mileage is not needed.
+                      Clear the field and enter your miles, or use Back if you do not need mileage.
                     </p>
                   </div>
                   <div>
@@ -266,7 +271,7 @@ const JobAction = () => {
                   <button
                     onClick={() => {
                       setShowMileageFields(false);
-                      setMileageRequested(0);
+                      setMileageMilesInput('0');
                     }}
                     disabled={mileagePromptLoading}
                     className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

@@ -21,6 +21,7 @@ import jobAPI from '../services/jobAPI';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { formatDate as formatDateUtil, formatTime as formatTimeUtil, formatCurrency as formatCurrencyUtil } from '../utils/dateUtils';
+import { milesInputToNumber, isPartialMilesInput } from '../utils/mileageInputUtils';
 import InterpreterCompletionReport from '../components/InterpreterCompletionReport';
 import { 
   getJobStatusColor, 
@@ -42,7 +43,8 @@ const JobDashboard = () => {
   const [selectedJob, setSelectedJob] = useState(null);
   const [showMileagePrompt, setShowMileagePrompt] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState(null);
-  const [mileageRequested, setMileageRequested] = useState(0);
+  const [mileageMilesInput, setMileageMilesInput] = useState('0');
+  const mileageRequested = milesInputToNumber(mileageMilesInput);
   const [mileageRate, setMileageRate] = useState(0.70);
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
   const FEDERAL_MILEAGE_CAP = 0.72;
@@ -213,7 +215,7 @@ const JobDashboard = () => {
       toast.success('Job accepted successfully! Your mileage request is pending admin approval.');
       setShowMileagePrompt(false);
       setSelectedJobId(null);
-      setMileageRequested(0);
+      setMileageMilesInput('0');
       setMileageRate(0.70);
       
       // Reload jobs and earnings
@@ -237,7 +239,7 @@ const JobDashboard = () => {
       toast.success('Job accepted successfully!');
       setShowMileagePrompt(false);
       setSelectedJobId(null);
-      setMileageRequested(0);
+      setMileageMilesInput('0');
       setMileageRate(0.70);
       
       // Reload jobs and earnings
@@ -890,7 +892,7 @@ const JobDashboard = () => {
                     <button
                       onClick={() => {
                         setShowMileagePrompt(false);
-                        setMileageRequested(0);
+                        setMileageMilesInput('0');
                         setMileageRate(0.70);
                       }}
                       className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
@@ -914,14 +916,20 @@ const JobDashboard = () => {
                           Miles to job location:
                         </label>
                         <input
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={mileageRequested}
-                          onChange={(e) => setMileageRequested(parseFloat(e.target.value) || 0)}
+                          type="text"
+                          inputMode="decimal"
+                          autoComplete="off"
+                          value={mileageMilesInput}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (isPartialMilesInput(v)) setMileageMilesInput(v);
+                          }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="0"
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Clear the field and type your miles, or choose No Mileage Needed if you do not need reimbursement.
+                        </p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">

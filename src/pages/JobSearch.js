@@ -55,6 +55,15 @@ const JobSearch = () => {
     loadJobs();
   }, [filters, currentPage, searchRadius]);
 
+  useEffect(() => {
+    if (!showMileagePrompt) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [showMileagePrompt]);
+
   const loadJobs = async () => {
     try {
       setLoading(true);
@@ -756,8 +765,9 @@ const JobSearch = () => {
 
               {/* Mileage Prompt Modal */}
               {showMileagePrompt && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                  <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4 relative">
+                <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-black bg-opacity-50">
+                  <div className="flex min-h-full items-center justify-center p-4">
+                    <div className="relative w-full max-w-md rounded-lg bg-white p-8 shadow-lg">
                     {/* Close Button */}
                     <button
                       onClick={() => {
@@ -905,6 +915,7 @@ const JobSearch = () => {
                           </button>
                         </div>
                       )}
+                    </div>
                     </div>
                   </div>
                 </div>

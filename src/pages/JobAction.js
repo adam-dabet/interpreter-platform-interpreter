@@ -33,6 +33,15 @@ const JobAction = () => {
     handleAction();
   }, [jobId, action, interpreterId]);
 
+  useEffect(() => {
+    if (!showMileagePrompt) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [showMileagePrompt]);
+
   const handleAction = async () => {
     setLoading(true);
     try {
@@ -146,8 +155,9 @@ const JobAction = () => {
   if (showMileagePrompt) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 relative">
+        <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-black bg-opacity-50">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative w-full max-w-md rounded-lg bg-white p-8 shadow-md">
             {/* Close Button */}
             <button
               onClick={() => {
@@ -294,6 +304,7 @@ const JobAction = () => {
                   </button>
                 </div>
               )}
+            </div>
             </div>
           </div>
         </div>

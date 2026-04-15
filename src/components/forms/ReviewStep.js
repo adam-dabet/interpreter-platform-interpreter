@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircleIcon, PencilIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 import Button from '../ui/Button';
 import Checkbox from '../ui/Checkbox';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import { SERVICE_TYPES, EDUCATION_LEVELS, US_STATES } from '../../utils/constants';
 
-const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametricData }) => {
+const trim = (v) => (v != null && String(v).trim() !== '' ? String(v).trim() : '');
+
+const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametricData, w9Required = true }) => {
   const [agreements, setAgreements] = useState({
     terms_accepted: data.terms_accepted || false,
     privacy_policy_accepted: data.privacy_policy_accepted || false,
@@ -63,7 +66,40 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
     return Object.keys(newErrors).length === 0;
   };
 
+  const validateW9IfRequired = () => {
+    if (!w9Required) return true;
+    const method = data.w9_entry_method;
+    if (method === 'upload') {
+      if (!data.w9_file) {
+        toast.error('Please complete the W-9 step (upload your W-9) before submitting.');
+        return false;
+      }
+      return true;
+    }
+    if (method === 'manual' && data.w9_data && typeof data.w9_data === 'object') {
+      const w = data.w9_data;
+      const missing = [];
+      if (!trim(w.business_name)) missing.push('business name');
+      if (!w.tax_classification) missing.push('tax classification');
+      if (!trim(w.ssn) && !trim(w.ein)) missing.push('SSN or EIN');
+      if (!trim(w.address)) missing.push('address');
+      if (!trim(w.city)) missing.push('city');
+      if (!trim(w.state)) missing.push('state');
+      if (!trim(w.zip_code)) missing.push('ZIP code');
+      if (!trim(w.signature) && !trim(w.signature_name)) missing.push('signature');
+      if (!w.electronic_signature_acknowledgment) missing.push('electronic signature acknowledgment');
+      if (missing.length > 0) {
+        toast.error(`Please complete the W-9 step before submitting. Missing: ${missing.join(', ')}.`);
+        return false;
+      }
+      return true;
+    }
+    toast.error('Please complete the W-9 step before submitting.');
+    return false;
+  };
+
   const handleSubmit = () => {
+    if (!validateW9IfRequired()) return;
     if (validateAgreements()) {
       const finalData = { ...data, ...agreements };
       onSubmit(finalData);

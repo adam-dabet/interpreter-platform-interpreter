@@ -593,13 +593,15 @@ const InterpreterProfile = () => {
         });
 
         if (currentStep === INTERPRETER_STEPS.length) {
-            // Review step
+            // Review step — W-9 required except agency profile-completion invites
+            const w9Required = !isProfileCompletion || !importedData?.isAgency;
             return (
                 <StepComponent
                     {...commonProps}
                     onSubmit={handleSubmit}
                     isSubmitting={isSubmitting}
                     onEdit={handleEdit}
+                    w9Required={w9Required}
                 />
             );
         }

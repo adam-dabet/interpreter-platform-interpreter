@@ -155,9 +155,9 @@ const JobAction = () => {
   if (showMileagePrompt) {
     return (
       <Layout>
-        <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-black bg-opacity-50">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative w-full max-w-md rounded-lg bg-white p-8 shadow-md">
+        <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-black bg-opacity-50 touch-pan-y [-webkit-overflow-scrolling:touch]">
+          <div className="flex min-h-[100vh] min-h-dvh w-full items-center justify-center px-4 py-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]">
+            <div className="relative w-full max-w-md shrink-0 rounded-lg bg-white p-5 shadow-md sm:p-8">
             {/* Close Button */}
             <button
               onClick={() => {
@@ -166,9 +166,10 @@ const JobAction = () => {
                 setMileageMilesInput('0');
                 setMileageRate(0.70);
               }}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 sm:right-4 sm:top-4"
+              aria-label="Close"
             >
-              <XCircleIcon className="h-6 w-6" />
+              <XCircleIcon className="h-7 w-7 sm:h-6 sm:w-6" />
             </button>
             
             <div className="text-center mb-6">
@@ -206,7 +207,7 @@ const JobAction = () => {
                       type="button"
                       onClick={() => setShowMileageFields(true)}
                       disabled={mileagePromptLoading}
-                      className="flex-1 px-4 py-2.5 rounded-md border-2 border-blue-600 bg-white text-blue-900 font-semibold shadow-sm hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="min-h-[48px] flex-1 touch-manipulation rounded-md border-2 border-blue-600 bg-white px-4 py-3 text-base font-semibold text-blue-900 shadow-sm hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:py-2.5 sm:text-sm"
                     >
                       Enter miles & rate
                     </button>
@@ -214,7 +215,7 @@ const JobAction = () => {
                       type="button"
                       onClick={handleNoMileage}
                       disabled={mileagePromptLoading}
-                      className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="min-h-[48px] flex-1 touch-manipulation rounded-md bg-blue-600 px-4 py-3 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:py-2.5 sm:text-sm"
                     >
                       {mileagePromptLoading ? 'Submitting...' : 'Proceed with no mileage'}
                     </button>
@@ -235,7 +236,7 @@ const JobAction = () => {
                         const v = e.target.value;
                         if (isPartialMilesInput(v)) setMileageMilesInput(v);
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full rounded-md border border-gray-300 px-3 py-3 text-base focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 sm:py-2"
                       placeholder="0"
                     />
                     <p className="text-xs text-gray-500 mt-1">
@@ -253,7 +254,7 @@ const JobAction = () => {
                       step="0.01"
                       value={mileageRate}
                       onChange={(e) => setMileageRate(Math.min(FEDERAL_MILEAGE_CAP, Math.max(0, parseFloat(e.target.value) || 0)))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full rounded-md border border-gray-300 px-3 py-3 text-base focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 sm:py-2"
                       placeholder="0.70"
                     />
                     <p className="text-xs text-gray-500 mt-1">
@@ -284,21 +285,23 @@ const JobAction = () => {
               </div>
 
               {showMileageFields && (
-                <div className="flex space-x-3">
+                <div className="flex gap-3">
                   <button
+                    type="button"
                     onClick={() => {
                       setShowMileageFields(false);
                       setMileageMilesInput('0');
                     }}
                     disabled={mileagePromptLoading}
-                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="min-h-[48px] flex-1 touch-manipulation rounded-md bg-gray-200 px-4 py-3 text-base font-medium text-gray-800 hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50 sm:py-2 sm:text-sm"
                   >
                     Back
                   </button>
                   <button
+                    type="button"
                     onClick={handleMileageSubmit}
                     disabled={mileagePromptLoading || mileageRequested <= 0}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="min-h-[48px] flex-1 touch-manipulation rounded-md bg-blue-600 px-4 py-3 text-base font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:py-2 sm:text-sm"
                   >
                     {mileagePromptLoading ? 'Submitting...' : 'Request Mileage'}
                   </button>

@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import Button from './ui/Button';
 import { formatDate as formatDateUtil, formatTime as formatTimeUtil, formatCurrency as formatCurrencyUtil, getTimeUntilJob as getTimeUntilJobUtil } from '../utils/dateUtils';
+import { jobNeedsAvailabilityConfirmation, jobAvailabilityConfirmed } from '../utils/jobConfirmation';
 
 const JobCard = ({ 
   job, 
@@ -49,7 +50,7 @@ const JobCard = ({
     if (job.completion_report_submitted) return 'completed';
     if (job.status === 'completed' && !job.completion_report_submitted) return 'needs_report';
     if (job.status === 'in_progress') return 'in_progress';
-    if (job.assignment_status === 'pending_confirmation') return 'needs_confirmation';
+    if (jobNeedsAvailabilityConfirmation(job)) return 'needs_confirmation';
     if (job.assignment_status === 'accepted' || job.status === 'assigned') return 'confirmed';
     if (job.status === 'finding_interpreter') return 'available';
     return 'pending';
@@ -107,7 +108,7 @@ const JobCard = ({
   const getProgressSteps = () => {
     const steps = [
       { key: 'accepted', label: 'Accepted', completed: job.assignment_status === 'accepted' || job.status === 'assigned' },
-      { key: 'confirmed', label: 'Confirmed', completed: job.assignment_status === 'confirmed' || job.confirmed_at },
+      { key: 'confirmed', label: 'Confirmed', completed: jobAvailabilityConfirmed(job) },
       { key: 'in_progress', label: 'Started', completed: job.status === 'in_progress' || job.job_started_at },
       { key: 'completed', label: 'Completed', completed: job.completion_report_submitted }
     ];

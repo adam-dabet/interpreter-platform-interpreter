@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -20,6 +20,7 @@ import Button from '../components/ui/Button';
 import JobCard from '../components/JobCard';
 import InterpreterCompletionReport from '../components/InterpreterCompletionReport';
 import { isToday } from '../utils/dateUtils';
+import { jobNeedsAvailabilityConfirmation } from '../utils/jobConfirmation';
 
 const DashboardNew = () => {
   const navigate = useNavigate();
@@ -76,7 +77,7 @@ const DashboardNew = () => {
 
     // Jobs needing confirmation (within 48 hours)
     const needsConfirmation = jobs.filter(job => {
-      if (job.assignment_status !== 'pending_confirmation') return false;
+      if (!jobNeedsAvailabilityConfirmation(job)) return false;
       const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
       const hoursUntil = (jobDate - now) / (1000 * 60 * 60);
       return hoursUntil > 0 && hoursUntil <= 48;
@@ -163,7 +164,7 @@ const DashboardNew = () => {
 
     // Priority 5: Confirmation needed
     const needsConfirm = jobs.find(job => {
-      if (job.assignment_status !== 'pending_confirmation') return false;
+      if (!jobNeedsAvailabilityConfirmation(job)) return false;
       const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
       const hoursUntil = (jobDate - now) / (1000 * 60 * 60);
       return hoursUntil > 0 && hoursUntil <= 48;
@@ -200,6 +201,21 @@ const DashboardNew = () => {
   const criticalItems = getCriticalItems();
   const smartAction = getSmartAction();
   const todaysJobs = getTodaysJobs();
+
+  const jobsNeedingAvailabilityConfirm = useMemo(() => {
+    const now = new Date();
+    return jobs
+      .filter(job => {
+        if (!jobNeedsAvailabilityConfirmation(job)) return false;
+        const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
+        return jobDate > now;
+      })
+      .sort(
+        (a, b) =>
+          new Date(`${a.scheduled_date}T${a.scheduled_time}`) -
+          new Date(`${b.scheduled_date}T${b.scheduled_time}`)
+      );
+  }, [jobs]);
   const upcomingJobs = jobs.filter(job => {
     const isNotCompleted = !['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid'].includes(job.status);
     const isFuture = new Date(job.scheduled_date) > new Date();
@@ -400,6 +416,42 @@ const DashboardNew = () => {
 
         {/* Smart Action Card */}
         <SmartActionCard />
+
+        {/* Jobs awaiting availability confirmation */}
+        {jobsNeedingAvailabilityConfirm.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-6"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-amber-900">
+                  Confirm your availability
+                </h2>
+                <p className="text-sm text-amber-800 mt-1">
+                  These assignments need you to confirm you can still attend.
+                </p>
+              </div>
+              <span className="inline-flex items-center self-start rounded-full bg-amber-100 text-amber-900 text-sm font-semibold px-3 py-1 border border-amber-300">
+                {jobsNeedingAvailabilityConfirm.length} pending
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {jobsNeedingAvailabilityConfirm.map(job => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  variant="default"
+                  onShowCompletionReport={(j) => {
+                    setSelectedJob(j);
+                    setShowCompletionReport(true);
+                  }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">

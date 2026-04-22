@@ -16,6 +16,7 @@ import jobAPI from '../services/jobAPI';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
 import { formatDate as formatDateUtil, formatTime as formatTimeUtil, getTimeUntilJob as getTimeUntilJobUtil } from '../utils/dateUtils';
+import { jobNeedsAvailabilityConfirmation } from '../utils/jobConfirmation';
 
 const PendingActions = () => {
   const navigate = useNavigate();
@@ -65,11 +66,11 @@ const PendingActions = () => {
 
     // Jobs needing confirmation (2-day window)
     const needsConfirmation = jobs.filter(job => {
-      if (job.assignment_status !== 'pending_confirmation') return false;
-      
+      if (!jobNeedsAvailabilityConfirmation(job)) return false;
+
       const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
       const hoursUntilJob = (jobDate - now) / (1000 * 60 * 60);
-      
+
       // Show if job is within 48 hours
       return hoursUntilJob > 0 && hoursUntilJob <= 48;
     });

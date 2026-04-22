@@ -18,6 +18,7 @@ import jobAPI from '../services/jobAPI';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
 import { formatDate as formatDateUtil, formatTime as formatTimeUtil, parseLocalDate } from '../utils/dateUtils';
+import { jobNeedsAvailabilityConfirmation } from '../utils/jobConfirmation';
 
 const MySchedule = () => {
   const navigate = useNavigate();
@@ -132,14 +133,14 @@ const MySchedule = () => {
 
   const getStatusColor = (job) => {
     if (job.status === 'finding_interpreter') return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    if (jobNeedsAvailabilityConfirmation(job)) return 'bg-orange-100 text-orange-800 border-orange-300';
     if (job.status === 'assigned' || job.assignment_status === 'accepted') return 'bg-green-100 text-green-800 border-green-300';
-    if (job.assignment_status === 'pending_confirmation') return 'bg-orange-100 text-orange-800 border-orange-300';
     if (job.status === 'in_progress') return 'bg-blue-100 text-blue-800 border-blue-300';
     return 'bg-gray-100 text-gray-800 border-gray-300';
   };
 
   const getStatusLabel = (job) => {
-    if (job.assignment_status === 'pending_confirmation') return 'Needs Confirmation';
+    if (jobNeedsAvailabilityConfirmation(job)) return 'Needs Confirmation';
     if (job.status === 'finding_interpreter') return 'Available';
     if (job.assignment_status === 'accepted') return 'Confirmed';
     if (job.status === 'in_progress') return 'In Progress';
@@ -196,7 +197,7 @@ const MySchedule = () => {
         </div>
       </div>
 
-      {job.assignment_status === 'pending_confirmation' && (
+      {jobNeedsAvailabilityConfirmation(job) && (
         <div className="mt-3 pt-3 border-t border-gray-200">
           <div className="flex items-center text-orange-600 text-xs">
             <ExclamationTriangleIcon className="h-4 w-4 mr-1" />

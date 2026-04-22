@@ -6,6 +6,7 @@ import MobileBottomNav from './MobileBottomNav';
 import BlockingModal from '../BlockingModal';
 import FeedbackWidget from '../FeedbackWidget';
 import jobAPI from '../../services/jobAPI';
+import { jobNeedsAvailabilityConfirmation } from '../../utils/jobConfirmation';
 
 const AuthenticatedLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -39,7 +40,7 @@ const AuthenticatedLayout = ({ children }) => {
 
       // Find pending confirmations (within 48 hours)
       const pendingConfirmations = jobs.filter(job => {
-        if (job.assignment_status !== 'pending_confirmation') return false;
+        if (!jobNeedsAvailabilityConfirmation(job)) return false;
         const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
         const hoursUntil = (jobDate - now) / (1000 * 60 * 60);
         return hoursUntil > 0 && hoursUntil <= 48;

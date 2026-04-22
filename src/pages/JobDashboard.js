@@ -15,6 +15,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import JobCard from '../components/JobCard';
 import InterpreterCompletionReport from '../components/InterpreterCompletionReport';
 import { formatDate as formatDateUtil, formatCurrency as formatCurrencyUtil } from '../utils/dateUtils';
+import { jobNeedsAvailabilityConfirmation } from '../utils/jobConfirmation';
 
 const COMPLETED_JOB_STATUSES = ['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid'];
 
@@ -384,6 +385,21 @@ const JobDashboardNew = () => {
     };
   }, [aggregatedRowTotals, earnings, earningsBreakdownRows]);
 
+  const jobsNeedingAvailabilityConfirm = useMemo(() => {
+    const now = new Date();
+    return jobs
+      .filter(job => {
+        if (!jobNeedsAvailabilityConfirmation(job)) return false;
+        const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
+        return jobDate > now;
+      })
+      .sort(
+        (a, b) =>
+          new Date(`${a.scheduled_date}T${a.scheduled_time}`) -
+          new Date(`${b.scheduled_date}T${b.scheduled_time}`)
+      );
+  }, [jobs]);
+
   const getStatusBadgeClasses = (status) => {
     switch (status) {
       case 'interpreter_paid':
@@ -450,6 +466,41 @@ const JobDashboardNew = () => {
           <h1 className="text-3xl font-bold text-gray-900">My Jobs</h1>
           <p className="mt-2 text-gray-600">Manage your interpretation assignments</p>
         </div>
+
+        {jobsNeedingAvailabilityConfirm.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-6"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-amber-900">
+                  Confirm your availability
+                </h2>
+                <p className="text-sm text-amber-800 mt-1">
+                  These assignments need you to confirm you can still attend.
+                </p>
+              </div>
+              <span className="inline-flex items-center self-start rounded-full bg-amber-100 text-amber-900 text-sm font-semibold px-3 py-1 border border-amber-300">
+                {jobsNeedingAvailabilityConfirm.length} pending
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {jobsNeedingAvailabilityConfirm.map(job => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  variant="default"
+                  onShowCompletionReport={(j) => {
+                    setSelectedJob(j);
+                    setShowCompletionReport(true);
+                  }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* Tabs */}
         <div className="mb-6">

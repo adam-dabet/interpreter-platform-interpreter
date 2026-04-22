@@ -8,6 +8,7 @@ import Input from '../components/ui/Input';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { authAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { validateNewPasswordPolicy } from '../utils/passwordPolicy';
 
 const ChangePassword = () => {
   const navigate = useNavigate();
@@ -46,7 +47,8 @@ const ChangePassword = () => {
       hasUppercase: /[A-Z]/.test(password),
       hasLowercase: /[a-z]/.test(password),
       hasNumber: /\d/.test(password),
-      hasSpecialChar: /[@$!%*?&]/.test(password)
+      hasSpecialChar: /[@$!%*?&]/.test(password),
+      onlyAllowedChars: /^[A-Za-z\d@$!%*?&]+$/.test(password),
     };
   };
 
@@ -57,14 +59,14 @@ const ChangePassword = () => {
   const getPasswordStrength = () => {
     const requirements = Object.values(passwordRequirements);
     const metRequirements = requirements.filter(Boolean).length;
-    const totalRequirements = requirements.length;
-    
+
     if (metRequirements === 0) return { strength: 'Very Weak', color: 'bg-red-500', width: '0%' };
-    if (metRequirements === 1) return { strength: 'Weak', color: 'bg-red-400', width: '20%' };
-    if (metRequirements === 2) return { strength: 'Fair', color: 'bg-yellow-400', width: '40%' };
-    if (metRequirements === 3) return { strength: 'Good', color: 'bg-yellow-500', width: '60%' };
-    if (metRequirements === 4) return { strength: 'Strong', color: 'bg-green-400', width: '80%' };
-    if (metRequirements === 5) return { strength: 'Very Strong', color: 'bg-green-500', width: '100%' };
+    if (metRequirements === 1) return { strength: 'Weak', color: 'bg-red-400', width: '17%' };
+    if (metRequirements === 2) return { strength: 'Fair', color: 'bg-yellow-400', width: '33%' };
+    if (metRequirements === 3) return { strength: 'Good', color: 'bg-yellow-500', width: '50%' };
+    if (metRequirements === 4) return { strength: 'Strong', color: 'bg-green-400', width: '67%' };
+    if (metRequirements === 5) return { strength: 'Very Strong', color: 'bg-green-500', width: '83%' };
+    return { strength: 'Very Strong', color: 'bg-green-600', width: '100%' };
   };
   
   const passwordStrength = getPasswordStrength();
@@ -120,20 +122,19 @@ const ChangePassword = () => {
 
     if (!formData.newPassword) {
       newErrors.newPassword = 'New password is required';
-    } else if (formData.newPassword.length < 8) {
-      newErrors.newPassword = 'Password must be at least 8 characters long';
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(formData.newPassword)) {
-      newErrors.newPassword = 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)';
+    } else {
+      const policyMsg = validateNewPasswordPolicy(formData.newPassword);
+      if (policyMsg) {
+        newErrors.newPassword = policyMsg;
+      } else if (formData.currentPassword === formData.newPassword) {
+        newErrors.newPassword = 'New password must be different from your current password';
+      }
     }
 
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = 'Please confirm your new password';
     } else if (formData.newPassword !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
-    }
-
-    if (formData.currentPassword === formData.newPassword) {
-      newErrors.newPassword = 'New password must be different from your current password';
     }
 
     setErrors(newErrors);
@@ -399,6 +400,16 @@ const ChangePassword = () => {
                   <XCircleIcon className="h-4 w-4 text-red-500 mr-2" />
                 )}
                 One special character (@$!%*?&)
+              </li>
+              <li className={`flex items-center transition-colors duration-200 ${
+                passwordRequirements.onlyAllowedChars ? 'text-green-700' : 'text-red-600'
+              }`}>
+                {passwordRequirements.onlyAllowedChars ? (
+                  <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2" />
+                ) : (
+                  <XCircleIcon className="h-4 w-4 text-red-500 mr-2" />
+                )}
+                Only letters, numbers, and @$!%*?& (no spaces or other symbols)
               </li>
             </ul>
           </div>

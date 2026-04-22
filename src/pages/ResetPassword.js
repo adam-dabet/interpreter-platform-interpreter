@@ -7,6 +7,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { authAPI } from '../services/api';
+import { validateNewPasswordPolicy } from '../utils/passwordPolicy';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -39,7 +40,8 @@ const ResetPassword = () => {
     hasUpperCase: false,
     hasLowerCase: false,
     hasNumber: false,
-    hasSpecialChar: false
+    hasSpecialChar: false,
+    hasOnlyAllowedChars: false,
   });
 
   useEffect(() => {
@@ -80,7 +82,8 @@ const ResetPassword = () => {
       hasUpperCase: /[A-Z]/.test(password),
       hasLowerCase: /[a-z]/.test(password),
       hasNumber: /\d/.test(password),
-      hasSpecialChar: /[@$!%*?&]/.test(password)
+      hasSpecialChar: /[@$!%*?&]/.test(password),
+      hasOnlyAllowedChars: /^[A-Za-z\d@$!%*?&]+$/.test(password),
     });
   }, [formData.password]);
 
@@ -98,10 +101,11 @@ const ResetPassword = () => {
 
     if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters long';
-    } else if (!Object.values(passwordStrength).every(v => v)) {
-      newErrors.password = 'Password does not meet all requirements';
+    } else {
+      const policyMsg = validateNewPasswordPolicy(formData.password);
+      if (policyMsg) {
+        newErrors.password = policyMsg;
+      }
     }
 
     if (!formData.confirmPassword) {
@@ -253,6 +257,7 @@ const ResetPassword = () => {
                   <PasswordRequirement met={passwordStrength.hasLowerCase} text="One lowercase letter" />
                   <PasswordRequirement met={passwordStrength.hasNumber} text="One number" />
                   <PasswordRequirement met={passwordStrength.hasSpecialChar} text="One special character (@$!%*?&)" />
+                  <PasswordRequirement met={passwordStrength.hasOnlyAllowedChars} text="Only letters, numbers, and @$!%*?& (no spaces or other symbols)" />
                 </div>
               )}
             </div>

@@ -5,6 +5,7 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import toast from 'react-hot-toast';
 import { authAPI } from '../../services/api';
+import { validateNewPasswordPolicy } from '../../utils/passwordPolicy';
 
 const ChangePasswordForm = ({ onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -51,16 +52,16 @@ const ChangePasswordForm = ({ onClose, onSuccess }) => {
     
     // Real-time validation for new password
     if (field === 'newPassword' && value) {
-      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-      
-      if (value.length < 8) {
-        setErrors(prev => ({ ...prev, newPassword: 'Password must be at least 8 characters long' }));
-      } else if (!passwordRegex.test(value)) {
-        setErrors(prev => ({ ...prev, newPassword: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)' }));
+      const policyMsg = validateNewPasswordPolicy(value);
+      if (policyMsg) {
+        setErrors((prev) => ({ ...prev, newPassword: policyMsg }));
       } else if (formData.currentPassword && value === formData.currentPassword) {
-        setErrors(prev => ({ ...prev, newPassword: 'New password must be different from your current password' }));
+        setErrors((prev) => ({
+          ...prev,
+          newPassword: 'New password must be different from your current password',
+        }));
       } else {
-        setErrors(prev => ({ ...prev, newPassword: null }));
+        setErrors((prev) => ({ ...prev, newPassword: null }));
       }
     }
     
@@ -88,13 +89,9 @@ const ChangePasswordForm = ({ onClose, onSuccess }) => {
     if (!formData.newPassword) {
       newErrors.newPassword = 'New password is required';
     } else {
-      // Enhanced password validation
-      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-      
-      if (formData.newPassword.length < 8) {
-        newErrors.newPassword = 'Password must be at least 8 characters long';
-      } else if (!passwordRegex.test(formData.newPassword)) {
-        newErrors.newPassword = 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)';
+      const policyMsg = validateNewPasswordPolicy(formData.newPassword);
+      if (policyMsg) {
+        newErrors.newPassword = policyMsg;
       } else if (formData.currentPassword && formData.newPassword === formData.currentPassword) {
         newErrors.newPassword = 'New password must be different from your current password';
       }

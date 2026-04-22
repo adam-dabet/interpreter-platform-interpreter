@@ -414,24 +414,24 @@ const DashboardNew = () => {
         </motion.div>
       )}
 
-        {/* Smart Action Card */}
-        <SmartActionCard />
-
         {/* Jobs awaiting availability confirmation */}
         {jobsNeedingAvailabilityConfirm.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-6"
+            className="mb-6 bg-amber-50 border-2 border-amber-300 rounded-xl p-6 shadow-sm"
           >
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
-              <div>
-                <h2 className="text-xl font-bold text-amber-900">
-                  Confirm your availability
-                </h2>
-                <p className="text-sm text-amber-800 mt-1">
-                  These assignments need you to confirm you can still attend.
-                </p>
+              <div className="flex items-start">
+                <ExclamationTriangleIcon className="h-7 w-7 text-amber-600 mr-3 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h2 className="text-xl font-bold text-amber-900">
+                    Confirm your availability
+                  </h2>
+                  <p className="text-sm text-amber-800 mt-1">
+                    These assignments need you to confirm you can still attend.
+                  </p>
+                </div>
               </div>
               <span className="inline-flex items-center self-start rounded-full bg-amber-100 text-amber-900 text-sm font-semibold px-3 py-1 border border-amber-300">
                 {jobsNeedingAvailabilityConfirm.length} pending
@@ -452,6 +452,9 @@ const DashboardNew = () => {
             </div>
           </motion.div>
         )}
+
+        {/* Smart Action Card */}
+        <SmartActionCard />
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">

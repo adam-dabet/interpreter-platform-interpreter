@@ -64,26 +64,28 @@ const PendingActions = () => {
       return hoursSinceCompletion <= 24;
     });
 
-    // Jobs needing confirmation (2-day window)
-    const needsConfirmation = jobs.filter(job => {
-      if (!jobNeedsAvailabilityConfirmation(job)) return false;
+    // Jobs needing confirmation — show every future job awaiting availability confirmation
+    const needsConfirmation = jobs
+      .filter(job => {
+        if (!jobNeedsAvailabilityConfirmation(job)) return false;
+        const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
+        return jobDate > now;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(`${a.scheduled_date}T${a.scheduled_time}`);
+        const dateB = new Date(`${b.scheduled_date}T${b.scheduled_time}`);
+        return dateA - dateB;
+      });
 
-      const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
-      const hoursUntilJob = (jobDate - now) / (1000 * 60 * 60);
-
-      // Show if job is within 48 hours
-      return hoursUntilJob > 0 && hoursUntilJob <= 48;
-    });
-
-    // Jobs needing confirmation soon (3-7 days)
+    // Accepted jobs coming up within 7 days (still need automatic 2-day confirmation)
     const upcomingConfirmations = jobs.filter(job => {
+      if (jobNeedsAvailabilityConfirmation(job)) return false;
       if (job.assignment_status !== 'accepted') return false;
-      
+
       const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
       const hoursUntilJob = (jobDate - now) / (1000 * 60 * 60);
-      
-      // Show if job is 3-7 days away (will need confirmation in 2 days)
-      return hoursUntilJob > 48 && hoursUntilJob <= 168; // 48hrs to 7days
+
+      return hoursUntilJob > 48 && hoursUntilJob <= 168;
     });
 
     return {
@@ -283,6 +285,31 @@ const PendingActions = () => {
           </motion.div>
         )}
 
+        {/* Confirm Availability Section */}
+        {pendingActions.needsConfirmation.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center mb-4">
+              <CheckCircleIcon className="h-6 w-6 text-amber-600 mr-2" />
+              <h2 className="text-2xl font-bold text-amber-900">
+                Confirm Your Availability ({pendingActions.needsConfirmation.length})
+              </h2>
+            </div>
+            <p className="text-sm text-amber-800 mb-4">
+              These assignments need you to confirm you can still attend.
+            </p>
+            <div className="grid grid-cols-1 gap-4">
+              {pendingActions.needsConfirmation.map(job => (
+                <ActionCard
+                  key={job.id}
+                  job={job}
+                  actionType="needs_confirmation"
+                  urgency="due_soon"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Overdue Section */}
         {pendingActions.overdueReports.length > 0 && (
           <div className="mb-8">
@@ -309,12 +336,12 @@ const PendingActions = () => {
         )}
 
         {/* Due Soon Section */}
-        {(pendingActions.reportsDue.length > 0 || pendingActions.needsConfirmation.length > 0) && (
+        {pendingActions.reportsDue.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center mb-4">
               <ClockIcon className="h-6 w-6 text-orange-600 mr-2" />
               <h2 className="text-2xl font-bold text-orange-900">
-                Due Soon ({pendingActions.reportsDue.length + pendingActions.needsConfirmation.length})
+                Due Soon ({pendingActions.reportsDue.length})
               </h2>
             </div>
             <p className="text-sm text-orange-700 mb-4">
@@ -322,18 +349,10 @@ const PendingActions = () => {
             </p>
             <div className="grid grid-cols-1 gap-4">
               {pendingActions.reportsDue.map(job => (
-                <ActionCard 
-                  key={job.id} 
-                  job={job} 
-                  actionType="report_due" 
-                  urgency="due_soon"
-                />
-              ))}
-              {pendingActions.needsConfirmation.map(job => (
-                <ActionCard 
-                  key={job.id} 
-                  job={job} 
-                  actionType="needs_confirmation" 
+                <ActionCard
+                  key={job.id}
+                  job={job}
+                  actionType="report_due"
                   urgency="due_soon"
                 />
               ))}

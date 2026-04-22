@@ -138,7 +138,7 @@ const JobCard = ({
     if (jobStatus === 'needs_confirmation') {
       return {
         label: 'Confirm Now',
-        onClick: () => navigate(`/job/${job.id}#confirm`),
+        onClick: () => navigate(`/job/${job.id}?confirmAvailability=1`),
         variant: 'primary',
         urgent: true
       };

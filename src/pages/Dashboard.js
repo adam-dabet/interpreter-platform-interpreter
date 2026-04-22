@@ -6,7 +6,6 @@ import {
   ClockIcon,
   CalendarDaysIcon,
   CurrencyDollarIcon,
-  CheckCircleIcon,
   PlayIcon,
   DocumentTextIcon,
   MagnifyingGlassIcon,
@@ -165,24 +164,9 @@ const DashboardNew = () => {
       };
     }
 
-    // Priority 5: Confirmation needed
-    const needsConfirm = jobs.find(job => {
-      if (!jobNeedsAvailabilityConfirmation(job)) return false;
-      const jobDate = getJobScheduledDateTime(job);
-      if (!jobDate) return false;
-      const hoursUntil = (jobDate - now) / (1000 * 60 * 60);
-      return hoursUntil > 0 && hoursUntil <= 48;
-    });
-
-    if (needsConfirm) {
-      return {
-        type: 'needs_confirmation',
-        job: needsConfirm,
-        urgency: 'medium'
-      };
-    }
-
     // Default: Find new jobs
+    // (Confirmation-needed jobs are already surfaced in the critical alert banner
+    // and the dedicated "Confirm your availability" section below.)
     return {
       type: 'find_jobs',
       urgency: 'low'
@@ -285,14 +269,6 @@ const DashboardNew = () => {
         bgColor: 'bg-gradient-to-r from-orange-600 to-orange-700',
         buttonText: 'Submit Report',
         buttonAction: () => smartAction.job && navigate(`/job/${smartAction.job.id}#completion-report`)
-      },
-      needs_confirmation: {
-        title: 'Confirmation Required',
-        subtitle: 'Confirm your attendance',
-        icon: <CheckCircleIcon className="h-12 w-12 text-white" />,
-        bgColor: 'bg-gradient-to-r from-yellow-600 to-yellow-700',
-        buttonText: 'Confirm Now',
-        buttonAction: () => smartAction.job && navigate(`/job/${smartAction.job.id}#confirm`)
       },
       find_jobs: {
         title: 'All Caught Up!',

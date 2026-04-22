@@ -234,7 +234,12 @@ const PendingActions = () => {
         
         <div className="mt-4 flex items-center justify-end">
           <Button
-            onClick={() => navigate(`/job/${job.id}`)}
+            onClick={() => {
+              const target = actionType === 'needs_confirmation'
+                ? `/job/${job.id}?confirmAvailability=1`
+                : `/job/${job.id}`;
+              navigate(target);
+            }}
             variant={buttonVariant}
           >
             {actionText}

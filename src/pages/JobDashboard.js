@@ -14,7 +14,7 @@ import jobAPI from '../services/jobAPI';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import JobCard from '../components/JobCard';
 import InterpreterCompletionReport from '../components/InterpreterCompletionReport';
-import { formatDate as formatDateUtil, formatCurrency as formatCurrencyUtil } from '../utils/dateUtils';
+import { formatDate as formatDateUtil, formatCurrency as formatCurrencyUtil, getJobScheduledDateTime } from '../utils/dateUtils';
 import { jobNeedsAvailabilityConfirmation } from '../utils/jobConfirmation';
 
 const COMPLETED_JOB_STATUSES = ['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid'];
@@ -390,13 +390,13 @@ const JobDashboardNew = () => {
     return jobs
       .filter(job => {
         if (!jobNeedsAvailabilityConfirmation(job)) return false;
-        const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
-        return jobDate > now;
+        const jobDate = getJobScheduledDateTime(job);
+        return jobDate && jobDate > now;
       })
       .sort(
         (a, b) =>
-          new Date(`${a.scheduled_date}T${a.scheduled_time}`) -
-          new Date(`${b.scheduled_date}T${b.scheduled_time}`)
+          (getJobScheduledDateTime(a)?.getTime() ?? Infinity) -
+          (getJobScheduledDateTime(b)?.getTime() ?? Infinity)
       );
   }, [jobs]);
 

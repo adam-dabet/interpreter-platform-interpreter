@@ -15,7 +15,7 @@ import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
-import { formatDate as formatDateUtil, formatTime as formatTimeUtil, getTimeUntilJob as getTimeUntilJobUtil } from '../utils/dateUtils';
+import { formatDate as formatDateUtil, formatTime as formatTimeUtil, getTimeUntilJob as getTimeUntilJobUtil, getJobScheduledDateTime } from '../utils/dateUtils';
 import { jobNeedsAvailabilityConfirmation } from '../utils/jobConfirmation';
 
 const PendingActions = () => {
@@ -68,12 +68,15 @@ const PendingActions = () => {
     const needsConfirmation = jobs
       .filter(job => {
         if (!jobNeedsAvailabilityConfirmation(job)) return false;
-        const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
-        return jobDate > now;
+        const jobDate = getJobScheduledDateTime(job);
+        return jobDate && jobDate > now;
       })
       .sort((a, b) => {
-        const dateA = new Date(`${a.scheduled_date}T${a.scheduled_time}`);
-        const dateB = new Date(`${b.scheduled_date}T${b.scheduled_time}`);
+        const dateA = getJobScheduledDateTime(a);
+        const dateB = getJobScheduledDateTime(b);
+        if (!dateA && !dateB) return 0;
+        if (!dateA) return 1;
+        if (!dateB) return -1;
         return dateA - dateB;
       });
 
@@ -82,7 +85,8 @@ const PendingActions = () => {
       if (jobNeedsAvailabilityConfirmation(job)) return false;
       if (job.assignment_status !== 'accepted') return false;
 
-      const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
+      const jobDate = getJobScheduledDateTime(job);
+      if (!jobDate) return false;
       const hoursUntilJob = (jobDate - now) / (1000 * 60 * 60);
 
       return hoursUntilJob > 48 && hoursUntilJob <= 168;

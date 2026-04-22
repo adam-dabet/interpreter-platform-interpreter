@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/solid';
 import jobAPI from '../../services/jobAPI';
 import { jobNeedsAvailabilityConfirmation } from '../../utils/jobConfirmation';
+import { getJobScheduledDateTime } from '../../utils/dateUtils';
 
 const MobileBottomNav = () => {
   const location = useLocation();
@@ -44,9 +45,8 @@ const MobileBottomNav = () => {
 
       const needsConfirmation = jobs.filter(job => {
         if (!jobNeedsAvailabilityConfirmation(job)) return false;
-        const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
-        const hoursUntil = (jobDate - now) / (1000 * 60 * 60);
-        return hoursUntil > 0 && hoursUntil <= 48;
+        const jobDate = getJobScheduledDateTime(job);
+        return jobDate && jobDate > now;
       }).length;
 
       setPendingCount(overdueReports + needsConfirmation);

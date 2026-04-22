@@ -19,7 +19,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
 import JobCard from '../components/JobCard';
 import InterpreterCompletionReport from '../components/InterpreterCompletionReport';
-import { isToday } from '../utils/dateUtils';
+import { isToday, getJobScheduledDateTime } from '../utils/dateUtils';
 import { jobNeedsAvailabilityConfirmation } from '../utils/jobConfirmation';
 
 const DashboardNew = () => {
@@ -78,14 +78,16 @@ const DashboardNew = () => {
     // Jobs needing confirmation (within 48 hours)
     const needsConfirmation = jobs.filter(job => {
       if (!jobNeedsAvailabilityConfirmation(job)) return false;
-      const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
+      const jobDate = getJobScheduledDateTime(job);
+      if (!jobDate) return false;
       const hoursUntil = (jobDate - now) / (1000 * 60 * 60);
       return hoursUntil > 0 && hoursUntil <= 48;
     });
 
     // Jobs starting very soon without confirmation (<2 hours)
     const startingSoon = jobs.filter(job => {
-      const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
+      const jobDate = getJobScheduledDateTime(job);
+      if (!jobDate) return false;
       const hoursUntil = (jobDate - now) / (1000 * 60 * 60);
       return hoursUntil > 0 && hoursUntil < 2 && !job.confirmed_at;
     });
@@ -105,7 +107,8 @@ const DashboardNew = () => {
     // Priority 1: Job starting in 30 minutes
     const upcomingJob = jobs.find(job => {
       if (job.status !== 'assigned' && job.status !== 'confirmed') return false;
-      const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
+      const jobDate = getJobScheduledDateTime(job);
+      if (!jobDate) return false;
       const minutesUntil = (jobDate - now) / 60000;
       return minutesUntil > 0 && minutesUntil <= 30;
     });
@@ -165,7 +168,8 @@ const DashboardNew = () => {
     // Priority 5: Confirmation needed
     const needsConfirm = jobs.find(job => {
       if (!jobNeedsAvailabilityConfirmation(job)) return false;
-      const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
+      const jobDate = getJobScheduledDateTime(job);
+      if (!jobDate) return false;
       const hoursUntil = (jobDate - now) / (1000 * 60 * 60);
       return hoursUntil > 0 && hoursUntil <= 48;
     });
@@ -207,14 +211,17 @@ const DashboardNew = () => {
     return jobs
       .filter(job => {
         if (!jobNeedsAvailabilityConfirmation(job)) return false;
-        const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
-        return jobDate > now;
+        const jobDate = getJobScheduledDateTime(job);
+        return jobDate && jobDate > now;
       })
-      .sort(
-        (a, b) =>
-          new Date(`${a.scheduled_date}T${a.scheduled_time}`) -
-          new Date(`${b.scheduled_date}T${b.scheduled_time}`)
-      );
+      .sort((a, b) => {
+        const dateA = getJobScheduledDateTime(a);
+        const dateB = getJobScheduledDateTime(b);
+        if (!dateA && !dateB) return 0;
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return dateA - dateB;
+      });
   }, [jobs]);
   const upcomingJobs = jobs.filter(job => {
     const isNotCompleted = !['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid'].includes(job.status);
@@ -236,7 +243,8 @@ const DashboardNew = () => {
       if (!job || !job.scheduled_date || !job.scheduled_time) return '';
       
       const now = new Date();
-      const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
+      const jobDate = getJobScheduledDateTime(job);
+      if (!jobDate) return '';
       const minutesUntil = Math.floor((jobDate - now) / 60000);
       
       if (minutesUntil < 60) {

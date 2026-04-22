@@ -12,6 +12,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import jobAPI from '../../services/jobAPI';
 import { jobNeedsAvailabilityConfirmation } from '../../utils/jobConfirmation';
+import { getJobScheduledDateTime } from '../../utils/dateUtils';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
@@ -39,8 +40,8 @@ const Sidebar = ({ isOpen, onClose }) => {
 
       const needsConfirmation = jobs.filter(job => {
         if (!jobNeedsAvailabilityConfirmation(job)) return false;
-        const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
-        return jobDate > now;
+        const jobDate = getJobScheduledDateTime(job);
+        return jobDate && jobDate > now;
       }).length;
 
       setPendingCount(overdueReports + needsConfirmation);

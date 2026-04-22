@@ -148,6 +148,28 @@ export const getTimeUntilJob = (dateString, timeString) => {
 };
 
 /**
+ * Build a Date object from a job's scheduled_date + scheduled_time.
+ * Safely handles scheduled_date coming back as either "YYYY-MM-DD" or a
+ * full ISO timestamp like "2026-04-24T00:00:00.000Z".
+ * Returns null if the job has no valid scheduled date/time.
+ */
+export const getJobScheduledDateTime = (job) => {
+  if (!job || !job.scheduled_date) return null;
+
+  const date = parseLocalDate(job.scheduled_date);
+  if (!date) return null;
+
+  const timeString = job.scheduled_time || '00:00:00';
+  const timeParts = String(timeString).split(':');
+  const hours = parseInt(timeParts[0], 10) || 0;
+  const minutes = parseInt(timeParts[1], 10) || 0;
+  const seconds = parseInt(timeParts[2], 10) || 0;
+
+  date.setHours(hours, minutes, seconds, 0);
+  return date;
+};
+
+/**
  * Format currency
  */
 export const formatCurrency = (amount) => {

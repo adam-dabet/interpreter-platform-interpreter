@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   HomeIcon,
@@ -10,16 +10,50 @@ import {
   BellIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
+import jobAPI from '../../services/jobAPI';
+import { jobNeedsAvailabilityConfirmation } from '../../utils/jobConfirmation';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const { logout, profile, user } = useAuth();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    loadPendingCount();
+    const interval = setInterval(loadPendingCount, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadPendingCount = async () => {
+    try {
+      const response = await jobAPI.getMyJobs({ limit: 100 });
+      const jobs = response.data?.data?.jobs || [];
+      const now = new Date();
+
+      const overdueReports = jobs.filter(job => {
+        if (job.status !== 'completed' || job.completion_report_submitted) return false;
+        if (!job.completed_at) return false;
+        const hoursSince = (now - new Date(job.completed_at)) / (1000 * 60 * 60);
+        return hoursSince > 24;
+      }).length;
+
+      const needsConfirmation = jobs.filter(job => {
+        if (!jobNeedsAvailabilityConfirmation(job)) return false;
+        const jobDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
+        return jobDate > now;
+      }).length;
+
+      setPendingCount(overdueReports + needsConfirmation);
+    } catch (error) {
+      // Silently ignore - badge just won't show
+    }
+  };
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     { name: 'My Schedule', href: '/schedule', icon: CalendarIcon },
     { name: 'Find Jobs', href: '/jobs/search', icon: MagnifyingGlassIcon },
-    { name: 'Pending', href: '/pending', icon: BellIcon },
+    { name: 'Pending', href: '/pending', icon: BellIcon, badge: pendingCount },
     { name: 'My Jobs', href: '/jobs', icon: CalendarIcon },
     { name: 'Profile', href: '/profile', icon: UserIcon },
   ];
@@ -85,15 +119,22 @@ const Sidebar = ({ isOpen, onClose }) => {
                   to={item.href}
                   onClick={onClose}
                   className={`
-                    flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200
+                    flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200
                     ${isActive(item.href)
                       ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-700'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     }
                   `}
                 >
-                  <Icon className="h-5 w-5 mr-3" />
-                  {item.name}
+                  <span className="flex items-center">
+                    <Icon className="h-5 w-5 mr-3" />
+                    {item.name}
+                  </span>
+                  {item.badge > 0 && (
+                    <span className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-600 text-white text-xs font-bold">
+                      {item.badge > 9 ? '9+' : item.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}

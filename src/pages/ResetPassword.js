@@ -83,7 +83,7 @@ const ResetPassword = () => {
       hasLowerCase: /[a-z]/.test(password),
       hasNumber: /\d/.test(password),
       hasSpecialChar: /[@$!%*?&]/.test(password),
-      hasOnlyAllowedChars: /^[A-Za-z\d@$!%*?&]+$/.test(password),
+      hasOnlyAllowedChars: /^[A-Za-z\d@$!%*?& _]+$/.test(password),
     });
   }, [formData.password]);
 
@@ -257,7 +257,7 @@ const ResetPassword = () => {
                   <PasswordRequirement met={passwordStrength.hasLowerCase} text="One lowercase letter" />
                   <PasswordRequirement met={passwordStrength.hasNumber} text="One number" />
                   <PasswordRequirement met={passwordStrength.hasSpecialChar} text="One special character (@$!%*?&)" />
-                  <PasswordRequirement met={passwordStrength.hasOnlyAllowedChars} text="Only letters, numbers, and @$!%*?& (no spaces or other symbols)" />
+                  <PasswordRequirement met={passwordStrength.hasOnlyAllowedChars} text="Only letters, numbers, spaces, _, and @$!%*?&" />
                 </div>
               )}
             </div>

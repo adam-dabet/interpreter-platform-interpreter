@@ -2,7 +2,7 @@
  * Must stay aligned with backend/src/utils/passwordPolicy.js
  */
 
-const ALLOWED_CHARSET_REGEX = /^[A-Za-z\d@$!%*?&]+$/;
+const ALLOWED_CHARSET_REGEX = /^[A-Za-z\d@$!%*?& _]+$/;
 
 /**
  * @param {string} password
@@ -18,13 +18,13 @@ export function validateNewPasswordPolicy(password) {
   if (password.length < 8) {
     return 'Password must be at least 8 characters long.';
   }
-  if (/\s/.test(password)) {
-    return 'Password cannot contain spaces. Check for accidental spaces when pasting or using autofill.';
+  if (/[\t\n\r]/.test(password)) {
+    return 'Password cannot contain tabs or line breaks. Use normal spaces if you want a passphrase.';
   }
   if (!ALLOWED_CHARSET_REGEX.test(password)) {
     return (
-      'Password may only contain letters (A–Z, a–z), numbers (0–9), and these symbols: @ $ ! % * ? &. ' +
-      'Remove characters like #, -, _, ., or other symbols—or any hidden characters from copy/paste.'
+      'Password may only contain letters (A–Z, a–z), numbers (0–9), spaces, underscores (_), and these symbols: @ $ ! % * ? &. ' +
+      'Remove other characters (such as #, -, .) or invisible characters from copy/paste.'
     );
   }
 

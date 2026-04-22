@@ -48,7 +48,7 @@ const ChangePassword = () => {
       hasLowercase: /[a-z]/.test(password),
       hasNumber: /\d/.test(password),
       hasSpecialChar: /[@$!%*?&]/.test(password),
-      onlyAllowedChars: /^[A-Za-z\d@$!%*?&]+$/.test(password),
+      onlyAllowedChars: /^[A-Za-z\d@$!%*?& _]+$/.test(password),
     };
   };
 
@@ -409,7 +409,7 @@ const ChangePassword = () => {
                 ) : (
                   <XCircleIcon className="h-4 w-4 text-red-500 mr-2" />
                 )}
-                Only letters, numbers, and @$!%*?& (no spaces or other symbols)
+                Only letters, numbers, spaces, _, and @$!%*?&
               </li>
             </ul>
           </div>

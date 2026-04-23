@@ -54,14 +54,14 @@ const getTimeString = (h, m, p) => {
 const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => {
   const fileInputRef = useRef(null);
 
-  // Calculate start time based on appointment time (interpreter enters end time manually)
+  // Default start time from interpreter arrival on job; fall back to appointment (scheduled) time.
   const calculateStartTime = () => {
-    if (!jobData?.scheduled_time) {
+    const timeSource = jobData?.arrival_time || jobData?.scheduled_time;
+    if (!timeSource) {
       return null;
     }
 
-    // Parse the scheduled time (format: "HH:MM" or "HH:MM:SS")
-    const timeParts = jobData.scheduled_time.split(':');
+    const timeParts = timeSource.split(':');
     const scheduledHour = parseInt(timeParts[0], 10);
     const scheduledMinute = parseInt(timeParts[1], 10);
     
@@ -106,7 +106,7 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
       setStartPeriod(findOptionByValue(periodOptions, startTime.period));
     }
     // End time fields are left empty for interpreter to fill in manually
-  }, [jobData?.scheduled_time]);
+  }, [jobData?.arrival_time, jobData?.scheduled_time]);
 
   // Update email when jobData changes
   useEffect(() => {

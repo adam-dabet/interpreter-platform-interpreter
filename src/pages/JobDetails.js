@@ -166,6 +166,18 @@ const JobDetails = () => {
     return new Date() >= arrivalDateTime;
   }, [job]);
 
+  const assignedToCurrentInterpreter =
+    !!profile?.id &&
+    !!job?.assigned_interpreter_id &&
+    String(profile.id) === String(job.assigned_interpreter_id);
+
+  const showJobTimingModule =
+    assignedToCurrentInterpreter &&
+    (job.status === 'assigned' || job.status === 'reminders_sent' || job.status === 'in_progress');
+
+  /** After arrival, surface Start/Complete Job controls at the top of the sidebar column */
+  const promoteJobTimingAfterArrival = showJobTimingModule && isAfterArrivalTime();
+
   const getCompletionElapsedMinutes = useCallback(() => {
     if (!job) return null;
 
@@ -882,15 +894,15 @@ const JobDetails = () => {
             )}
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
+          {/* Sidebar — Job Timing moves first after arrival time so Start/Complete stays visible */}
+          <div className="flex flex-col gap-6">
             {/* Earnings Card - Only show for the interpreter assigned to this job */}
             {(!job.assigned_interpreter_id || (profile?.id && String(profile.id) === String(job.assigned_interpreter_id))) && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="bg-white rounded-lg shadow-sm border p-6"
+              className={`bg-white rounded-lg shadow-sm border p-6 ${promoteJobTimingAfterArrival ? 'order-2' : 'order-1'}`}
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Earnings</h3>
               <div className="text-center">
@@ -975,7 +987,7 @@ const JobDetails = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="bg-white rounded-lg shadow-sm border p-6"
+              className={`bg-white rounded-lg shadow-sm border p-6 ${promoteJobTimingAfterArrival ? 'order-3' : 'order-2'}`}
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 {job.assignment_status ? 'Status' : 'Actions'}
@@ -1119,12 +1131,12 @@ const JobDetails = () => {
             </motion.div>
 
             {/* Job Timing Controls - Show only for the interpreter who is assigned to this job */}
-            {(job.status === 'assigned' || job.status === 'reminders_sent' || job.status === 'in_progress') && profile?.id && String(profile.id) === String(job.assigned_interpreter_id) ? (
+            {showJobTimingModule ? (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
-                className="bg-white rounded-lg shadow-sm border p-6"
+                className={`bg-white rounded-lg shadow-sm border p-6 ${promoteJobTimingAfterArrival ? 'order-1' : 'order-3'}`}
               >
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                   <ClockIcon className="h-5 w-5 mr-2 text-blue-600" />

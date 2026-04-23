@@ -15,7 +15,8 @@ import {
   PhoneIcon,
   EnvelopeIcon,
   PlayIcon,
-  StopIcon
+  StopIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
@@ -175,8 +176,26 @@ const JobDetails = () => {
     assignedToCurrentInterpreter &&
     (job.status === 'assigned' || job.status === 'reminders_sent' || job.status === 'in_progress');
 
-  /** After arrival, surface Start/Complete Job controls at the top of the sidebar column */
-  const promoteJobTimingAfterArrival = showJobTimingModule && isAfterArrivalTime();
+  const [jobTimingPopupDismissed, setJobTimingPopupDismissed] = useState(false);
+
+  useEffect(() => {
+    setJobTimingPopupDismissed(false);
+  }, [jobId]);
+
+  /** After arrival: Job Timing pops up once; dismiss returns the card to the sidebar */
+  const showJobTimingPopup =
+    showJobTimingModule &&
+    isAfterArrivalTime() &&
+    !jobTimingPopupDismissed;
+
+  useEffect(() => {
+    if (!showJobTimingPopup) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [showJobTimingPopup]);
 
   const getCompletionElapsedMinutes = useCallback(() => {
     if (!job) return null;
@@ -557,6 +576,74 @@ const JobDetails = () => {
     );
   }
 
+  const dismissJobTimingPopup = () => setJobTimingPopupDismissed(true);
+
+  const jobTimingInner = (
+    <div className="space-y-4">
+      <div className="text-center">
+        <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+          job.status === 'in_progress'
+            ? 'bg-blue-100 text-blue-800'
+            : 'bg-green-100 text-green-800'
+        }`}>
+          <ClockIcon className="h-4 w-4 mr-2" />
+          Status: {job.status === 'in_progress' ? 'In Progress' : 'Ready to Start'}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {(job.status === 'assigned' || job.status === 'reminders_sent') && (
+          <Button
+            className="w-full"
+            onClick={() => handleJobAction('start')}
+            disabled={actionLoading}
+          >
+            <PlayIcon className="h-4 w-4 mr-2" />
+            {actionLoading ? 'Starting...' : 'Start Job'}
+          </Button>
+        )}
+
+        {job.status === 'in_progress' && (
+          <Button
+            className="w-full"
+            onClick={() => handleJobAction('end')}
+            disabled={actionLoading}
+          >
+            <StopIcon className="h-4 w-4 mr-2" />
+            {actionLoading ? 'Completing...' : 'Complete Job'}
+          </Button>
+        )}
+
+        {(job.status === 'assigned' || job.status === 'reminders_sent') && (
+          <Button
+            className="w-full"
+            onClick={() => handleJobAction('end')}
+            disabled={actionLoading || !isAfterArrivalTime()}
+            variant="secondary"
+          >
+            <StopIcon className="h-4 w-4 mr-2" />
+            {actionLoading ? 'Completing...' : 'Complete Job'}
+          </Button>
+        )}
+      </div>
+
+      <div className="text-sm text-gray-600 text-center">
+        {job.status === 'in_progress' ? (
+          <p>Click "Complete Job" when the appointment is complete</p>
+        ) : (
+          <p>
+            You can start the job at the appointment location, or complete it directly after the arrival time.
+          </p>
+        )}
+        {(job.status === 'assigned' || job.status === 'reminders_sent') && !isAfterArrivalTime() && (
+          <p className="mt-2 text-amber-600">
+            "Complete Job" becomes available after the scheduled arrival time.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="p-6">
       <div className="max-w-4xl mx-auto">
@@ -894,15 +981,15 @@ const JobDetails = () => {
             )}
           </div>
 
-          {/* Sidebar — Job Timing moves first after arrival time so Start/Complete stays visible */}
-          <div className="flex flex-col gap-6">
+          {/* Sidebar */}
+          <div className="space-y-6">
             {/* Earnings Card - Only show for the interpreter assigned to this job */}
             {(!job.assigned_interpreter_id || (profile?.id && String(profile.id) === String(job.assigned_interpreter_id))) && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className={`bg-white rounded-lg shadow-sm border p-6 ${promoteJobTimingAfterArrival ? 'order-2' : 'order-1'}`}
+              className="bg-white rounded-lg shadow-sm border p-6"
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Earnings</h3>
               <div className="text-center">
@@ -987,7 +1074,7 @@ const JobDetails = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className={`bg-white rounded-lg shadow-sm border p-6 ${promoteJobTimingAfterArrival ? 'order-3' : 'order-2'}`}
+              className="bg-white rounded-lg shadow-sm border p-6"
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 {job.assignment_status ? 'Status' : 'Actions'}
@@ -1130,85 +1217,19 @@ const JobDetails = () => {
               </div>
             </motion.div>
 
-            {/* Job Timing Controls - Show only for the interpreter who is assigned to this job */}
-            {showJobTimingModule ? (
+            {/* Job Timing Controls — hidden while popup is open (after arrival) */}
+            {showJobTimingModule && !showJobTimingPopup ? (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
-                className={`bg-white rounded-lg shadow-sm border p-6 ${promoteJobTimingAfterArrival ? 'order-1' : 'order-3'}`}
+                className="bg-white rounded-lg shadow-sm border p-6"
               >
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                   <ClockIcon className="h-5 w-5 mr-2 text-blue-600" />
                   Job Timing
                 </h3>
-                
-                <div className="space-y-4">
-                  {/* Job Status Display */}
-                  <div className="text-center">
-                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      job.status === 'in_progress' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      <ClockIcon className="h-4 w-4 mr-2" />
-                      Status: {job.status === 'in_progress' ? 'In Progress' : 'Ready to Start'}
-                    </div>
-                  </div>
-
-                  {/* Start/End Job Buttons */}
-                  <div className="space-y-3">
-                    {(job.status === 'assigned' || job.status === 'reminders_sent') && (
-                      <Button
-                        className="w-full"
-                        onClick={() => handleJobAction('start')}
-                        disabled={actionLoading}
-                      >
-                        <PlayIcon className="h-4 w-4 mr-2" />
-                        {actionLoading ? 'Starting...' : 'Start Job'}
-                      </Button>
-                    )}
-                    
-                    {job.status === 'in_progress' && (
-                      <Button
-                        className="w-full"
-                        onClick={() => handleJobAction('end')}
-                        disabled={actionLoading}
-                      >
-                        <StopIcon className="h-4 w-4 mr-2" />
-                        {actionLoading ? 'Completing...' : 'Complete Job'}
-                      </Button>
-                    )}
-
-                    {(job.status === 'assigned' || job.status === 'reminders_sent') && (
-                      <Button
-                        className="w-full"
-                        onClick={() => handleJobAction('end')}
-                        disabled={actionLoading || !isAfterArrivalTime()}
-                        variant="secondary"
-                      >
-                        <StopIcon className="h-4 w-4 mr-2" />
-                        {actionLoading ? 'Completing...' : 'Complete Job'}
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Instructions */}
-                  <div className="text-sm text-gray-600 text-center">
-                    {job.status === 'in_progress' ? (
-                      <p>Click "Complete Job" when the appointment is complete</p>
-                    ) : (
-                      <p>
-                        You can start the job at the appointment location, or complete it directly after the arrival time.
-                      </p>
-                    )}
-                    {(job.status === 'assigned' || job.status === 'reminders_sent') && !isAfterArrivalTime() && (
-                      <p className="mt-2 text-amber-600">
-                        "Complete Job" becomes available after the scheduled arrival time.
-                      </p>
-                    )}
-                  </div>
-                </div>
+                {jobTimingInner}
               </motion.div>
             ) : null}
           </div>
@@ -1227,6 +1248,42 @@ const JobDetails = () => {
           </div>
         )}
       </div>
+
+      {/* Job Timing — modal after arrival (dismiss to use sidebar card) */}
+      {showJobTimingPopup && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="job-timing-popup-title"
+          onClick={dismissJobTimingPopup}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: 24 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 340 }}
+            className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              aria-label="Close"
+              className="absolute right-3 top-3 rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              onClick={dismissJobTimingPopup}
+            >
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+            <h3
+              id="job-timing-popup-title"
+              className="text-lg font-semibold text-gray-900 mb-4 flex items-center pr-10"
+            >
+              <ClockIcon className="h-5 w-5 mr-2 shrink-0 text-blue-600" />
+              Job Timing
+            </h3>
+            {jobTimingInner}
+          </motion.div>
+        </div>
+      )}
 
       {/* Confirmation Modal */}
       {showConfirmationModal && (

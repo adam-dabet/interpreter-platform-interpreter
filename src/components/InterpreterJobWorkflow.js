@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   PlayIcon, 
   StopIcon, 
@@ -38,6 +38,30 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
   const [showCompletionReport, setShowCompletionReport] = useState(false);
   const [isEndingJob, setIsEndingJob] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const prevJobStatusRef = useRef(null);
+
+  useEffect(() => {
+    prevJobStatusRef.current = null;
+  }, [job.id]);
+
+  useEffect(() => {
+    const previous = prevJobStatusRef.current;
+    prevJobStatusRef.current = job.status;
+
+    if (previous === null) {
+      return;
+    }
+
+    const shouldPopCompletionReport =
+      job.status === 'completed' &&
+      !job.completion_report_submitted &&
+      previous !== 'completed' &&
+      previous !== 'completion_report';
+
+    if (shouldPopCompletionReport) {
+      setShowCompletionReport(true);
+    }
+  }, [job.status, job.completion_report_submitted, job.id]);
   
   // Calculate actual duration from magic link timestamps if available
   const calculateActualDuration = () => {

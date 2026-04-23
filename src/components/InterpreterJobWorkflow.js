@@ -48,17 +48,21 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
     const previous = prevJobStatusRef.current;
     prevJobStatusRef.current = job.status;
 
-    if (previous === null) {
+    const needsReport =
+      job.status === 'completed' &&
+      !job.completion_report_submitted;
+
+    if (!needsReport) {
       return;
     }
 
-    const shouldPopCompletionReport =
-      job.status === 'completed' &&
-      !job.completion_report_submitted &&
+    const landedOnExistingIncompleteReport = previous === null;
+    const justFinishedJobNeedingReport =
+      previous !== null &&
       previous !== 'completed' &&
       previous !== 'completion_report';
 
-    if (shouldPopCompletionReport) {
+    if (landedOnExistingIncompleteReport || justFinishedJobNeedingReport) {
       setShowCompletionReport(true);
     }
   }, [job.status, job.completion_report_submitted, job.id]);

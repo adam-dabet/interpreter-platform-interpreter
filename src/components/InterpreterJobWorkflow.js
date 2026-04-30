@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   PlayIcon, 
   StopIcon, 
@@ -38,33 +38,17 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
   const [showCompletionReport, setShowCompletionReport] = useState(false);
   const [isEndingJob, setIsEndingJob] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const prevJobStatusRef = useRef(null);
 
   useEffect(() => {
-    prevJobStatusRef.current = null;
-  }, [job.id]);
-
-  useEffect(() => {
-    const previous = prevJobStatusRef.current;
-    prevJobStatusRef.current = job.status;
-
-    const needsReport =
+    const reportMissing =
       job.status === 'completed' &&
       !job.completion_report_submitted;
 
-    if (!needsReport) {
+    if (!reportMissing) {
       return;
     }
 
-    const landedOnExistingIncompleteReport = previous === null;
-    const justFinishedJobNeedingReport =
-      previous !== null &&
-      previous !== 'completed' &&
-      previous !== 'completion_report';
-
-    if (landedOnExistingIncompleteReport || justFinishedJobNeedingReport) {
-      setShowCompletionReport(true);
-    }
+    setShowCompletionReport(true);
   }, [job.status, job.completion_report_submitted, job.id]);
   
   // Calculate actual duration from magic link timestamps if available
@@ -574,9 +558,9 @@ const InterpreterJobWorkflow = ({ job, onJobUpdate }) => {
       </div>
 
 
-      {/* Completion Report Modal */}
+      {/* Completion Report Modal — z above Job Details Job Timing popup (z-60) */}
       {showCompletionReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[70]">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <InterpreterCompletionReport
               jobId={job.id}

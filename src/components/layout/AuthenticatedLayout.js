@@ -6,14 +6,11 @@ import MobileBottomNav from './MobileBottomNav';
 import BlockingModal from '../BlockingModal';
 import FeedbackWidget from '../FeedbackWidget';
 import jobAPI from '../../services/jobAPI';
-import { jobNeedsAvailabilityConfirmation } from '../../utils/jobConfirmation';
-import { getJobScheduledDateTime } from '../../utils/dateUtils';
 
 const AuthenticatedLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [blockingJobs, setBlockingJobs] = useState({ overdueReports: [], pendingConfirmations: [] });
+  const [overdueReportJobs, setOverdueReportJobs] = useState([]);
   const [showOverdueModal, setShowOverdueModal] = useState(false);
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -39,20 +36,8 @@ const AuthenticatedLayout = ({ children }) => {
         return hoursSince > 24;
       });
 
-      // Find pending confirmations (within 48 hours)
-      const pendingConfirmations = jobs.filter(job => {
-        if (!jobNeedsAvailabilityConfirmation(job)) return false;
-        const jobDate = getJobScheduledDateTime(job);
-        if (!jobDate) return false;
-        const hoursUntil = (jobDate - now) / (1000 * 60 * 60);
-        return hoursUntil > 0 && hoursUntil <= 48;
-      });
-
-      setBlockingJobs({ overdueReports, pendingConfirmations });
-      
-      // Show modals when conditions are met
+      setOverdueReportJobs(overdueReports);
       setShowOverdueModal(overdueReports.length > 0);
-      setShowConfirmationModal(pendingConfirmations.length > 0 && overdueReports.length === 0);
     } catch (error) {
       console.error('Error checking blocking conditions:', error);
     }
@@ -99,16 +84,8 @@ const AuthenticatedLayout = ({ children }) => {
           <BlockingModal
             isOpen={showOverdueModal}
             type="overdue_report"
-            jobs={blockingJobs.overdueReports}
+            jobs={overdueReportJobs}
             onClose={() => setShowOverdueModal(false)}
-          />
-
-          {/* Pending Confirmations - Can close but shows warning */}
-          <BlockingModal
-            isOpen={showConfirmationModal}
-            type="pending_confirmation"
-            jobs={blockingJobs.pendingConfirmations}
-            onClose={() => setShowConfirmationModal(false)}
           />
         </>
       )}

@@ -30,6 +30,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { JobRestrictionProvider } from './contexts/JobRestrictionContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import RoutePersistence from './components/RoutePersistence';
+import SandboxBanner from './components/SandboxBanner';
 import './styles/globals.css';
 import './App.css';
 
@@ -38,6 +39,7 @@ function App() {
     <Router>
       <AuthProvider>
         <div className="App">
+          <SandboxBanner />
           <Toaster position="top-right" />
           <RoutePersistence />
           <Routes>

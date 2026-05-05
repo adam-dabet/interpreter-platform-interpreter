@@ -1,0 +1,70 @@
+name: Sync master → sandbox
+
+# Keeps the long-lived `sandbox` branch up-to-date with `master` so the Railway
+# sandbox environment always tracks production code (plus whatever sandbox-only
+# commits have been added on top of `sandbox`).
+#
+# Behavior:
+#   - On every push to master, fast-forward / merge master into sandbox.
+#   - If `sandbox` does not exist yet, it is created from master on first run.
+#   - If the merge has conflicts (because someone committed directly to sandbox
+#     and the branches have diverged), the job FAILS LOUDLY. A human must then
+#     resolve and push manually. We deliberately do NOT auto-create a PR — the
+#     intent is "sandbox tracks master"; conflicts mean the workflow assumption
+#     is broken and someone needs to look.
+#
+# Manual run: Actions → "Sync master → sandbox" → Run workflow.
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: sync-sandbox
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create sandbox branch on first run if missing
+        id: ensure
+        run: |
+          if git ls-remote --exit-code --heads origin sandbox >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "sandbox branch does not exist on origin; creating from master"
+            git checkout -B sandbox origin/master
+            git push origin sandbox
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Merge master into sandbox
+        if: steps.ensure.outputs.exists == 'true'
+        run: |
+          # actions/checkout already put us on master with origin/master up-to-date.
+          # Don't try to update the local `master` ref (Git refuses to move a
+          # branch that's currently checked out). Only sandbox needs an update.
+          git fetch origin sandbox
+          git checkout -B sandbox origin/sandbox
+          if git merge-base --is-ancestor origin/master HEAD; then
+            echo "sandbox already contains master; nothing to do."
+            exit 0
+          fi
+          git merge --no-edit --no-ff origin/master \
+            -m "chore(sandbox): auto-merge master @ ${GITHUB_SHA::7}"
+          git push origin sandbox

@@ -121,6 +121,7 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
   const [rescheduledHour, setRescheduledHour] = useState(null);
   const [rescheduledMinute, setRescheduledMinute] = useState(null);
   const [rescheduledPeriod, setRescheduledPeriod] = useState(null);
+  const [interpreterAttendedReschedule, setInterpreterAttendedReschedule] = useState(null);
 
   const [followUpDate, setFollowUpDate] = useState("");
   const [followUpHour, setFollowUpHour] = useState(null);
@@ -138,6 +139,13 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
 
   const [files, setFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const r = formData.result?.value;
+    if (r !== "Rescheduled Under 24 Hours" && r !== "Cancelled Under 24 hours") {
+      setInterpreterAttendedReschedule(null);
+    }
+  }, [formData.result?.value]);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -214,6 +222,14 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
         throw new Error("End time must be after start time");
       }
 
+      if (
+        (formData.result?.value === "Rescheduled Under 24 Hours" ||
+          formData.result?.value === "Cancelled Under 24 hours") &&
+        interpreterAttendedReschedule === null
+      ) {
+        throw new Error("Please indicate whether you attended the appointment");
+      }
+
       // 4a. Validate rescheduled date and time if "Rescheduled Under 24 Hours" is selected
       if (formData.result?.value === "Rescheduled Under 24 Hours") {
         if (!rescheduledDate) {
@@ -286,6 +302,13 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
         data.append("follow_up_available", isAvailable ? "Yes" : "No");
       }
 
+      if (
+        formData.result?.value === "Rescheduled Under 24 Hours" ||
+        formData.result?.value === "Cancelled Under 24 hours"
+      ) {
+        data.append("interpreter_attended", interpreterAttendedReschedule ? "Yes" : "No");
+      }
+
       if (formData.result?.value === "Rescheduled Under 24 Hours" && rescheduledDate) {
         data.append("rescheduled_date", rescheduledDate);
         data.append("rescheduled_time", getTimeString(rescheduledHour, rescheduledMinute, rescheduledPeriod));
@@ -327,6 +350,7 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
       setRescheduledHour(null);
       setRescheduledMinute(null);
       setRescheduledPeriod(null);
+      setInterpreterAttendedReschedule(null);
       setFollowUpDate("");
       setFollowUpHour(null);
       setFollowUpMinute(null);
@@ -497,54 +521,95 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
             />
           </div>
 
-          {formData.result?.value === "Rescheduled Under 24 Hours" && (
+          {(formData.result?.value === "Rescheduled Under 24 Hours" ||
+            formData.result?.value === "Cancelled Under 24 hours") && (
             <div className="space-y-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
-              <h3 className="text-lg font-semibold text-orange-800">Rescheduled Appointment</h3>
+              <h3 className="text-lg font-semibold text-orange-800">
+                {formData.result?.value === "Cancelled Under 24 hours"
+                  ? "Cancelled under 24 hours"
+                  : "Rescheduled appointment"}
+              </h3>
               <p className="text-sm text-orange-700">
-                This appointment was rescheduled with less than 24 hours notice. Please enter the new appointment date and time.
+                {formData.result?.value === "Cancelled Under 24 hours"
+                  ? "This appointment was cancelled with less than 24 hours notice."
+                  : "This appointment was rescheduled with less than 24 hours notice. Enter the new appointment date and time below."}
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    New Appointment Date *
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Did you attend this appointment? *
+                </label>
+                <p className="text-xs text-orange-800 mb-2">
+                  If yes, mileage reimbursement on your assignment is kept. If no, it is cleared.
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="interpreter_attended_short_notice_fe"
+                      checked={interpreterAttendedReschedule === true}
+                      onChange={() => setInterpreterAttendedReschedule(true)}
+                      className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Yes (keep mileage)</span>
                   </label>
-                  <input
-                    type="date"
-                    value={rescheduledDate}
-                    onChange={(e) => setRescheduledDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    New Appointment Time *
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="interpreter_attended_short_notice_fe"
+                      checked={interpreterAttendedReschedule === false}
+                      onChange={() => setInterpreterAttendedReschedule(false)}
+                      className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">No (clear mileage)</span>
                   </label>
-                  <div className="flex space-x-2">
-                    <Select
-                      value={rescheduledHour}
-                      onChange={setRescheduledHour}
-                      options={hourOptions}
-                      placeholder="Hour"
-                      className="flex-1"
-                    />
-                    <Select
-                      value={rescheduledMinute}
-                      onChange={setRescheduledMinute}
-                      options={minuteOptions}
-                      placeholder="Min"
-                      className="flex-1"
-                    />
-                    <Select
-                      value={rescheduledPeriod}
-                      onChange={setRescheduledPeriod}
-                      options={periodOptions}
-                      placeholder="AM/PM"
-                      className="flex-1"
-                    />
-                  </div>
                 </div>
               </div>
+
+              {formData.result?.value === "Rescheduled Under 24 Hours" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      New Appointment Date *
+                    </label>
+                    <input
+                      type="date"
+                      value={rescheduledDate}
+                      onChange={(e) => setRescheduledDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      New Appointment Time *
+                    </label>
+                    <div className="flex space-x-2">
+                      <Select
+                        value={rescheduledHour}
+                        onChange={setRescheduledHour}
+                        options={hourOptions}
+                        placeholder="Hour"
+                        className="flex-1"
+                      />
+                      <Select
+                        value={rescheduledMinute}
+                        onChange={setRescheduledMinute}
+                        options={minuteOptions}
+                        placeholder="Min"
+                        className="flex-1"
+                      />
+                      <Select
+                        value={rescheduledPeriod}
+                        onChange={setRescheduledPeriod}
+                        options={periodOptions}
+                        placeholder="AM/PM"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

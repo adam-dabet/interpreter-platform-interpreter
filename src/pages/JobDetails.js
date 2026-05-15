@@ -354,10 +354,10 @@ const JobDetails = () => {
       
       // Check if auto-assigned as preferred provider
       if (response.data?.auto_assigned) {
-        const message = miles > 0 
-          ? `🎉 Congratulations! As a preferred provider, you have been automatically assigned to this job! Mileage requested: ${miles} miles.`
-          : '🎉 Congratulations! As a preferred provider, you have been automatically assigned to this job!';
-        toast.success(message, { duration: 6000 });
+        toast.success(
+          '🎉 Congratulations! As a preferred provider, you have been automatically assigned to this job!',
+          { duration: 6000 }
+        );
       } else {
         const message = miles > 0 
           ? `Availability indicated with ${miles} miles mileage request! The admin will review and assign.`

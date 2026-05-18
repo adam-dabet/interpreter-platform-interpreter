@@ -471,7 +471,8 @@ const InterpreterProfile = () => {
                     certificate_number: cert.certificate_number || '',
                     issuing_organization: cert.issuing_organization || '',
                     issue_date: cert.issue_date || null,
-                    expiry_date: cert.expiry_date || null
+                    expiry_date: cert.expiry_date || null,
+                    issuing_state_id: cert.issuing_state_id || null
                 }));
                 formDataToSubmit.append('certificates_metadata', JSON.stringify(certificateMetadata));
             }

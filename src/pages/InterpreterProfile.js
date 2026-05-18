@@ -94,6 +94,10 @@ const InterpreterProfile = () => {
     // Email lookup: when true, show "enter email to check if in system" before registration form (only when no token in URL)
     const [showEmailLookup, setShowEmailLookup] = useState(false);
     
+    // Referral code state
+    const [referralCode, setReferralCode] = useState(null);
+    const [referrerName, setReferrerName] = useState(null);
+    
     const [formData, setFormData] = useState({
         // Personal Information
         first_name: '',
@@ -152,6 +156,22 @@ const InterpreterProfile = () => {
         const urlParams = new URLSearchParams(window.location.search);
         const completionTok = urlParams.get('token');
         const rejectionTok = urlParams.get('rejection_token');
+        const refCode = urlParams.get('ref');
+        
+        // Check and validate referral code if present
+        if (refCode) {
+            try {
+                const response = await fetch(`${process.env.REACT_APP_API_URL || '/api'}/referrals/check-code/${refCode}`);
+                const result = await response.json();
+                if (result.success && result.data?.valid) {
+                    setReferralCode(refCode);
+                    setReferrerName(result.data.referrer_name);
+                    toast.success(`You were referred by ${result.data.referrer_name}!`);
+                }
+            } catch (error) {
+                console.error('Error validating referral code:', error);
+            }
+        }
         
         // No token: show email lookup first (set immediately to avoid flashing the form)
         if (!completionTok && !rejectionTok) {
@@ -478,6 +498,11 @@ const InterpreterProfile = () => {
             if (completionToken) {
                 formDataToSubmit.append('completion_token', completionToken);
             }
+            
+            // Add referral code if present
+            if (referralCode) {
+                formDataToSubmit.append('referral_code', referralCode);
+            }
 
             // Add all other form fields
             Object.keys(submissionData).forEach(key => {
@@ -706,6 +731,25 @@ const InterpreterProfile = () => {
                         }
                     </p>
                 </div>
+
+                {/* Referral Banner */}
+                {referralCode && referrerName && (
+                    <div className="mb-6 bg-green-50 border-l-4 border-green-400 p-4 rounded-r-lg shadow-sm">
+                        <div className="flex items-center">
+                            <div className="flex-shrink-0">
+                                <svg className="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                                </svg>
+                            </div>
+                            <div className="ml-3">
+                                <p className="text-sm text-green-700">
+                                    You were referred by <span className="font-semibold">{referrerName}</span>! 
+                                    Complete your profile and 3 jobs to help them earn a reward.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Rejection Notice Banner */}
                 {isResubmission && rejectionNote && (

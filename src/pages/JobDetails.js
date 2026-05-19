@@ -61,6 +61,7 @@ const JobDetails = () => {
   const { profile } = useAuth();
   const [job, setJob] = useState(null);
   const [isUnavailableToInterpreter, setIsUnavailableToInterpreter] = useState(false);
+  const [unavailableMessage, setUnavailableMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [confirmationLoading, setConfirmationLoading] = useState(false);
@@ -133,19 +134,23 @@ const JobDetails = () => {
     try {
       setLoading(true);
       setIsUnavailableToInterpreter(false);
+      setUnavailableMessage('');
       const response = await jobAPI.getJobById(jobId);
       setJob(response.data.data);
     } catch (error) {
       console.error('Error loading job details:', error);
-      const message = error.response?.data?.message || '';
       const code = error.response?.data?.code;
-      const isAssignedToAnotherInterpreter =
+      const isJobUnavailable =
         error.response?.status === 403 &&
-        (code === 'JOB_ASSIGNED_TO_ANOTHER_INTERPRETER' ||
-          message === 'This appointment was assigned to another interpreter and is no longer available to you');
+        (code === 'JOB_ASSIGNED_TO_ANOTHER_INTERPRETER' || code === 'JOB_NOT_AVAILABLE');
 
-      if (isAssignedToAnotherInterpreter) {
+      if (isJobUnavailable) {
         setIsUnavailableToInterpreter(true);
+        setUnavailableMessage(
+          code === 'JOB_ASSIGNED_TO_ANOTHER_INTERPRETER'
+            ? 'This appointment was assigned to another interpreter and is no longer available to you.'
+            : 'This appointment is no longer available.'
+        );
         setJob(null);
       } else {
         toast.error('Failed to load job details');
@@ -547,7 +552,7 @@ const JobDetails = () => {
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center max-w-lg px-6">
             <h2 className="text-xl font-semibold text-gray-900">
-              This appointment was assigned to another interpreter and is no longer available to you
+              {unavailableMessage || 'This appointment is no longer available.'}
             </h2>
             <Button
               className="mt-6"

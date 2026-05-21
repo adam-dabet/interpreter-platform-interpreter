@@ -16,6 +16,11 @@ import JobCard from '../components/JobCard';
 import InterpreterCompletionReport from '../components/InterpreterCompletionReport';
 import { formatDate as formatDateUtil, formatCurrency as formatCurrencyUtil, getJobScheduledDateTime } from '../utils/dateUtils';
 import { jobNeedsAvailabilityConfirmation } from '../utils/jobConfirmation';
+import {
+  getProviderJobStatusBadgeClasses,
+  getProviderJobStatusLabel,
+  isJobPaidToInterpreter
+} from '../utils/providerJobStatus';
 
 const COMPLETED_JOB_STATUSES = ['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid'];
 
@@ -259,7 +264,7 @@ const JobDashboardNew = () => {
 
   const calculateJobEarnings = (job) => {
     const interpreterPaidAmount = parseFloat(job?.interpreter_paid_amount);
-    if (job?.status === 'interpreter_paid' && !Number.isNaN(interpreterPaidAmount)) {
+    if (isJobPaidToInterpreter(job) && !Number.isNaN(interpreterPaidAmount)) {
       return interpreterPaidAmount;
     }
 
@@ -297,8 +302,7 @@ const JobDashboardNew = () => {
   const getJobEarningsMeta = (job) => {
     const paidAmount = parseFloat(job?.interpreter_paid_amount);
     const hasPaidAmount = !Number.isNaN(paidAmount);
-    const isPaidStatus = job?.status === 'interpreter_paid';
-    const treatAsPaid = isPaidStatus && hasPaidAmount;
+    const treatAsPaid = isJobPaidToInterpreter(job) && hasPaidAmount;
 
     let amount = 0;
     if (treatAsPaid) {
@@ -399,43 +403,6 @@ const JobDashboardNew = () => {
           (getJobScheduledDateTime(b)?.getTime() ?? Infinity)
       );
   }, [jobs]);
-
-  const getStatusBadgeClasses = (status) => {
-    switch (status) {
-      case 'interpreter_paid':
-        return 'bg-green-100 text-green-800 border border-green-200';
-      case 'billed':
-      case 'closed':
-        return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-      case 'completion_report':
-        return 'bg-amber-50 text-amber-700 border border-amber-200';
-      case 'completed':
-        return 'bg-blue-50 text-blue-700 border border-blue-200';
-      default:
-        return 'bg-gray-50 text-gray-600 border border-gray-200';
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    if (!status) {
-      return 'Unknown';
-    }
-
-    switch (status) {
-      case 'interpreter_paid':
-        return 'Paid';
-      case 'billed':
-        return 'Billed';
-      case 'closed':
-        return 'Closed';
-      case 'completion_report':
-        return 'Report Submitted';
-      case 'completed':
-        return 'Completed';
-      default:
-        return status.replace(/_/g, ' ');
-    }
-  };
 
   const filteredJobs = getFilteredJobs();
   const totalFilteredPages = Math.max(1, Math.ceil(filteredJobs.length / jobsPerPage));
@@ -654,8 +621,8 @@ const JobDashboardNew = () => {
                                       {item.job_number || item.title || `Job #${item.id}`}
                                     </p>
                                     <div className="mt-2 flex flex-wrap gap-2">
-                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClasses(item.status)}`}>
-                                        {getStatusLabel(item.status)}
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getProviderJobStatusBadgeClasses(item)}`}>
+                                        {getProviderJobStatusLabel(item)}
                                       </span>
                                     </div>
                                   </div>

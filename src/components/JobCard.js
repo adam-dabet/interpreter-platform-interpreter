@@ -15,6 +15,7 @@ import {
 import Button from './ui/Button';
 import { formatDate as formatDateUtil, formatTime as formatTimeUtil, formatCurrency as formatCurrencyUtil, getTimeUntilJob as getTimeUntilJobUtil } from '../utils/dateUtils';
 import { jobNeedsAvailabilityConfirmation, jobAvailabilityConfirmed } from '../utils/jobConfirmation';
+import { isJobPaidToInterpreter } from '../utils/providerJobStatus';
 
 const JobCard = ({ 
   job, 
@@ -46,7 +47,7 @@ const JobCard = ({
   // Determine job status and next action
   const getJobStatus = () => {
     // Check if paid first - this takes precedence for completed jobs
-    if (job.interpreter_paid_at || job.status === 'interpreter_paid') return 'paid';
+    if (isJobPaidToInterpreter(job)) return 'paid';
     if (job.completion_report_submitted) return 'completed';
     if (job.status === 'completed' && !job.completion_report_submitted) return 'needs_report';
     if (job.status === 'in_progress') return 'in_progress';

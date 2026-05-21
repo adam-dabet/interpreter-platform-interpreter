@@ -7,7 +7,9 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+import { getApiBaseUrl } from '../utils/apiBaseUrl';
+
+const API_BASE = getApiBaseUrl();
 
 const SetupPassword = () => {
   const navigate = useNavigate();

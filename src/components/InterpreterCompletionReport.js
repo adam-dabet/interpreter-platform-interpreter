@@ -4,7 +4,9 @@ import { PlusCircle, X } from 'react-feather';
 import AddressAutocomplete from './AddressAutocomplete';
 import toast from 'react-hot-toast';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+import { getApiBaseUrl } from '../utils/apiBaseUrl';
+
+const API_BASE = getApiBaseUrl();
 
 const resultOptions = [
   { label: "Completed", value: "Completed" },

@@ -11,7 +11,9 @@ import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import axios from 'axios';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+import { getApiBaseUrl } from '../utils/apiBaseUrl';
+
+const API_BASE = getApiBaseUrl();
 
 const CompletionReportPublic = () => {
   const { jobId, token } = useParams();

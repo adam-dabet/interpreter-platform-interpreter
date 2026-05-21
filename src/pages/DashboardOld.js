@@ -24,7 +24,9 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { formatDate as formatDateUtil, formatTime as formatTimeUtil, isToday, isTomorrow } from '../utils/dateUtils';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+import { getApiBaseUrl } from '../utils/apiBaseUrl';
+
+const API_BASE = getApiBaseUrl();
 
 const Dashboard = () => {
   const navigate = useNavigate();

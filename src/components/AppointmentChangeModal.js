@@ -7,7 +7,9 @@ import {
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+import { getApiBaseUrl } from '../utils/apiBaseUrl';
+
+const API_BASE = getApiBaseUrl();
 
 const AppointmentChangeModal = ({ job, changes, onClose, onConfirm }) => {
   const [responding, setResponding] = useState(false);

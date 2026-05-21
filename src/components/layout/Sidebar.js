@@ -8,7 +8,8 @@ import {
   KeyIcon,
   ArrowRightOnRectangleIcon,
   BellIcon,
-  GiftIcon
+  GiftIcon,
+  BanknotesIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import jobAPI from '../../services/jobAPI';
@@ -58,6 +59,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Pending', href: '/pending', icon: BellIcon, badge: pendingCount },
     { name: 'My Jobs', href: '/jobs', icon: CalendarIcon },
     { name: 'Refer & Earn', href: '/refer', icon: GiftIcon },
+    { name: 'Payout Settings', href: '/payout-settings', icon: BanknotesIcon },
     { name: 'Profile', href: '/profile', icon: UserIcon },
   ];
 

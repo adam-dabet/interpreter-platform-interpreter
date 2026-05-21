@@ -17,6 +17,7 @@ import JobTimer from './pages/JobTimer';
 import JobAction from './pages/JobAction';
 import Profile from './pages/Profile';
 import ProfileEdit from './pages/ProfileEdit';
+import PayoutSettings from './pages/PayoutSettings';
 import ReferInterpreter from './pages/ReferInterpreter';
 import MySchedule from './pages/MySchedule';
 import PendingActions from './pages/PendingActions';
@@ -67,6 +68,7 @@ function App() {
             <Route path="/jobs/:jobId/:action/:interpreterId" element={<ProtectedRoute><JobAction /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><Profile /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/profile/edit" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><ProfileEdit /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
+            <Route path="/payout-settings" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><PayoutSettings /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/refer" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><ReferInterpreter /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
           </Routes>
         </div>

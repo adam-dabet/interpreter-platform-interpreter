@@ -125,6 +125,10 @@ export const authAPI = {
 
 // Interpreter API
 export const interpreterAPI = {
+  // Trolley payout onboarding (self-service)
+  getTrolleyStatus: () => api.get('/interpreters/me/trolley/status').then((r) => r.data),
+  getTrolleyWidgetLink: () => api.post('/interpreters/me/trolley/widget-link').then((r) => r.data),
+
   // Look up interpreter by email; if found and not registered, send invite email
   lookupByEmail: (email) => api.post('/interpreters/lookup-by-email', { email }).then((r) => r.data),
 

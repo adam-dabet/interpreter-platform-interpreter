@@ -3,6 +3,18 @@ import { getApiBaseUrl } from '../utils/apiBaseUrl';
 
 const API_BASE = getApiBaseUrl();
 
+const SANDBOX_HOSTNAMES = new Set([
+  'sandbox-providers.theintegritycompanyinc.com',
+]);
+
+function isFrontendSandbox() {
+  if (process.env.REACT_APP_SANDBOX_MODE === 'true') return true;
+  if (typeof window !== 'undefined' && SANDBOX_HOSTNAMES.has(window.location.hostname)) {
+    return true;
+  }
+  return false;
+}
+
 /**
  * Always-visible banner shown when this build of the portal is a sandbox,
  * OR when the backend it talks to reports SANDBOX_MODE=true. We OR both signals
@@ -12,7 +24,7 @@ const API_BASE = getApiBaseUrl();
  * Safety contract: if either side says "sandbox", the banner appears.
  */
 const SandboxBanner = () => {
-  const buildTimeSandbox = process.env.REACT_APP_SANDBOX_MODE === 'true';
+  const buildTimeSandbox = isFrontendSandbox();
   const [backendSandbox, setBackendSandbox] = useState(false);
   const [backendLabel, setBackendLabel] = useState(null);
 

@@ -27,6 +27,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useJobRestrictions } from '../contexts/JobRestrictionContext';
 import { formatDate, formatTime, formatCurrency, getTimeUntilJob } from '../utils/dateUtils';
 import { milesInputToNumber, isPartialMilesInput } from '../utils/mileageInputUtils';
+import { getProviderJobStatusLabel } from '../utils/providerJobStatus';
 
 const LAST_LIST_ROUTE_KEY = 'interpreterLastJobListRoute';
 const DEFAULT_RETURN_PATH = '/jobs';
@@ -802,7 +803,7 @@ const JobDetails = () => {
                   )}
                   <div>
                     <p className="text-sm font-medium text-gray-900">Status</p>
-                    <p className="text-sm text-gray-600 capitalize">{job.status}</p>
+                    <p className="text-sm text-gray-600">{getProviderJobStatusLabel(job)}</p>
                   </div>
                 </div>
               </div>

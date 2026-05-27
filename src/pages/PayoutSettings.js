@@ -22,7 +22,7 @@ const STATUS_META = {
     label: 'Onboarding incomplete',
     tone: 'bg-amber-50 text-amber-800 border-amber-200',
     icon: ExclamationTriangleIcon,
-    blurb: 'You started payout setup but have not finished it. Please complete your bank and tax information.',
+    blurb: 'You started payout setup but have not finished it. Please complete your bank information.',
   },
   active: {
     label: 'Ready for payouts',
@@ -127,9 +127,9 @@ const PayoutSettings = () => {
             </dd>
           </div>
           <div>
-            <dt className="text-gray-500">Tax compliance</dt>
-            <dd className="text-gray-900 font-medium capitalize">
-              {status?.complianceStatus || '—'}
+            <dt className="text-gray-500">Currency</dt>
+            <dd className="text-gray-900 font-medium">
+              {status?.currency || 'USD'}
             </dd>
           </div>
           <div>
@@ -166,8 +166,9 @@ const PayoutSettings = () => {
       </div>
 
       <p className="text-xs text-gray-500 mt-4">
-        Payout setup is handled securely by our payments partner, Trolley. Your bank and tax
-        information is never stored on our servers.
+        Payout setup is handled securely by our payments partner, Trolley. Your bank
+        information is never stored on our servers. Tax forms (W-9) are collected
+        separately through your interpreter profile.
       </p>
 
       {/* Widget modal */}

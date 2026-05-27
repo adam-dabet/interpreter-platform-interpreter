@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
+import {
   ExclamationTriangleIcon,
   ClockIcon,
   CalendarDaysIcon,
@@ -10,10 +10,13 @@ import {
   DocumentTextIcon,
   MagnifyingGlassIcon,
   ArrowRightIcon,
-  BellIcon
+  BellIcon,
+  BanknotesIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import jobAPI from '../services/jobAPI';
+import { interpreterAPI } from '../services/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
 import JobCard from '../components/JobCard';
@@ -29,6 +32,8 @@ const DashboardNew = () => {
   const [loading, setLoading] = useState(true);
   const [showCompletionReport, setShowCompletionReport] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [payoutStatus, setPayoutStatus] = useState(null);
+  const [payoutBannerDismissed, setPayoutBannerDismissed] = useState(false);
 
   useEffect(() => {
       loadDashboardData();
@@ -41,9 +46,10 @@ const DashboardNew = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [jobsRes, earningsRes] = await Promise.all([
+      const [jobsRes, earningsRes, payoutRes] = await Promise.all([
         jobAPI.getMyJobs({ limit: 100 }),
-        jobAPI.getEarnings({ period: 'month' })
+        jobAPI.getEarnings({ period: 'month' }),
+        interpreterAPI.getTrolleyStatus().catch(() => null),
       ]);
 
       setJobs(jobsRes.data.data.jobs);
@@ -54,11 +60,27 @@ const DashboardNew = () => {
           hours: parseFloat(earningsRes.data.data.summary.total_hours || 0)
         });
       }
+      setPayoutStatus(payoutRes?.data || null);
+
+      // Banner is dismissible for 7 days at a time. After that it re-appears
+      // (gentle reminder, not permanent noise). Stored per-user so multiple
+      // accounts on the same device behave correctly.
+      const userId = user?.id || profile?.id || 'anon';
+      const dismissedAtRaw = localStorage.getItem(`payoutBannerDismissedAt:${userId}`);
+      const dismissedAt = dismissedAtRaw ? parseInt(dismissedAtRaw, 10) : 0;
+      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+      setPayoutBannerDismissed(Boolean(dismissedAt) && (Date.now() - dismissedAt) < SEVEN_DAYS_MS);
     } catch (error) {
       console.error('Error loading dashboard:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const dismissPayoutBanner = () => {
+    const userId = user?.id || profile?.id || 'anon';
+    localStorage.setItem(`payoutBannerDismissedAt:${userId}`, String(Date.now()));
+    setPayoutBannerDismissed(true);
   };
 
   // Calculate critical items
@@ -357,6 +379,60 @@ const DashboardNew = () => {
             })}
           </p>
         </div>
+
+        {/* Direct-deposit nudge — shown when the interpreter hasn't completed
+            Trolley payout onboarding. Dismissible for 7 days. */}
+        {payoutStatus
+          && ['not_started', 'incomplete'].includes(payoutStatus.status)
+          && !payoutBannerDismissed && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6"
+          >
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 sm:p-5 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="bg-emerald-100 rounded-lg p-2 flex-shrink-0">
+                  <BanknotesIcon className="h-6 w-6 text-emerald-700" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-emerald-900">
+                    Get paid faster with direct deposit
+                  </h3>
+                  <p className="text-sm text-emerald-800 mt-1">
+                    Add your bank info to receive job earnings directly to your account
+                    instead of waiting for a check in the mail. Takes about 2 minutes.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      onClick={() => navigate('/payout-settings')}
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      {payoutStatus.status === 'incomplete' ? 'Finish setup' : 'Set up payment method'}
+                      <ArrowRightIcon className="h-4 w-4 ml-1" />
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={dismissPayoutBanner}
+                      className="text-sm text-emerald-700 hover:text-emerald-900 px-2 py-1"
+                    >
+                      Remind me later
+                    </button>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={dismissPayoutBanner}
+                  className="p-1 rounded-md text-emerald-600 hover:text-emerald-900 hover:bg-emerald-100 flex-shrink-0"
+                  aria-label="Dismiss"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Critical Alerts */}
         {criticalItems.total > 0 && (

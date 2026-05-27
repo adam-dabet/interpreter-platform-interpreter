@@ -13,16 +13,16 @@ import Button from '../components/ui/Button';
 
 const STATUS_META = {
   not_started: {
-    label: 'Not set up',
-    tone: 'bg-amber-50 text-amber-800 border-amber-200',
-    icon: ExclamationTriangleIcon,
-    blurb: 'You have not set up a payout method yet. Set one up to receive payments for completed jobs.',
+    label: 'Get paid faster with direct deposit',
+    tone: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+    icon: BanknotesIcon,
+    blurb: 'Add your bank information to receive job earnings directly to your account instead of waiting for a check in the mail. Takes about 2 minutes.',
   },
   incomplete: {
-    label: 'Onboarding incomplete',
+    label: 'Finish setting up direct deposit',
     tone: 'bg-amber-50 text-amber-800 border-amber-200',
     icon: ExclamationTriangleIcon,
-    blurb: 'You started payout setup but have not finished it. Please complete your bank information.',
+    blurb: 'You started payout setup but have not finished it. Complete your bank information to receive payments directly to your account.',
   },
   active: {
     label: 'Ready for payouts',

@@ -400,8 +400,8 @@ const DashboardNew = () => {
                     Get paid faster with direct deposit
                   </h3>
                   <p className="text-sm text-emerald-800 mt-1">
-                    Add your bank info to receive job earnings directly to your account
-                    instead of waiting for a check in the mail. Takes about 2 minutes.
+                    Add your bank info to receive job earnings via direct deposit — the
+                    fastest way to get paid. Takes about 2 minutes.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button

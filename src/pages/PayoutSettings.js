@@ -16,7 +16,7 @@ const STATUS_META = {
     label: 'Get paid faster with direct deposit',
     tone: 'bg-emerald-50 text-emerald-900 border-emerald-200',
     icon: BanknotesIcon,
-    blurb: 'Add your bank information to receive job earnings directly to your account instead of waiting for a check in the mail. Takes about 2 minutes.',
+    blurb: 'Add your bank information to receive job earnings via direct deposit — the fastest way to get paid. Takes about 2 minutes.',
   },
   incomplete: {
     label: 'Finish setting up direct deposit',

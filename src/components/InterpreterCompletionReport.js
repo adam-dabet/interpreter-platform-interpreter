@@ -98,25 +98,6 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
   const [endMinute, setEndMinute] = useState(null);
   const [endPeriod, setEndPeriod] = useState(null);
 
-  // Update start time when jobData changes (end time is entered manually)
-  useEffect(() => {
-    if (startTime) {
-      setStartHour(findOptionByValue(hourOptions, String(startTime.hour).padStart(2, "0")));
-      setStartMinute(findOptionByValue(minuteOptions, String(startTime.minute).padStart(2, "0")));
-      setStartPeriod(findOptionByValue(periodOptions, startTime.period));
-    }
-    // End time fields are left empty for interpreter to fill in manually
-  }, [jobData?.arrival_time, jobData?.scheduled_time]);
-
-  // Update email when jobData changes
-  useEffect(() => {
-    const interpreterEmail = jobData?.assigned_interpreter_email || jobData?.interpreter_email || jobData?.email || "";
-    setFormData(prev => ({
-      ...prev,
-      email: interpreterEmail
-    }));
-  }, [jobData?.assigned_interpreter_email, jobData?.interpreter_email, jobData?.email]);
-
   const [rescheduledDate, setRescheduledDate] = useState("");
   const [rescheduledHour, setRescheduledHour] = useState(null);
   const [rescheduledMinute, setRescheduledMinute] = useState(null);
@@ -139,6 +120,25 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
 
   const [files, setFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Update start time when jobData changes (end time is entered manually)
+  useEffect(() => {
+    if (startTime) {
+      setStartHour(findOptionByValue(hourOptions, String(startTime.hour).padStart(2, "0")));
+      setStartMinute(findOptionByValue(minuteOptions, String(startTime.minute).padStart(2, "0")));
+      setStartPeriod(findOptionByValue(periodOptions, startTime.period));
+    }
+    // End time fields are left empty for interpreter to fill in manually
+  }, [jobData?.arrival_time, jobData?.scheduled_time]);
+
+  // Update email when jobData changes
+  useEffect(() => {
+    const interpreterEmail = jobData?.assigned_interpreter_email || jobData?.interpreter_email || jobData?.email || "";
+    setFormData(prev => ({
+      ...prev,
+      email: interpreterEmail
+    }));
+  }, [jobData?.assigned_interpreter_email, jobData?.interpreter_email, jobData?.email]);
 
   useEffect(() => {
     const r = formData.result?.value;

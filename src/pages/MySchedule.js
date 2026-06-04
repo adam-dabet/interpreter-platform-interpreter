@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -17,8 +17,10 @@ import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
-import { formatDate as formatDateUtil, formatTime as formatTimeUtil, parseLocalDate } from '../utils/dateUtils';
+import { formatDate as formatDateUtil, formatTime as formatTimeUtil, parseLocalDate, getJobScheduledDateTime } from '../utils/dateUtils';
 import { jobNeedsAvailabilityConfirmation } from '../utils/jobConfirmation';
+
+const COMPLETED_JOB_STATUSES = ['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid', 'cancelled'];
 
 const MySchedule = () => {
   const navigate = useNavigate();
@@ -35,8 +37,23 @@ const MySchedule = () => {
   const loadJobs = async () => {
     try {
       setLoading(true);
-      const response = await jobAPI.getMyJobs({ limit: 100 });
-      setJobs(response.data.data.jobs);
+      const pageSize = 100;
+      let page = 1;
+      let totalPages = 1;
+      const allJobs = [];
+
+      do {
+        const response = await jobAPI.getMyJobs({ page, limit: pageSize });
+        const data = response?.data?.data || {};
+        const pageJobs = data.jobs || [];
+        const pagination = data.pagination || {};
+
+        allJobs.push(...pageJobs);
+        totalPages = pagination.total_pages || 1;
+        page += 1;
+      } while (page <= totalPages);
+
+      setJobs(allJobs);
     } catch (error) {
       console.error('Error loading jobs:', error);
       toast.error('Failed to load schedule');
@@ -45,33 +62,54 @@ const MySchedule = () => {
     }
   };
 
-  // Filter jobs for upcoming (not completed or cancelled)
-  const upcomingJobs = jobs.filter(job => {
-    const isNotCompleted = !['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid', 'cancelled'].includes(job.status);
-    return isNotCompleted;
-  }).sort((a, b) => {
-    const dateA = new Date(`${a.scheduled_date}T${a.scheduled_time}`);
-    const dateB = new Date(`${b.scheduled_date}T${b.scheduled_time}`);
-    return dateA - dateB;
-  });
+  const startOfToday = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
 
-  // Group jobs by date
-  const groupJobsByDate = () => {
-    const grouped = {};
-    upcomingJobs.forEach(job => {
+  // Active appointments from today onward (excludes completed/cancelled history)
+  const upcomingJobs = useMemo(() => {
+    return jobs
+      .filter((job) => {
+        if (COMPLETED_JOB_STATUSES.includes(job.status)) return false;
+        const jobDate = getJobScheduledDateTime(job);
+        return jobDate && jobDate >= startOfToday;
+      })
+      .sort(
+        (a, b) =>
+          (getJobScheduledDateTime(a)?.getTime() ?? Infinity) -
+          (getJobScheduledDateTime(b)?.getTime() ?? Infinity)
+      );
+  }, [jobs, startOfToday]);
+
+  // Group by local calendar date, sorted chronologically for timeline rendering
+  const sortedScheduleGroups = useMemo(() => {
+    const grouped = new Map();
+
+    upcomingJobs.forEach((job) => {
       const date = parseLocalDate(job.scheduled_date);
-      if (date) {
-        const dateStr = date.toDateString();
-        if (!grouped[dateStr]) {
-          grouped[dateStr] = [];
-        }
-        grouped[dateStr].push(job);
+      const dateKey = date ? date.toDateString() : 'Date TBD';
+      if (!grouped.has(dateKey)) {
+        grouped.set(dateKey, []);
       }
+      grouped.get(dateKey).push(job);
     });
-    return grouped;
-  };
 
-  const groupedJobs = groupJobsByDate();
+    return Array.from(grouped.entries()).sort(([_, jobsA], [__, jobsB]) => {
+      const timeA = getJobScheduledDateTime(jobsA[0])?.getTime() ?? Infinity;
+      const timeB = getJobScheduledDateTime(jobsB[0])?.getTime() ?? Infinity;
+      return timeA - timeB;
+    });
+  }, [upcomingJobs]);
+
+  const groupedJobs = useMemo(() => {
+    const obj = {};
+    sortedScheduleGroups.forEach(([dateKey, dateJobs]) => {
+      obj[dateKey] = dateJobs;
+    });
+    return obj;
+  }, [sortedScheduleGroups]);
 
   // Get jobs for a specific date (for calendar view)
   const getJobsForDate = (date) => {
@@ -224,7 +262,9 @@ const MySchedule = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">My Schedule</h1>
-              <p className="mt-2 text-gray-600">View and manage your upcoming appointments</p>
+              <p className="mt-2 text-gray-600">
+                {upcomingJobs.length} upcoming {upcomingJobs.length === 1 ? 'appointment' : 'appointments'}
+              </p>
             </div>
             
             {/* View Toggle */}
@@ -272,13 +312,15 @@ const MySchedule = () => {
                 </div>
               </div>
             ) : (
-              Object.entries(groupedJobs).map(([date, dateJobs]) => {
-                const dateObj = new Date(date);
-                const isDateToday = isToday(dateObj);
+              sortedScheduleGroups.map(([date, dateJobs]) => {
+                const isTbd = date === 'Date TBD';
+                const dateObj = isTbd ? null : new Date(date);
+                const isDateToday = !isTbd && isToday(dateJobs[0].scheduled_date);
                 const now = new Date();
-                const isTomorrow = dateObj.toDateString() === new Date(now.getTime() + 24 * 60 * 60 * 1000).toDateString();
+                const isTomorrow = !isTbd && dateObj
+                  && dateObj.toDateString() === new Date(now.getTime() + 24 * 60 * 60 * 1000).toDateString();
                 
-                let dateLabel = formatDate(dateJobs[0].scheduled_date);
+                let dateLabel = isTbd ? 'Date TBD' : formatDate(dateJobs[0].scheduled_date);
                 if (isDateToday) dateLabel = 'Today';
                 if (isTomorrow) dateLabel = 'Tomorrow';
 

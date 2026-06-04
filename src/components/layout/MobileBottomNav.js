@@ -5,6 +5,7 @@ import {
   CalendarIcon,
   MagnifyingGlassIcon,
   BellIcon,
+  BriefcaseIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
 import {
@@ -12,6 +13,7 @@ import {
   CalendarIcon as CalendarIconSolid,
   MagnifyingGlassIcon as MagnifyingGlassIconSolid,
   BellIcon as BellIconSolid,
+  BriefcaseIcon as BriefcaseIconSolid,
   UserIcon as UserIconSolid
 } from '@heroicons/react/24/solid';
 import jobAPI from '../../services/jobAPI';
@@ -82,6 +84,12 @@ const MobileBottomNav = () => {
       badge: pendingCount
     },
     {
+      name: 'My Jobs',
+      path: '/jobs',
+      icon: BriefcaseIcon,
+      iconSolid: BriefcaseIconSolid
+    },
+    {
       name: 'Profile',
       path: '/profile',
       icon: UserIcon,
@@ -95,7 +103,7 @@ const MobileBottomNav = () => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 lg:hidden z-50">
-      <div className="grid grid-cols-5 h-16">
+      <div className="grid grid-cols-6 h-16">
         {navItems.map((item) => {
           const active = isActive(item.path);
           const Icon = active ? item.iconSolid : item.icon;
@@ -118,7 +126,7 @@ const MobileBottomNav = () => {
                   </span>
                 )}
               </div>
-              <span className={`text-xs mt-1 ${active ? 'font-semibold' : ''}`}>
+              <span className={`text-[10px] mt-1 leading-tight text-center ${active ? 'font-semibold' : ''}`}>
                 {item.name}
               </span>
             </Link>

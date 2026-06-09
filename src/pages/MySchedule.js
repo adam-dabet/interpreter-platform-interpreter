@@ -374,7 +374,7 @@ const MySchedule = () => {
 
                 const dayJobs = getJobsForDate(date);
                 const hasJobs = dayJobs.length > 0;
-                const isCurrentDay = isToday(date);
+                const isCurrentDay = isTodayDate(date);
 
                 return (
                   <button

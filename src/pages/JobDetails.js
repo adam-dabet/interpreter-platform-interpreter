@@ -1148,7 +1148,7 @@ const JobDetails = () => {
                   </div>
                 )}
                 
-                {job.status === 'assigned' && job.assigned_interpreter_id ? (
+                {(job.status === 'assigned' || job.status === 'reminders_sent') && job.assigned_interpreter_id ? (
                   (() => {
                     const isAssignedToCurrentUser = !!(profile?.id && String(profile.id) === String(job.assigned_interpreter_id));
                     if (!isAssignedToCurrentUser) {

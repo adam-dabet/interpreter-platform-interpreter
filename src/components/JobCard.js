@@ -15,7 +15,7 @@ import {
 import Button from './ui/Button';
 import { formatDate as formatDateUtil, formatTime as formatTimeUtil, formatCurrency as formatCurrencyUtil, getTimeUntilJob as getTimeUntilJobUtil } from '../utils/dateUtils';
 import { jobNeedsAvailabilityConfirmation, jobAvailabilityConfirmed } from '../utils/jobConfirmation';
-import { isJobPaidToInterpreter } from '../utils/providerJobStatus';
+import { isJobPaidToInterpreter, isProviderAssignedJob } from '../utils/providerJobStatus';
 
 const JobCard = ({ 
   job, 
@@ -52,7 +52,7 @@ const JobCard = ({
     if (job.status === 'completed' && !job.completion_report_submitted) return 'needs_report';
     if (job.status === 'in_progress') return 'in_progress';
     if (jobNeedsAvailabilityConfirmation(job)) return 'needs_confirmation';
-    if (job.assignment_status === 'accepted' || job.status === 'assigned') return 'confirmed';
+    if (isProviderAssignedJob(job)) return 'assigned';
     if (job.status === 'finding_interpreter') return 'available';
     return 'pending';
   };
@@ -66,9 +66,9 @@ const JobCard = ({
       label: 'Available',
       icon: null
     },
-    confirmed: {
-      color: 'bg-green-100 text-green-800 border-green-300',
-      label: 'Confirmed',
+    assigned: {
+      color: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+      label: 'Assigned',
       icon: <CheckCircleIcon className="h-4 w-4" />
     },
     needs_confirmation: {

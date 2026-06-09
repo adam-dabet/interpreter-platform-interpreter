@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   CalendarIcon,
   ClockIcon,
@@ -17,7 +16,7 @@ import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
-import { formatDate as formatDateUtil, formatTime as formatTimeUtil, parseLocalDate, getJobScheduledDateTime } from '../utils/dateUtils';
+import { formatDate as formatDateUtil, formatTime as formatTimeUtil, parseLocalDate, getJobScheduledDateTime, isToday as isTodayDate, isTomorrow as isTomorrowDate } from '../utils/dateUtils';
 import { jobNeedsAvailabilityConfirmation } from '../utils/jobConfirmation';
 
 const COMPLETED_JOB_STATUSES = ['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid', 'cancelled'];
@@ -149,12 +148,6 @@ const MySchedule = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
   };
 
-  const isToday = (date) => {
-    if (!date) return false;
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
-  };
-
   // Use imported date utilities
   const formatDate = (dateString) => {
     return formatDateUtil(dateString, {
@@ -186,9 +179,7 @@ const MySchedule = () => {
   };
 
   const JobCard = ({ job }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       className="bg-white rounded-lg border-2 border-gray-200 p-4 hover:border-blue-500 cursor-pointer transition-all"
       onClick={() => navigate(`/job/${job.id}`)}
     >
@@ -243,7 +234,7 @@ const MySchedule = () => {
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 
   if (loading) {
@@ -298,7 +289,7 @@ const MySchedule = () => {
         {/* Timeline View */}
         {viewMode === 'timeline' && (
           <div className="space-y-8">
-            {Object.keys(groupedJobs).length === 0 ? (
+            {sortedScheduleGroups.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
                 <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No upcoming jobs</h3>
@@ -314,12 +305,9 @@ const MySchedule = () => {
             ) : (
               sortedScheduleGroups.map(([date, dateJobs]) => {
                 const isTbd = date === 'Date TBD';
-                const dateObj = isTbd ? null : new Date(date);
-                const isDateToday = !isTbd && isToday(dateJobs[0].scheduled_date);
-                const now = new Date();
-                const isTomorrow = !isTbd && dateObj
-                  && dateObj.toDateString() === new Date(now.getTime() + 24 * 60 * 60 * 1000).toDateString();
-                
+                const isDateToday = !isTbd && isTodayDate(dateJobs[0].scheduled_date);
+                const isTomorrow = !isTbd && isTomorrowDate(dateJobs[0].scheduled_date);
+
                 let dateLabel = isTbd ? 'Date TBD' : formatDate(dateJobs[0].scheduled_date);
                 if (isDateToday) dateLabel = 'Today';
                 if (isTomorrow) dateLabel = 'Tomorrow';

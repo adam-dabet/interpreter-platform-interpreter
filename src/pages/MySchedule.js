@@ -18,6 +18,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
 import { formatDate as formatDateUtil, formatTime as formatTimeUtil, parseLocalDate, getJobScheduledDateTime, isToday as isTodayDate, isTomorrow as isTomorrowDate } from '../utils/dateUtils';
 import { jobNeedsAvailabilityConfirmation } from '../utils/jobConfirmation';
+import { getProviderJobStatusLabel } from '../utils/providerJobStatus';
 
 const COMPLETED_JOB_STATUSES = ['completed', 'completion_report', 'billed', 'closed', 'interpreter_paid', 'cancelled'];
 
@@ -165,7 +166,9 @@ const MySchedule = () => {
   const getStatusColor = (job) => {
     if (job.status === 'finding_interpreter') return 'bg-yellow-100 text-yellow-800 border-yellow-300';
     if (jobNeedsAvailabilityConfirmation(job)) return 'bg-orange-100 text-orange-800 border-orange-300';
-    if (job.status === 'assigned' || job.assignment_status === 'accepted') return 'bg-green-100 text-green-800 border-green-300';
+    if (job.status === 'assigned' || job.status === 'reminders_sent' || job.assignment_status === 'accepted') {
+      return 'bg-indigo-100 text-indigo-800 border-indigo-300';
+    }
     if (job.status === 'in_progress') return 'bg-blue-100 text-blue-800 border-blue-300';
     return 'bg-gray-100 text-gray-800 border-gray-300';
   };
@@ -173,9 +176,7 @@ const MySchedule = () => {
   const getStatusLabel = (job) => {
     if (jobNeedsAvailabilityConfirmation(job)) return 'Needs Confirmation';
     if (job.status === 'finding_interpreter') return 'Available';
-    if (job.assignment_status === 'accepted') return 'Confirmed';
-    if (job.status === 'in_progress') return 'In Progress';
-    return job.status;
+    return getProviderJobStatusLabel(job);
   };
 
   const JobCard = ({ job }) => (

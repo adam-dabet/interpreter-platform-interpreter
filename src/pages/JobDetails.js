@@ -675,6 +675,11 @@ const JobDetails = () => {
                   : (job.job_number || job.title)}
               </h1>
               <div className="flex items-center mt-2 space-x-2">
+                {job.is_rush_request && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 border border-red-200">
+                    RUSH Request
+                  </span>
+                )}
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getPriorityColor(job.priority)}`}>
                   {job.priority} Priority
                 </span>

@@ -1,8 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Select from 'react-select';
 import { PlusCircle, X } from 'react-feather';
 import AddressAutocomplete from './AddressAutocomplete';
 import toast from 'react-hot-toast';
+import FacilityDurationFollowUpNotice from './FacilityDurationFollowUpNotice';
+import {
+  calculateActualDurationMinutes,
+  durationExceedsScheduled,
+  FACILITY_DURATION_FOLLOW_UP_MESSAGE,
+} from '../utils/completionReportDuration';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -120,6 +126,13 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
 
   const [files, setFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const actualDurationMinutes = useMemo(
+    () => calculateActualDurationMinutes(startHour, startMinute, startPeriod, endHour, endMinute, endPeriod),
+    [startHour, startMinute, startPeriod, endHour, endMinute, endPeriod]
+  );
+
+  const showDurationFollowUpNotice = durationExceedsScheduled(actualDurationMinutes, jobData);
 
   // Update start time when jobData changes (end time is entered manually)
   useEffect(() => {
@@ -330,7 +343,14 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
         throw new Error(errorData.message || "Submission failed");
       }
 
+      const responseData = await response.json().catch(() => ({}));
       toast.success("Completion report submitted successfully!");
+      if (responseData.durationExceedsScheduled) {
+        toast(responseData.facilityDurationFollowUpMessage || FACILITY_DURATION_FOLLOW_UP_MESSAGE, {
+          icon: '⏱️',
+          duration: 8000,
+        });
+      }
       
       // Reset form
       setFormData({
@@ -494,6 +514,13 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
               </p>
             </div>
           </div>
+
+          {showDurationFollowUpNotice && (
+            <FacilityDurationFollowUpNotice
+              actualDurationMinutes={actualDurationMinutes}
+              jobData={jobData}
+            />
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

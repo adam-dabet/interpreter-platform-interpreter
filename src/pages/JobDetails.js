@@ -28,6 +28,7 @@ import { useJobRestrictions } from '../contexts/JobRestrictionContext';
 import { formatDate, formatTime, formatCurrency, getTimeUntilJob } from '../utils/dateUtils';
 import { milesInputToNumber, isPartialMilesInput } from '../utils/mileageInputUtils';
 import { getProviderJobStatusLabel } from '../utils/providerJobStatus';
+import FacilityDurationFollowUpNotice from '../components/FacilityDurationFollowUpNotice';
 
 const LAST_LIST_ROUTE_KEY = 'interpreterLastJobListRoute';
 const DEFAULT_RETURN_PATH = '/jobs';
@@ -894,6 +895,15 @@ const JobDetails = () => {
                   </div>
                 </div>
                 
+                {(job.completion_report_data.duration_exceeds_scheduled ||
+                  (job.actual_duration_minutes > (job.estimated_duration_minutes || 0))) && (
+                  <FacilityDurationFollowUpNotice
+                    actualDurationMinutes={job.actual_duration_minutes}
+                    jobData={job}
+                    className="mt-6"
+                  />
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                   {job.completion_report_data.start_time && (
                     <div>

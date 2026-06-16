@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { EyeIcon, EyeSlashIcon, LockClosedIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -10,8 +10,19 @@ import { authAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { validateNewPasswordPolicy } from '../utils/passwordPolicy';
 
+const getSafeRedirectPath = (redirect) => {
+  if (!redirect || !redirect.startsWith('/') || redirect.startsWith('//')) {
+    return '/dashboard';
+  }
+  if (redirect.startsWith('/login') || redirect.startsWith('/apply') || redirect.startsWith('/status')) {
+    return '/dashboard';
+  }
+  return redirect;
+};
+
 const ChangePassword = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const isFirstTimePasswordChange = user?.passwordChanged === false;
   const [formData, setFormData] = useState({
@@ -158,7 +169,7 @@ const ChangePassword = () => {
 
       if (response.data && response.data.success) {
         toast.success('Password changed successfully!');
-        navigate('/dashboard');
+        navigate(getSafeRedirectPath(searchParams.get('redirect')));
       } else {
         toast.error(response.data?.message || 'Failed to change password. Please try again.');
       }

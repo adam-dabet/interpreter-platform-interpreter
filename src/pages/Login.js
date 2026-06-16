@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { EyeIcon, EyeSlashIcon, UserIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -9,8 +9,19 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { authAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
+const getSafeRedirectPath = (redirect) => {
+  if (!redirect || !redirect.startsWith('/') || redirect.startsWith('//')) {
+    return '/dashboard';
+  }
+  if (redirect.startsWith('/login') || redirect.startsWith('/apply') || redirect.startsWith('/status')) {
+    return '/dashboard';
+  }
+  return redirect;
+};
+
 const Login = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
@@ -63,12 +74,20 @@ const Login = () => {
         login(response.data.data);
         
         // Check if user needs to change password
+        const redirectPath = getSafeRedirectPath(searchParams.get('redirect'));
+
         if (response.data.data.requiresPasswordChange) {
           toast('Please change your password to continue.');
-          navigate('/change-password');
+          const changePasswordUrl = redirectPath !== '/dashboard'
+            ? `/change-password?redirect=${encodeURIComponent(redirectPath)}`
+            : '/change-password';
+          navigate(changePasswordUrl);
         } else {
           toast.success('Login successful! Welcome back.');
-          navigate('/dashboard');
+          if (redirectPath !== '/dashboard') {
+            localStorage.setItem('interpreterCurrentRoute', redirectPath);
+          }
+          navigate(redirectPath);
         }
       } else {
         toast.error(response.data?.message || 'Login failed. Please check your credentials.');

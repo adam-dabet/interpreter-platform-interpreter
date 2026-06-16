@@ -50,6 +50,7 @@ const TransportationCompletionReportPublic = () => {
   const [submitting, setSubmitting] = useState(false);
   const [jobDetails, setJobDetails] = useState(null);
   const [submitted, setSubmitted] = useState(false);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [error, setError] = useState(null);
   
   // Time options for dropdowns
@@ -104,12 +105,18 @@ const TransportationCompletionReportPublic = () => {
             }));
           }
         }
+      } else if (response.data.alreadySubmitted) {
+        setAlreadySubmitted(true);
       } else {
         setError(response.data.message || 'Invalid or expired report link');
       }
     } catch (err) {
       console.error('Error loading job details:', err);
-      setError(err.response?.data?.message || 'Failed to load job details');
+      if (err.response?.status === 409 && err.response?.data?.alreadySubmitted) {
+        setAlreadySubmitted(true);
+      } else {
+        setError(err.response?.data?.message || 'Failed to load job details');
+      }
     } finally {
       setLoading(false);
     }
@@ -224,7 +231,11 @@ const TransportationCompletionReportPublic = () => {
       }
     } catch (err) {
       console.error('Error submitting report:', err);
-      setError(err.response?.data?.message || 'Failed to submit report');
+      if (err.response?.status === 409 && err.response?.data?.alreadySubmitted) {
+        setAlreadySubmitted(true);
+      } else {
+        setError(err.response?.data?.message || 'Failed to submit report');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -249,6 +260,30 @@ const TransportationCompletionReportPublic = () => {
             Login to Portal
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  if (alreadySubmitted) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center"
+        >
+          <CheckCircleIcon className="h-20 w-20 text-blue-600 mx-auto mb-4" />
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Report Already Submitted</h1>
+          <p className="text-lg text-gray-600 mb-6">
+            The completion report for this job has already been submitted. No action is needed on your end.
+          </p>
+          <button
+            onClick={() => window.close()}
+            className="w-full text-sm text-gray-600 hover:text-gray-900"
+          >
+            Close this window
+          </button>
+        </motion.div>
       </div>
     );
   }

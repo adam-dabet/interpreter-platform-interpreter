@@ -4,10 +4,10 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { motion } from 'framer-motion';
 import Input from '../ui/Input';
 import Checkbox from '../ui/Checkbox';
-import { personalInfoSchema } from '../../services/validationSchemas';
+import { personalInfoSchema, transportationPersonalInfoSchema } from '../../services/validationSchemas';
 import { formatPhoneNumber } from '../../utils/helpers';
 
-const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, parametricData, rejectedFields = [] }) => {
+const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, parametricData, rejectedFields = [], requireBusinessName = false }) => {
   // Ensure all form fields have proper default values to prevent uncontrolled to controlled warnings
   const defaultValues = {
     first_name: '',
@@ -28,7 +28,7 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
     setValue,
     watch
   } = useForm({
-    resolver: yupResolver(personalInfoSchema),
+    resolver: yupResolver(requireBusinessName ? transportationPersonalInfoSchema : personalInfoSchema),
     defaultValues,
     mode: 'onChange'
   });
@@ -152,9 +152,10 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
                 <Input
                   {...field}
                   label="Business Name"
-                  placeholder="Your Business Name (optional)"
+                  placeholder={requireBusinessName ? 'Your Business Name' : 'Your Business Name (optional)'}
                   error={errors.business_name?.message || (isFieldRejected('business_name') ? 'This field needs to be updated' : '')}
-                  helper="If you operate as a business entity"
+                  helper={requireBusinessName ? 'Required for transportation providers' : 'If you operate as a business entity'}
+                  required={requireBusinessName}
                 />
               </div>
             )}

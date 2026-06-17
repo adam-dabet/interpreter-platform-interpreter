@@ -132,3 +132,32 @@ export const RATE_UNITS = [
       acceptedFormats: '.jpg,.jpeg,.png,.pdf,.doc,.docx'
     }
   ];
+
+export const TRANSPORTATION_SERVICE_TYPES = [
+  { value: 'ambulatory', label: 'Ambulatory', description: 'Non-emergency ambulatory transport' },
+  { value: 'wheelchair', label: 'Wheelchair', description: 'Wheelchair accessible transport' },
+  { value: 'bls', label: 'Basic Life Support (BLS)', description: 'BLS medical transport' },
+  { value: 'als', label: 'Advanced Life Support (ALS)', description: 'ALS medical transport' },
+];
+
+export const TRANSPORTATION_PREFERRED_RATES = {
+  ambulatory: 1.90,
+  wheelchair: 3.00,
+};
+
+export const TRANSPORTATION_DOCUMENT_TYPES = [
+  {
+    value: 'commercial_insurance',
+    label: 'Commercial Insurance',
+    description: 'Current commercial auto/liability insurance certificate',
+    required: true,
+    acceptedFormats: '.jpg,.jpeg,.png,.pdf',
+  },
+  {
+    value: 'business_license',
+    label: 'Business License',
+    description: 'Valid business or operating license',
+    required: true,
+    acceptedFormats: '.jpg,.jpeg,.png,.pdf',
+  },
+];

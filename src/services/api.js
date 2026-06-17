@@ -172,6 +172,16 @@ export const interpreterAPI = {
   },
 };
 
+export const transportationProviderAPI = {
+  lookupByEmail: (email) =>
+    api.post('/transportation-providers/lookup-by-email', { email }).then((r) => r.data),
+
+  createProfile: (profileData) =>
+    api.post('/transportation-providers', profileData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+};
+
 // Parametric Data API
 export const parametricAPI = {
   // Get all parametric data

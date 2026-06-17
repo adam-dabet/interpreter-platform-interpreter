@@ -36,6 +36,13 @@ export const personalInfoSchema = yup.object({
     .oneOf([true], 'You must consent to receive text messages to continue'),
 
   });
+
+export const transportationPersonalInfoSchema = personalInfoSchema.shape({
+  business_name: yup
+    .string()
+    .required('Business name is required')
+    .max(255, 'Business name must be less than 255 characters'),
+});
   
   // Address Information Schema
   export const addressSchema = yup.object({

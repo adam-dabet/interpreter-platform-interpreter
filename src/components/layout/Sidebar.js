@@ -13,19 +13,24 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import jobAPI from '../../services/jobAPI';
+import { isTransportationProvider } from '../../utils/providerUtils';
 import { jobNeedsAvailabilityConfirmation } from '../../utils/jobConfirmation';
 import { getJobScheduledDateTime } from '../../utils/dateUtils';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const { logout, profile, user } = useAuth();
+  const isTransport = isTransportationProvider(profile);
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
-    loadPendingCount();
-    const interval = setInterval(loadPendingCount, 60000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!isTransport) {
+      loadPendingCount();
+      const interval = setInterval(loadPendingCount, 60000);
+      return () => clearInterval(interval);
+    }
+    return undefined;
+  }, [isTransport]);
 
   const loadPendingCount = async () => {
     try {
@@ -52,16 +57,21 @@ const Sidebar = ({ isOpen, onClose }) => {
     }
   };
 
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-    { name: 'My Schedule', href: '/schedule', icon: CalendarIcon },
-    { name: 'Find Jobs', href: '/jobs/search', icon: MagnifyingGlassIcon },
-    { name: 'Pending', href: '/pending', icon: BellIcon, badge: pendingCount },
-    { name: 'My Jobs', href: '/jobs', icon: CalendarIcon },
-    { name: 'Refer & Earn', href: '/refer', icon: GiftIcon },
-    { name: 'Payout Settings', href: '/payout-settings', icon: BanknotesIcon },
-    { name: 'Profile', href: '/profile', icon: UserIcon },
-  ];
+  const navigation = isTransport
+    ? [
+        { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+        { name: 'Profile', href: '/profile', icon: UserIcon },
+      ]
+    : [
+        { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+        { name: 'My Schedule', href: '/schedule', icon: CalendarIcon },
+        { name: 'Find Jobs', href: '/jobs/search', icon: MagnifyingGlassIcon },
+        { name: 'Pending', href: '/pending', icon: BellIcon, badge: pendingCount },
+        { name: 'My Jobs', href: '/jobs', icon: CalendarIcon },
+        { name: 'Refer & Earn', href: '/refer', icon: GiftIcon },
+        { name: 'Payout Settings', href: '/payout-settings', icon: BanknotesIcon },
+        { name: 'Profile', href: '/profile', icon: UserIcon },
+      ];
 
   const isActive = (path) => {
     return location.pathname === path;
@@ -92,15 +102,17 @@ const Sidebar = ({ isOpen, onClose }) => {
             <div className="flex items-center space-x-3">
               <div className="flex-shrink-0">
                 <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
-                  {(profile?.first_name?.[0] || user?.first_name?.[0] || 'I').toUpperCase()}
+                  {(profile?.business_name?.[0] || profile?.first_name?.[0] || user?.first_name?.[0] || 'P').toUpperCase()}
                 </div>
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-sm font-semibold text-gray-900 truncate">
-                  {profile?.first_name || user?.first_name || 'Interpreter'} {profile?.last_name?.[0] || user?.last_name?.[0] || ''}.
+                  {isTransport
+                    ? (profile?.business_name || `${profile?.first_name || ''} ${profile?.last_name?.[0] || ''}.`.trim())
+                    : `${profile?.first_name || user?.first_name || 'Interpreter'} ${profile?.last_name?.[0] || user?.last_name?.[0] || ''}.`}
                 </h2>
                 <p className="text-xs text-gray-500 truncate">
-                  Interpreter Portal
+                  {isTransport ? 'Transportation Portal' : 'Interpreter Portal'}
                 </p>
               </div>
             </div>

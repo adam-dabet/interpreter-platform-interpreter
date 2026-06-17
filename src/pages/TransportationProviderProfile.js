@@ -36,7 +36,9 @@ const TransportationProviderProfile = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditingFromReview, setIsEditingFromReview] = useState(false);
   const [visitedSteps, setVisitedSteps] = useState(new Set([1]));
-  const [showEmailLookup, setShowEmailLookup] = useState(true);
+  const [showEmailLookup, setShowEmailLookup] = useState(false);
+  const [isProfileCompletion, setIsProfileCompletion] = useState(false);
+  const [completionToken, setCompletionToken] = useState(null);
   const [parametricData, setParametricData] = useState({ usStates: [] });
   const [profileResult, setProfileResult] = useState(null);
 
@@ -70,22 +72,82 @@ const TransportationProviderProfile = () => {
   });
 
   useEffect(() => {
-    loadParametricData();
+    const init = async () => {
+      setIsLoading(true);
+      try {
+        const response = await parametricAPI.getAllParametricData();
+        if (response.data?.success) {
+          setParametricData(response.data.data);
+        } else {
+          toast.error('Failed to load form data');
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        if (!token) {
+          setShowEmailLookup(true);
+          return;
+        }
+        await loadProfileCompletionData(token);
+      } catch (error) {
+        console.error('Failed to initialize transportation application:', error);
+        toast.error('Failed to load form data');
+        setShowEmailLookup(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    init();
   }, []);
 
-  const loadParametricData = async () => {
+  const loadProfileCompletionData = async (token) => {
     try {
-      const response = await parametricAPI.getAllParametricData();
-      if (response.data?.success) {
-        setParametricData(response.data.data);
-      } else {
-        toast.error('Failed to load form data');
+      const apiBase = process.env.REACT_APP_API_URL || '/api';
+      const response = await fetch(`${apiBase}/profile-completion/validate-token/${token}`);
+      const result = await response.json();
+
+      if (!result.success) {
+        toast.error(result.message || 'Invalid completion link');
+        setShowEmailLookup(true);
+        return;
       }
+
+      const data = result.data;
+      if (data.providerType !== 'transportation') {
+        toast.error('This completion link is for interpreter profiles. Please use the correct application link.');
+        setShowEmailLookup(true);
+        return;
+      }
+
+      const rates = data.transportationRates || {};
+      const serviceTypes = Object.keys(rates).filter((key) =>
+        ['ambulatory', 'wheelchair', 'bls', 'als'].includes(key)
+      );
+
+      setIsProfileCompletion(true);
+      setCompletionToken(token);
+      setShowEmailLookup(false);
+      setFormData((prev) => ({
+        ...prev,
+        first_name: data.firstName || '',
+        last_name: data.lastName || '',
+        middle_name: data.middleName || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        street_address: data.address?.street || '',
+        street_address_2: data.address?.street2 || '',
+        city: data.address?.city || '',
+        state_id: data.address?.stateId || '',
+        zip_code: data.address?.zipCode || '',
+        business_name: data.businessName || '',
+        service_types: serviceTypes,
+        transportation_rates: rates,
+      }));
+      toast.success('Welcome! Please complete your transportation provider profile below.');
     } catch (error) {
-      console.error('Failed to load parametric data:', error);
-      toast.error('Failed to load form data');
-    } finally {
-      setIsLoading(false);
+      console.error('Error loading profile completion data:', error);
+      toast.error('Failed to load your profile data. Please contact support.');
+      setShowEmailLookup(true);
     }
   };
 
@@ -165,11 +227,14 @@ const TransportationProviderProfile = () => {
         }
       });
 
-      const response = await transportationProviderAPI.createProfile(formDataToSubmit);
+      const response = completionToken
+        ? await transportationProviderAPI.completeProfile(completionToken, formDataToSubmit)
+        : await transportationProviderAPI.createProfile(formDataToSubmit);
 
       if (response.data.success) {
-        const successMessage =
-          'Transportation provider application submitted successfully! We will review your profile and contact you soon.';
+        const successMessage = completionToken
+          ? 'Your transportation provider profile has been completed successfully! We will review your information and contact you soon.'
+          : 'Transportation provider application submitted successfully! We will review your profile and contact you soon.';
         setProfileResult({ success: true, message: successMessage, data: response.data.data });
         toast.success(successMessage);
       } else {
@@ -266,7 +331,9 @@ const TransportationProviderProfile = () => {
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircleIcon className="w-10 h-10 text-green-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Application Submitted!</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            {isProfileCompletion ? 'Profile Completed!' : 'Application Submitted!'}
+          </h1>
           <p className="text-gray-600 mb-6">{profileResult.message}</p>
           <div className="bg-blue-50 rounded-lg p-4 mb-6">
             <p className="text-sm text-blue-800">
@@ -289,9 +356,15 @@ const TransportationProviderProfile = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Transportation Provider Application</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {isProfileCompletion
+              ? 'Complete Your Transportation Provider Profile'
+              : 'Transportation Provider Application'}
+          </h1>
           <p className="text-gray-600">
-            Join our network of non-emergency medical transportation providers.
+            {isProfileCompletion
+              ? 'We have your basic information on file. Please verify your details and upload required documents.'
+              : 'Join our network of non-emergency medical transportation providers.'}
           </p>
         </div>
 

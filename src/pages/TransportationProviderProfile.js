@@ -120,9 +120,13 @@ const TransportationProviderProfile = () => {
       }
 
       const rates = data.transportationRates || {};
-      const serviceTypes = Object.keys(rates).filter((key) =>
-        ['ambulatory', 'wheelchair', 'bls', 'als'].includes(key)
-      );
+      const serviceTypes = Object.entries(rates)
+        .filter(([key, typeRates]) => {
+          if (!['ambulatory', 'wheelchair', 'bls', 'als'].includes(key)) return false;
+          const perMile = parseFloat(typeRates?.per_mile);
+          return !Number.isNaN(perMile) && perMile > 0;
+        })
+        .map(([key]) => key);
 
       setIsProfileCompletion(true);
       setCompletionToken(token);
@@ -141,7 +145,10 @@ const TransportationProviderProfile = () => {
         zip_code: data.address?.zipCode || '',
         business_name: data.businessName || '',
         service_types: serviceTypes,
-        transportation_rates: rates,
+        transportation_rates: serviceTypes.reduce((acc, type) => {
+          if (rates[type]) acc[type] = rates[type];
+          return acc;
+        }, {}),
       }));
       toast.success('Welcome! Please complete your transportation provider profile below.');
     } catch (error) {

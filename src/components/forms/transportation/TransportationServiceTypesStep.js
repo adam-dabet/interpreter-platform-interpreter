@@ -24,11 +24,19 @@ const TransportationServiceTypesStep = ({
   const isFieldRejected = (fieldName) => rejectedFields.includes(fieldName);
 
   useEffect(() => {
-    if (formData.service_types?.length) {
-      setSelectedTypes(formData.service_types);
-    }
-    if (formData.transportation_rates) {
-      setRates(formData.transportation_rates);
+    const explicitTypes = Array.isArray(formData.service_types) ? formData.service_types : [];
+    setSelectedTypes(explicitTypes);
+
+    if (explicitTypes.length > 0 && formData.transportation_rates) {
+      const filteredRates = {};
+      explicitTypes.forEach((type) => {
+        if (formData.transportation_rates[type]) {
+          filteredRates[type] = formData.transportation_rates[type];
+        }
+      });
+      setRates(filteredRates);
+    } else if (explicitTypes.length === 0) {
+      setRates({});
     }
   }, [formData.service_types, formData.transportation_rates]);
 
@@ -47,8 +55,8 @@ const TransportationServiceTypesStep = ({
         if (!updated[value]) {
           if (value === 'ambulatory' || value === 'wheelchair') {
             updated[value] = {
-              per_mile: String(TRANSPORTATION_PREFERRED_RATES[value]),
-              rate_type: 'platform',
+              per_mile: '',
+              rate_type: '',
             };
           } else {
             updated[value] = {
@@ -166,7 +174,7 @@ const TransportationServiceTypesStep = ({
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Service Types & Rates</h2>
         <p className="text-gray-600">
-          Select the transportation services you offer and set your rates.
+          Tap each service type you offer, then set your rates. None are selected by default.
         </p>
       </div>
 

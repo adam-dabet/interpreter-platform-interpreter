@@ -9,13 +9,11 @@ import ApplicationStatus from './pages/ApplicationStatus';
 import Login from './pages/Login';
 import SetupPassword from './pages/SetupPassword';
 import ChangePassword from './pages/ChangePassword';
-import Dashboard from './pages/Dashboard';
 import JobDashboard from './pages/JobDashboard';
 import JobSearch from './pages/JobSearch';
 import JobDetails from './pages/JobDetails';
 import JobTimer from './pages/JobTimer';
 import JobAction from './pages/JobAction';
-import Profile from './pages/Profile';
 import ProfileEdit from './pages/ProfileEdit';
 import PayoutSettings from './pages/PayoutSettings';
 import ReferInterpreter from './pages/ReferInterpreter';
@@ -26,6 +24,9 @@ import CompletionReportPublic from './pages/CompletionReportPublic';
 import TransportationCompletionReportPublic from './pages/TransportationCompletionReportPublic';
 import TransportationProviderProfile from './pages/TransportationProviderProfile';
 import TransportationTerms from './pages/TransportationTerms';
+import TransportationTripDetails from './pages/TransportationTripDetails';
+import ProviderHome from './pages/ProviderHome';
+import ProviderProfilePage from './pages/ProviderProfilePage';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import ForgotPassword from './pages/ForgotPassword';
@@ -63,14 +64,15 @@ function App() {
             <Route path="/jobs/:jobId/confirm/:token" element={<ConfirmJob />} />
             <Route path="/jobs/:jobId/report/:token" element={<CompletionReportPublic />} />
             <Route path="/transportation-jobs/:jobId/report/:token" element={<TransportationCompletionReportPublic />} />
-            <Route path="/dashboard" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><Dashboard /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
+            <Route path="/transportation/trips/:tripId" element={<ProtectedRoute><AuthenticatedLayout><TransportationTripDetails /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><ProviderHome /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/schedule" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><MySchedule /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/pending" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><PendingActions /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/jobs" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><JobDashboard /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/jobs/search" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><JobSearch /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/job/:jobId" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><JobDetails /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/jobs/:jobId/:action/:interpreterId" element={<ProtectedRoute><JobAction /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><Profile /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><ProviderProfilePage /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/profile/edit" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><ProfileEdit /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/payout-settings" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><PayoutSettings /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/refer" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><ReferInterpreter /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />

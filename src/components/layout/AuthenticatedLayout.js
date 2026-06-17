@@ -6,20 +6,27 @@ import MobileBottomNav from './MobileBottomNav';
 import BlockingModal from '../BlockingModal';
 import FeedbackWidget from '../FeedbackWidget';
 import jobAPI from '../../services/jobAPI';
+import { useAuth } from '../../contexts/AuthContext';
+import { isTransportationProvider } from '../../utils/providerUtils';
 
 const AuthenticatedLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [overdueReportJobs, setOverdueReportJobs] = useState([]);
   const [showOverdueModal, setShowOverdueModal] = useState(false);
   const location = useLocation();
+  const { profile } = useAuth();
+  const isTransport = isTransportationProvider(profile);
 
   useEffect(() => {
+    if (isTransport) {
+      setOverdueReportJobs([]);
+      setShowOverdueModal(false);
+      return undefined;
+    }
     checkBlockingConditions();
-    
-    // Recheck every minute
     const interval = setInterval(checkBlockingConditions, 60000);
     return () => clearInterval(interval);
-  }, [location.pathname]);
+  }, [location.pathname, isTransport]);
 
   const checkBlockingConditions = async () => {
     try {
@@ -78,7 +85,7 @@ const AuthenticatedLayout = ({ children }) => {
       <FeedbackWidget />
 
       {/* Blocking Modals */}
-      {shouldShowBlocking() && (
+      {shouldShowBlocking() && !isTransport && (
         <>
           {/* Overdue Reports - Now closable */}
           <BlockingModal

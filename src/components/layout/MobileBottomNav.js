@@ -17,18 +17,25 @@ import {
   UserIcon as UserIconSolid
 } from '@heroicons/react/24/solid';
 import jobAPI from '../../services/jobAPI';
+import { useAuth } from '../../contexts/AuthContext';
+import { isTransportationProvider } from '../../utils/providerUtils';
 import { jobNeedsAvailabilityConfirmation } from '../../utils/jobConfirmation';
 import { getJobScheduledDateTime } from '../../utils/dateUtils';
 
 const MobileBottomNav = () => {
   const location = useLocation();
+  const { profile } = useAuth();
+  const isTransport = isTransportationProvider(profile);
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
-    loadPendingCount();
-    const interval = setInterval(loadPendingCount, 60000); // Update every minute
-    return () => clearInterval(interval);
-  }, []);
+    if (!isTransport) {
+      loadPendingCount();
+      const interval = setInterval(loadPendingCount, 60000);
+      return () => clearInterval(interval);
+    }
+    return undefined;
+  }, [isTransport]);
 
   const loadPendingCount = async () => {
     try {
@@ -57,45 +64,19 @@ const MobileBottomNav = () => {
     }
   };
 
-  const navItems = [
-    {
-      name: 'Home',
-      path: '/dashboard',
-      icon: HomeIcon,
-      iconSolid: HomeIconSolid
-    },
-    {
-      name: 'Schedule',
-      path: '/schedule',
-      icon: CalendarIcon,
-      iconSolid: CalendarIconSolid
-    },
-    {
-      name: 'Find Jobs',
-      path: '/jobs/search',
-      icon: MagnifyingGlassIcon,
-      iconSolid: MagnifyingGlassIconSolid
-    },
-    {
-      name: 'Pending',
-      path: '/pending',
-      icon: BellIcon,
-      iconSolid: BellIconSolid,
-      badge: pendingCount
-    },
-    {
-      name: 'My Jobs',
-      path: '/jobs',
-      icon: BriefcaseIcon,
-      iconSolid: BriefcaseIconSolid
-    },
-    {
-      name: 'Profile',
-      path: '/profile',
-      icon: UserIcon,
-      iconSolid: UserIconSolid
-    }
-  ];
+  const navItems = isTransport
+    ? [
+        { name: 'Home', path: '/dashboard', icon: HomeIcon, iconSolid: HomeIconSolid },
+        { name: 'Profile', path: '/profile', icon: UserIcon, iconSolid: UserIconSolid },
+      ]
+    : [
+        { name: 'Home', path: '/dashboard', icon: HomeIcon, iconSolid: HomeIconSolid },
+        { name: 'Schedule', path: '/schedule', icon: CalendarIcon, iconSolid: CalendarIconSolid },
+        { name: 'Find Jobs', path: '/jobs/search', icon: MagnifyingGlassIcon, iconSolid: MagnifyingGlassIconSolid },
+        { name: 'Pending', path: '/pending', icon: BellIcon, iconSolid: BellIconSolid, badge: pendingCount },
+        { name: 'My Jobs', path: '/jobs', icon: BriefcaseIcon, iconSolid: BriefcaseIconSolid },
+        { name: 'Profile', path: '/profile', icon: UserIcon, iconSolid: UserIconSolid },
+      ];
 
   const isActive = (path) => {
     return location.pathname === path;

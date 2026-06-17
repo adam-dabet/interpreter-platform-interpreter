@@ -180,6 +180,12 @@ export const transportationProviderAPI = {
     api.post('/transportation-providers', profileData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+
+  getMyTrips: (params = {}) =>
+    api.get('/transportation-providers/my-trips', { params }).then((r) => r.data),
+
+  getTrip: (jobId) =>
+    api.get(`/transportation-providers/my-trips/${jobId}`).then((r) => r.data),
 };
 
 // Parametric Data API

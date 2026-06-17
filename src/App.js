@@ -24,6 +24,8 @@ import PendingActions from './pages/PendingActions';
 import ConfirmJob from './pages/ConfirmJob';
 import CompletionReportPublic from './pages/CompletionReportPublic';
 import TransportationCompletionReportPublic from './pages/TransportationCompletionReportPublic';
+import TransportationProviderProfile from './pages/TransportationProviderProfile';
+import TransportationTerms from './pages/TransportationTerms';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import ForgotPassword from './pages/ForgotPassword';
@@ -47,8 +49,10 @@ function App() {
           <Routes>
             <Route path="/" element={<Layout><Home /></Layout>} />
             <Route path="/apply" element={<Layout><InterpreterProfile /></Layout>} />
+            <Route path="/apply-transportation" element={<Layout><TransportationProviderProfile /></Layout>} />
             <Route path="/status" element={<Layout><ApplicationStatus /></Layout>} />
             <Route path="/terms" element={<Layout><Terms /></Layout>} />
+            <Route path="/transportation-terms" element={<Layout><TransportationTerms /></Layout>} />
             <Route path="/privacy" element={<Layout><Privacy /></Layout>} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />

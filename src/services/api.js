@@ -180,6 +180,11 @@ export const transportationProviderAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
+  completeProfile: (token, profileData) =>
+    api.post(`/transportation-providers/complete/${token}`, profileData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
   getMyTrips: (params = {}) =>
     api.get('/transportation-providers/my-trips', { params }).then((r) => r.data),
 

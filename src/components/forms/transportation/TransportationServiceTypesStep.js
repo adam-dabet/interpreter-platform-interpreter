@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { CheckIcon } from '@heroicons/react/24/outline';
-import Button from '../ui/Button';
-import Input from '../ui/Input';
+import Button from '../../ui/Button';
+import Input from '../../ui/Input';
 import toast from 'react-hot-toast';
 import {
   TRANSPORTATION_SERVICE_TYPES,
   TRANSPORTATION_PREFERRED_RATES,
-} from '../../utils/constants';
+} from '../../../utils/constants';
 
 const TransportationServiceTypesStep = ({
   formData,

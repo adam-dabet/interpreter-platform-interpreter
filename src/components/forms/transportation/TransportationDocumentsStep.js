@@ -78,6 +78,7 @@ const TransportationDocumentsStep = ({
   isEditing,
   onUpdate,
   rejectedFields = [],
+  isResubmission = false,
 }) => {
   const [documents, setDocuments] = useState(() => buildInitialDocuments(formData));
   const [uploadErrors, setUploadErrors] = useState({});
@@ -113,11 +114,19 @@ const TransportationDocumentsStep = ({
 
   const validate = () => {
     const errors = {};
-    TRANSPORTATION_DOCUMENT_TYPES.forEach((docType) => {
-      if (docType.required && !documents[docType.value]) {
-        errors[docType.value] = `${docType.label} is required`;
-      }
-    });
+    if (isResubmission) {
+      TRANSPORTATION_DOCUMENT_TYPES.forEach((docType) => {
+        if (rejectedFields.includes(docType.value) && !documents[docType.value]) {
+          errors[docType.value] = `${docType.label} is required — please upload an updated document`;
+        }
+      });
+    } else {
+      TRANSPORTATION_DOCUMENT_TYPES.forEach((docType) => {
+        if (docType.required && !documents[docType.value]) {
+          errors[docType.value] = `${docType.label} is required`;
+        }
+      });
+    }
     setUploadErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -134,6 +143,7 @@ const TransportationDocumentsStep = ({
 
   const getStatus = (docType) => {
     if (documents[docType.value]) return 'complete';
+    if (isResubmission && !rejectedFields.includes(docType.value)) return 'optional';
     return docType.required ? 'required' : 'optional';
   };
 

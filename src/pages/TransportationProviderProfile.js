@@ -40,6 +40,10 @@ const TransportationProviderProfile = () => {
   const [showEmailLookup, setShowEmailLookup] = useState(false);
   const [isProfileCompletion, setIsProfileCompletion] = useState(false);
   const [completionToken, setCompletionToken] = useState(null);
+  const [isResubmission, setIsResubmission] = useState(false);
+  const [rejectedFields, setRejectedFields] = useState([]);
+  const [rejectionNote, setRejectionNote] = useState('');
+  const [rejectionToken, setRejectionToken] = useState(null);
   const [parametricData, setParametricData] = useState({ usStates: [] });
   const [profileResult, setProfileResult] = useState(null);
 
@@ -86,6 +90,13 @@ const TransportationProviderProfile = () => {
 
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
+        const rejectionTok = urlParams.get('rejection_token');
+
+        if (rejectionTok) {
+          await loadRejectionData(rejectionTok);
+          return;
+        }
+
         if (!token) {
           setShowEmailLookup(true);
           return;
@@ -101,6 +112,90 @@ const TransportationProviderProfile = () => {
     };
     init();
   }, []);
+
+  const loadRejectionData = async (token) => {
+    try {
+      const apiBase = process.env.REACT_APP_API_URL || '/api';
+      const response = await fetch(`${apiBase}/interpreters/rejection/${token}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setIsResubmission(true);
+        setRejectionToken(token);
+        setRejectedFields(data.data.rejected_fields || []);
+        setRejectionNote(data.data.rejection_note || '');
+        setShowEmailLookup(false);
+
+        if (data.data.original_submission_data) {
+          prefillFormData(data.data.original_submission_data);
+        }
+
+        toast.success('Application loaded! Please update the highlighted fields.');
+      } else {
+        toast.error('Invalid or expired rejection link');
+        setShowEmailLookup(true);
+      }
+    } catch (error) {
+      console.error('Error loading rejection data:', error);
+      toast.error('Failed to load application data');
+      setShowEmailLookup(true);
+    }
+  };
+
+  const prefillFormData = (originalData) => {
+    if (!originalData) return;
+
+    const { interpreter, transportation_rates, w9 } = originalData;
+    const rates = transportation_rates || interpreter?.transportation_rates || {};
+    const parsedRates = typeof rates === 'string' ? JSON.parse(rates) : rates;
+    const serviceTypes = Object.keys(parsedRates || {}).filter((key) =>
+      ['ambulatory', 'wheelchair', 'bls', 'als'].includes(key)
+    );
+
+    setFormData((prev) => ({
+      ...prev,
+      first_name: interpreter?.first_name || '',
+      last_name: interpreter?.last_name || '',
+      middle_name: interpreter?.middle_name || '',
+      email: interpreter?.email || '',
+      phone: interpreter?.phone || '',
+      gender: interpreter?.gender || '',
+      sms_consent: interpreter?.sms_consent || false,
+      street_address: interpreter?.street_address || '',
+      street_address_2: interpreter?.street_address_2 || '',
+      city: interpreter?.city || '',
+      state_id: interpreter?.state_id ? String(interpreter.state_id) : '',
+      zip_code: interpreter?.zip_code || '',
+      county: interpreter?.county || '',
+      formatted_address: interpreter?.formatted_address || '',
+      latitude: interpreter?.latitude || null,
+      longitude: interpreter?.longitude || null,
+      place_id: interpreter?.place_id || '',
+      business_name: interpreter?.business_name || '',
+      service_types: serviceTypes,
+      transportation_rates: parsedRates || {},
+      w9_entry_method: w9 ? 'manual' : prev.w9_entry_method,
+      w9_data: w9
+        ? {
+            business_name: w9.business_name || '',
+            business_name_alt: w9.business_name_alt || '',
+            tax_classification: w9.tax_classification || '',
+            llc_classification: w9.llc_classification || '',
+            has_foreign_partners: w9.has_foreign_partners || false,
+            exempt_payee_code: w9.exempt_payee_code || '',
+            fatca_exemption_code: w9.fatca_exemption_code || '',
+            ssn: w9.ssn || '',
+            ein: w9.ein || '',
+            address: w9.address || '',
+            city: w9.city || '',
+            state: w9.state || '',
+            zip_code: w9.zip_code || '',
+            signature_name: w9.signature_name || '',
+            signature_date: w9.signature_date || '',
+          }
+        : prev.w9_data,
+    }));
+  };
 
   const loadProfileCompletionData = async (token) => {
     try {
@@ -235,6 +330,10 @@ const TransportationProviderProfile = () => {
         }
       });
 
+      if (rejectionToken) {
+        formDataToSubmit.append('rejection_token', rejectionToken);
+      }
+
       const response = completionToken
         ? await transportationProviderAPI.completeProfile(completionToken, formDataToSubmit)
         : await transportationProviderAPI.createProfile(formDataToSubmit);
@@ -242,7 +341,9 @@ const TransportationProviderProfile = () => {
       if (response.data.success) {
         const successMessage = completionToken
           ? 'Your transportation provider profile has been completed successfully! We will review your information and contact you soon.'
-          : 'Transportation provider application submitted successfully! We will review your profile and contact you soon.';
+          : isResubmission
+            ? 'Your updated application has been resubmitted successfully! We will review your changes and contact you soon.'
+            : 'Transportation provider application submitted successfully! We will review your profile and contact you soon.';
         setProfileResult({ success: true, message: successMessage, data: response.data.data });
         toast.success(successMessage);
       } else {
@@ -272,7 +373,8 @@ const TransportationProviderProfile = () => {
       isFirstStep: currentStep === 1,
       parametricData,
       isEditing: isEditingFromReview,
-      rejectedFields: [],
+      rejectedFields,
+      isResubmission,
       requireBusinessName: step.component === PersonalInfoStep,
     };
 
@@ -293,6 +395,18 @@ const TransportationProviderProfile = () => {
 
     return <StepComponent {...commonProps} />;
   };
+
+  const pageTitle = isResubmission
+    ? 'Update Your Transportation Provider Application'
+    : isProfileCompletion
+      ? 'Complete Your Transportation Provider Profile'
+      : 'Transportation Provider Application';
+
+  const pageSubtitle = isResubmission
+    ? 'Please review the note below and update the highlighted fields before resubmitting.'
+    : isProfileCompletion
+      ? 'We have your basic information on file. Please verify your details and upload required documents.'
+      : 'Join our network of non-emergency medical transportation providers.';
 
   if (isLoading) {
     return (
@@ -340,7 +454,7 @@ const TransportationProviderProfile = () => {
             <CheckCircleIcon className="w-10 h-10 text-green-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            {isProfileCompletion ? 'Profile Completed!' : 'Application Submitted!'}
+            {isResubmission ? 'Application Resubmitted!' : isProfileCompletion ? 'Profile Completed!' : 'Application Submitted!'}
           </h1>
           <p className="text-gray-600 mb-6">{profileResult.message}</p>
           <div className="bg-blue-50 rounded-lg p-4 mb-6">
@@ -364,17 +478,21 @@ const TransportationProviderProfile = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {isProfileCompletion
-              ? 'Complete Your Transportation Provider Profile'
-              : 'Transportation Provider Application'}
-          </h1>
-          <p className="text-gray-600">
-            {isProfileCompletion
-              ? 'We have your basic information on file. Please verify your details and upload required documents.'
-              : 'Join our network of non-emergency medical transportation providers.'}
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">{pageTitle}</h1>
+          <p className="text-gray-600">{pageSubtitle}</p>
         </div>
+
+        {isResubmission && rejectionNote && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-5">
+            <h2 className="text-lg font-semibold text-red-900 mb-2">Review Note from Our Team</h2>
+            <p className="text-red-800 whitespace-pre-wrap">{rejectionNote}</p>
+            {rejectedFields.length > 0 && (
+              <p className="text-sm text-red-700 mt-3">
+                Please update the highlighted fields: {rejectedFields.map((f) => f.replace(/_/g, ' ')).join(', ')}
+              </p>
+            )}
+          </div>
+        )}
 
         <ProgressBar
           steps={TRANSPORTATION_STEPS}

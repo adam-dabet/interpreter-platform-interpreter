@@ -8,6 +8,7 @@ import TransportationTermsContent from './TransportationTermsContent';
 import {
   TRANSPORTATION_SERVICE_TYPES,
   TRANSPORTATION_DOCUMENT_TYPES,
+  VENDOR_PORTAL_AGREEMENT_TITLE,
 } from '../../../utils/constants';
 
 const trim = (v) => (v != null && String(v).trim() !== '' ? String(v).trim() : '');
@@ -57,7 +58,7 @@ const TransportationReviewStep = ({
   const validateAgreements = () => {
     const newErrors = {};
     if (!agreements.terms_accepted) {
-      newErrors.terms_accepted = 'You must accept the transportation provider agreement';
+      newErrors.terms_accepted = `You must accept the ${VENDOR_PORTAL_AGREEMENT_TITLE}`;
     }
     if (!agreements.privacy_policy_accepted) {
       newErrors.privacy_policy_accepted = 'You must accept the privacy policy';
@@ -160,16 +161,34 @@ const TransportationReviewStep = ({
         </ReviewSection>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <div className="bg-gray-100 px-4 py-3 border-b">
-          <h3 className="font-semibold text-gray-900">Transportation Provider Agreement</h3>
-          <p className="text-sm text-gray-600">Scroll to the bottom to enable acceptance</p>
-        </div>
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">{VENDOR_PORTAL_AGREEMENT_TITLE}</h3>
+        <p className="text-sm text-gray-600 mb-3">
+          Please read the following agreement carefully. You must scroll to the bottom before you can accept.
+        </p>
+
         <div
           ref={termsScrollRef}
-          className="h-64 overflow-y-auto p-4 bg-white"
+          className="bg-white border border-gray-300 rounded-md p-4 max-h-96 overflow-y-auto text-sm text-gray-700"
+          style={{ scrollbarWidth: 'thin' }}
         >
           <TransportationTermsContent />
+
+          {!hasScrolledToBottom && (
+            <div className="mt-4 p-3 bg-yellow-100 border-l-4 border-yellow-400 rounded">
+              <p className="text-sm text-gray-700 font-medium">
+                Please scroll to the bottom to continue.
+              </p>
+            </div>
+          )}
+
+          {hasScrolledToBottom && (
+            <div className="mt-4 p-3 bg-green-100 border-l-4 border-green-400 rounded">
+              <p className="text-sm text-gray-700 font-medium">
+                ✓ You have reached the end of the agreement. You may now accept the agreement below.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -177,7 +196,7 @@ const TransportationReviewStep = ({
         checked={agreements.terms_accepted}
         onChange={(e) => setAgreements((prev) => ({ ...prev, terms_accepted: e.target.checked }))}
         disabled={!hasScrolledToBottom}
-        label="I have read and agree to the Transportation Provider Agreement"
+        label={`I have read and agree to the ${VENDOR_PORTAL_AGREEMENT_TITLE}`}
         error={errors.terms_accepted}
       />
 

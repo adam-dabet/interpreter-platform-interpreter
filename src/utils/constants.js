@@ -161,3 +161,6 @@ export const TRANSPORTATION_DOCUMENT_TYPES = [
     acceptedFormats: '.jpg,.jpeg,.png,.pdf',
   },
 ];
+
+export const VENDOR_PORTAL_AGREEMENT_TITLE =
+  'Vendor Portal Access and Use Agreement';

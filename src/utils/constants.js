@@ -148,10 +148,18 @@ export const TRANSPORTATION_PREFERRED_RATES = {
 export const TRANSPORTATION_DOCUMENT_TYPES = [
   {
     value: 'commercial_insurance',
-    label: 'Commercial Insurance',
-    description: 'Current commercial auto/liability insurance certificate',
+    label: 'Commercial Auto Insurance',
+    description: 'Current commercial auto insurance certificate of insurance (COI)',
     required: true,
     acceptedFormats: '.jpg,.jpeg,.png,.pdf',
+  },
+  {
+    value: 'general_liability_insurance',
+    label: 'General Liability Insurance',
+    description: 'Current general liability insurance certificate (COI)',
+    required: true,
+    acceptedFormats: '.jpg,.jpeg,.png,.pdf',
+    showCertificateHolderNotice: true,
   },
   {
     value: 'business_license',
@@ -161,6 +169,12 @@ export const TRANSPORTATION_DOCUMENT_TYPES = [
     acceptedFormats: '.jpg,.jpeg,.png,.pdf',
   },
 ];
+
+export const INTEGRITY_CERTIFICATE_HOLDER = {
+  name: 'The Integrity Company Ancillary Care Solutions Inc.',
+  addressLine1: '2424 Vista Way',
+  cityStateZip: 'Oceanside, CA 92054',
+};
 
 export const VENDOR_PORTAL_AGREEMENT_TITLE =
   'Vendor Portal Access and Use Agreement';

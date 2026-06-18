@@ -20,6 +20,7 @@ import TransportationServiceTypesStep from '../components/forms/transportation/T
 import TransportationDocumentsStep from '../components/forms/transportation/TransportationDocumentsStep';
 import TransportationReviewStep from '../components/forms/transportation/TransportationReviewStep';
 import { transportationProviderAPI, parametricAPI } from '../services/api';
+import { TRANSPORTATION_DOCUMENT_TYPES } from '../utils/constants';
 
 const TRANSPORTATION_STEPS = [
   { id: 1, title: 'Personal Information', description: 'Contact and business details', icon: UserIcon, component: PersonalInfoStep },
@@ -64,6 +65,7 @@ const TransportationProviderProfile = () => {
     service_types: [],
     transportation_rates: {},
     commercial_insurance_file: null,
+    general_liability_insurance_file: null,
     business_license_file: null,
     w9_entry_method: 'manual',
     w9_data: null,
@@ -209,20 +211,19 @@ const TransportationProviderProfile = () => {
       formDataToSubmit.append('w9_data', JSON.stringify(submissionData.w9_data));
       formDataToSubmit.append('registration_platform', 'web');
 
-      if (submissionData.commercial_insurance_file) {
-        formDataToSubmit.append('commercial_insurance', submissionData.commercial_insurance_file);
-      }
-      if (submissionData.business_license_file) {
-        formDataToSubmit.append('business_license', submissionData.business_license_file);
-      }
+      TRANSPORTATION_DOCUMENT_TYPES.forEach((doc) => {
+        const fileKey = `${doc.value}_file`;
+        if (submissionData[fileKey]) {
+          formDataToSubmit.append(doc.value, submissionData[fileKey]);
+        }
+      });
 
       const skipKeys = new Set([
         'service_types',
         'transportation_rates',
         'w9_data',
         'w9_entry_method',
-        'commercial_insurance_file',
-        'business_license_file',
+        ...TRANSPORTATION_DOCUMENT_TYPES.map((doc) => `${doc.value}_file`),
         'terms_accepted',
         'privacy_policy_accepted',
       ]);

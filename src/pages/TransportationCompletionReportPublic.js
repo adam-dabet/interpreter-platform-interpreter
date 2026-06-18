@@ -165,7 +165,7 @@ const TransportationCompletionReportPublic = () => {
     }
 
     if (!formData.actual_dropoff_time_hour || !formData.actual_dropoff_time_minute || !formData.actual_dropoff_time_period) {
-      alert('Please enter actual drop-off time');
+      alert('Please enter final drop-off time');
       return;
     }
 
@@ -397,10 +397,10 @@ const TransportationCompletionReportPublic = () => {
               <p className="text-xs text-gray-500 mt-1">The actual time the passenger was picked up</p>
             </div>
 
-            {/* Actual Drop-off Time */}
+            {/* Final Drop-off Time */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Actual Drop-off Time <span className="text-red-600">*</span>
+                Final Drop-off Time <span className="text-red-600">*</span>
               </label>
               <div className="grid grid-cols-3 gap-2">
                 <select
@@ -446,7 +446,7 @@ const TransportationCompletionReportPublic = () => {
                   ))}
                 </select>
               </div>
-              <p className="text-xs text-gray-500 mt-1">The actual time the passenger was dropped off</p>
+              <p className="text-xs text-gray-500 mt-1">The final time the passenger was dropped off</p>
             </div>
 
             {/* Wait Time */}

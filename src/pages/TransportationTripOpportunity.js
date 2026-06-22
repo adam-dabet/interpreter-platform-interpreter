@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeftIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { transportationProviderAPI } from '../services/api';
@@ -26,14 +26,19 @@ const formatDate = (dateStr) => {
 };
 
 const RATE_MODES = [
-  { id: 'preferred', label: 'Preferred platform rates' },
-  { id: 'profile', label: 'My profile rates' },
-  { id: 'custom', label: 'Custom itemized rates' },
-  { id: 'flat_total', label: 'Flat rate total' },
+  {
+    id: 'preferred',
+    label: 'Preferred platform rates',
+    hint: 'Submit at our standard rates and this trip is assigned to you immediately.',
+  },
+  { id: 'profile', label: 'My profile rates', hint: 'Admin review required before assignment.' },
+  { id: 'custom', label: 'Custom itemized rates', hint: 'Admin review required before assignment.' },
+  { id: 'flat_total', label: 'Flat rate total', hint: 'Admin review required before assignment.' },
 ];
 
 const TransportationTripOpportunity = () => {
   const { jobId } = useParams();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [detail, setDetail] = useState(null);
@@ -133,12 +138,23 @@ const TransportationTripOpportunity = () => {
   const handleSubmitQuote = async () => {
     try {
       setSubmitting(true);
-      await transportationProviderAPI.submitQuote(jobId, {
+      const response = await transportationProviderAPI.submitQuote(jobId, {
         rate_source: rateMode,
         ...rates,
         notes,
       });
-      toast.success('Quote submitted successfully');
+      const autoAssigned = response.data?.auto_assigned === true;
+
+      if (autoAssigned) {
+        toast.success(
+          response.message ||
+            'You have been automatically assigned to this trip at preferred platform rates.'
+        );
+        navigate('/dashboard');
+        return;
+      }
+
+      toast.success(response.message || 'Quote submitted successfully');
       await loadDetail();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to submit quote');
@@ -279,10 +295,40 @@ const TransportationTripOpportunity = () => {
                     : 'border-gray-200 hover:border-gray-300 text-gray-700'
                 }`}
               >
-                {mode.label}
+                <span className="block">{mode.label}</span>
+                {mode.hint && (
+                  <span className={`block text-xs font-normal mt-1 ${
+                    rateMode === mode.id ? 'text-teal-800' : 'text-gray-500'
+                  }`}>
+                    {mode.hint}
+                  </span>
+                )}
               </button>
             ))}
           </div>
+
+          {rateMode === 'preferred' && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-sm font-semibold text-green-900">Instant assignment</p>
+              <p className="text-sm text-green-800 mt-1">
+                When you submit at preferred platform rates, this trip is automatically assigned to you.
+                You do not need to wait for admin review. The trip will appear on your Dashboard, and
+                you will receive a confirmation email with trip details.
+              </p>
+              <p className="text-xs text-green-700 mt-2">
+                Ambulatory: ${TRANSPORTATION_PREFERRED_RATES.ambulatory.toFixed(2)}/mi ·
+                Wheelchair: ${TRANSPORTATION_PREFERRED_RATES.wheelchair.toFixed(2)}/mi
+              </p>
+            </div>
+          )}
+
+          {rateMode !== 'preferred' && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <p className="text-sm text-amber-900">
+                Custom, profile, and flat-rate quotes are reviewed by our team before a provider is assigned.
+              </p>
+            </div>
+          )}
 
           {isFlatMode ? (
             <Input
@@ -383,7 +429,11 @@ const TransportationTripOpportunity = () => {
 
           <div className="flex flex-wrap gap-3">
             <Button onClick={handleSubmitQuote} disabled={submitting}>
-              {isSubmitted ? 'Update Quote' : 'Submit Quote'}
+              {isSubmitted
+                ? 'Update Quote'
+                : rateMode === 'preferred'
+                  ? 'Accept Platform Rates & Get Assigned'
+                  : 'Submit Quote'}
             </Button>
             <Button variant="outline" onClick={() => setShowDecline(!showDecline)} disabled={submitting}>
               Not Available

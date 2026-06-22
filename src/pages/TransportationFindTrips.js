@@ -65,6 +65,7 @@ const TransportationFindTrips = () => {
         <h1 className="text-2xl font-bold text-gray-900">Find Trips</h1>
         <p className="text-gray-600 mt-1">
           Trips you have been notified about. Submit your availability and quote to be considered for assignment.
+          Accept preferred platform rates for ambulatory or wheelchair trips to be assigned immediately.
         </p>
       </div>
 

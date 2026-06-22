@@ -8,6 +8,8 @@ import {
   TRANSPORTATION_PREFERRED_RATES,
 } from '../../../utils/constants';
 
+const LOAD_FEE_SERVICE_TYPES = ['wheelchair', 'bls', 'als'];
+
 const TransportationServiceTypesStep = ({
   formData,
   onNext,
@@ -73,6 +75,7 @@ const TransportationServiceTypesStep = ({
       [serviceType]: {
         per_mile: String(TRANSPORTATION_PREFERRED_RATES[serviceType]),
         per_hour_wait: prev[serviceType]?.per_hour_wait || '',
+        load_fee: prev[serviceType]?.load_fee || '',
         rate_type: 'platform',
       },
     }));
@@ -115,7 +118,7 @@ const TransportationServiceTypesStep = ({
       if (Number.isNaN(perHourWait) || perHourWait < 0) {
         newErrors[`${type}_per_hour_wait`] = 'Per hour wait rate is required';
       }
-      if (type === 'bls' || type === 'als') {
+      if (LOAD_FEE_SERVICE_TYPES.includes(type)) {
         const loadFee = parseFloat(typeRates.load_fee);
         if (Number.isNaN(loadFee) || loadFee < 0) {
           newErrors[`${type}_load_fee`] = 'Load fee is required';
@@ -139,7 +142,7 @@ const TransportationServiceTypesStep = ({
       transportation_rates[type] = {
         per_mile: parseFloat(typeRates.per_mile),
         per_hour_wait: parseFloat(typeRates.per_hour_wait),
-        load_fee: type === 'wheelchair' || type === 'bls' || type === 'als'
+        load_fee: LOAD_FEE_SERVICE_TYPES.includes(type)
           ? parseFloat(typeRates.load_fee) || 0
           : 0,
         rate_type: typeRates.rate_type || (type === 'bls' || type === 'als' ? 'custom' : 'custom'),
@@ -226,6 +229,17 @@ const TransportationServiceTypesStep = ({
                     onChange={(e) => updateRateField(serviceType.value, 'per_hour_wait', e.target.value)}
                     error={errors[`${serviceType.value}_per_hour_wait`]}
                   />
+                  {serviceType.value === 'wheelchair' && (
+                    <Input
+                      label="Load Fee ($)"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={rates[serviceType.value]?.load_fee || ''}
+                      onChange={(e) => updateRateField(serviceType.value, 'load_fee', e.target.value)}
+                      error={errors[`${serviceType.value}_load_fee`]}
+                    />
+                  )}
                 </div>
               )}
 

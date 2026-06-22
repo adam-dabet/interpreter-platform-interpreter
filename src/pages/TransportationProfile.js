@@ -144,8 +144,8 @@ const TransportationProfile = () => {
 
       <p className="text-sm text-gray-500 text-center">
         To update your profile information, please contact{' '}
-        <a href="mailto:customerservice@theintegritycompanyinc.com" className="text-teal-600 underline">
-          customerservice@theintegritycompanyinc.com
+        <a href="mailto:providers@theintegritycompanyinc.com" className="text-teal-600 underline">
+          providers@theintegritycompanyinc.com
         </a>
         .
       </p>

@@ -27,6 +27,13 @@ export function shouldIncludeLoadFee(serviceType) {
   return LOAD_FEE_SERVICE_TYPES.includes((serviceType || '').toLowerCase());
 }
 
+export function getDeadMileCost(rates) {
+  const deadMiles = parseFloat(rates.dead_miles) || 0;
+  const ratePerMile = parseFloat(rates.rate_per_mile) || 0;
+  if (deadMiles <= 0 || ratePerMile <= 0) return 0;
+  return Math.ceil(deadMiles) * ratePerMile;
+}
+
 export function calculateProviderQuoteTotal(job, rates, options = {}) {
   const prorated = options.provider_wait_time_prorated === true;
   const serviceType = (job.transportation_service_type || '').toLowerCase();
@@ -48,6 +55,8 @@ export function calculateProviderQuoteTotal(job, rates, options = {}) {
   if (rates.rate_per_mile) {
     total += getProviderItemizedMileageCost(job, rates.rate_per_mile);
   }
+
+  total += getDeadMileCost(rates);
 
   if (shouldIncludeWaitCost(job) && rates.rate_per_hour_wait) {
     total += getProviderWaitCost(job.wait_time, rates.rate_per_hour_wait, prorated);

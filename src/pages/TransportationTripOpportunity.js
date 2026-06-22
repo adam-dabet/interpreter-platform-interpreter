@@ -45,6 +45,7 @@ const TransportationTripOpportunity = () => {
     toll_roads_fee: '',
     no_show_fee: '',
     flat_rate: '',
+    dead_miles: '',
   });
   const [notes, setNotes] = useState('');
   const [declineReason, setDeclineReason] = useState('');
@@ -94,6 +95,7 @@ const TransportationTripOpportunity = () => {
         toll_roads_fee: existingQuote.toll_roads_fee ?? '',
         no_show_fee: existingQuote.no_show_fee ?? '',
         flat_rate: existingQuote.flat_rate ?? '',
+        dead_miles: existingQuote.dead_miles ?? '',
       });
       setNotes(existingQuote.notes || '');
     }
@@ -301,6 +303,15 @@ const TransportationTripOpportunity = () => {
                 value={rates.rate_per_mile}
                 onChange={(e) => handleRateChange('rate_per_mile', e.target.value)}
                 disabled={isReadOnlyRates}
+              />
+              <Input
+                label="Dead Miles (optional)"
+                type="number"
+                step="0.1"
+                min="0"
+                value={rates.dead_miles}
+                onChange={(e) => handleRateChange('dead_miles', e.target.value)}
+                helper="Empty miles to reach pickup, billed at your per-mile rate"
               />
               {showWaitRate && (
                 <Input

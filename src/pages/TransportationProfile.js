@@ -82,15 +82,13 @@ const TransportationProfile = () => {
                 <p className="text-sm text-gray-700 mt-1">
                   Per mile: ${Number(rate.per_mile || 0).toFixed(2)}
                 </p>
-                {(type === 'bls' || type === 'als') && (
-                  <>
-                    <p className="text-sm text-gray-700">
-                      Per hour wait: ${Number(rate.per_hour_wait || 0).toFixed(2)}
-                    </p>
-                    <p className="text-sm text-gray-700">
-                      Load fee: ${Number(rate.load_fee || 0).toFixed(2)}
-                    </p>
-                  </>
+                <p className="text-sm text-gray-700">
+                  Per hour wait: ${Number(rate.per_hour_wait || 0).toFixed(2)}
+                </p>
+                {(type === 'wheelchair' || type === 'bls' || type === 'als') && (
+                  <p className="text-sm text-gray-700">
+                    Load fee: ${Number(rate.load_fee || 0).toFixed(2)}
+                  </p>
                 )}
               </div>
             ))}

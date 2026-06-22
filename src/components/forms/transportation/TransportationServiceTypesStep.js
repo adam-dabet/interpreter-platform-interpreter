@@ -53,19 +53,12 @@ const TransportationServiceTypesStep = ({
           return updated;
         }
         if (!updated[value]) {
-          if (value === 'ambulatory' || value === 'wheelchair') {
-            updated[value] = {
-              per_mile: '',
-              rate_type: '',
-            };
-          } else {
-            updated[value] = {
-              per_mile: '',
-              per_hour_wait: '',
-              load_fee: '',
-              rate_type: 'custom',
-            };
-          }
+          updated[value] = {
+            per_mile: '',
+            per_hour_wait: '',
+            load_fee: value === 'wheelchair' ? '' : '0',
+            rate_type: value === 'ambulatory' || value === 'wheelchair' ? '' : 'custom',
+          };
         }
         return updated;
       });
@@ -79,6 +72,7 @@ const TransportationServiceTypesStep = ({
       ...prev,
       [serviceType]: {
         per_mile: String(TRANSPORTATION_PREFERRED_RATES[serviceType]),
+        per_hour_wait: prev[serviceType]?.per_hour_wait || '',
         rate_type: 'platform',
       },
     }));
@@ -113,21 +107,16 @@ const TransportationServiceTypesStep = ({
 
     selectedTypes.forEach((type) => {
       const typeRates = rates[type] || {};
-      if (type === 'ambulatory' || type === 'wheelchair') {
-        const perMile = parseFloat(typeRates.per_mile);
-        if (Number.isNaN(perMile) || perMile <= 0) {
-          newErrors[`${type}_per_mile`] = 'Per mile rate is required';
-        }
-      } else {
-        const perMile = parseFloat(typeRates.per_mile);
-        const perHourWait = parseFloat(typeRates.per_hour_wait);
+      const perMile = parseFloat(typeRates.per_mile);
+      const perHourWait = parseFloat(typeRates.per_hour_wait);
+      if (Number.isNaN(perMile) || perMile <= 0) {
+        newErrors[`${type}_per_mile`] = 'Per mile rate is required';
+      }
+      if (Number.isNaN(perHourWait) || perHourWait < 0) {
+        newErrors[`${type}_per_hour_wait`] = 'Per hour wait rate is required';
+      }
+      if (type === 'bls' || type === 'als') {
         const loadFee = parseFloat(typeRates.load_fee);
-        if (Number.isNaN(perMile) || perMile <= 0) {
-          newErrors[`${type}_per_mile`] = 'Per mile rate is required';
-        }
-        if (Number.isNaN(perHourWait) || perHourWait < 0) {
-          newErrors[`${type}_per_hour_wait`] = 'Per hour wait rate is required';
-        }
         if (Number.isNaN(loadFee) || loadFee < 0) {
           newErrors[`${type}_load_fee`] = 'Load fee is required';
         }
@@ -147,21 +136,14 @@ const TransportationServiceTypesStep = ({
     const transportation_rates = {};
     selectedTypes.forEach((type) => {
       const typeRates = rates[type] || {};
-      if (type === 'ambulatory' || type === 'wheelchair') {
-        transportation_rates[type] = {
-          per_mile: parseFloat(typeRates.per_mile),
-          per_hour_wait: 0,
-          load_fee: 0,
-          rate_type: typeRates.rate_type || 'custom',
-        };
-      } else {
-        transportation_rates[type] = {
-          per_mile: parseFloat(typeRates.per_mile),
-          per_hour_wait: parseFloat(typeRates.per_hour_wait),
-          load_fee: parseFloat(typeRates.load_fee),
-          rate_type: 'custom',
-        };
-      }
+      transportation_rates[type] = {
+        per_mile: parseFloat(typeRates.per_mile),
+        per_hour_wait: parseFloat(typeRates.per_hour_wait),
+        load_fee: type === 'wheelchair' || type === 'bls' || type === 'als'
+          ? parseFloat(typeRates.load_fee) || 0
+          : 0,
+        rate_type: typeRates.rate_type || (type === 'bls' || type === 'als' ? 'custom' : 'custom'),
+      };
     });
 
     const payload = { service_types: selectedTypes, transportation_rates };
@@ -234,6 +216,15 @@ const TransportationServiceTypesStep = ({
                     value={rates[serviceType.value]?.per_mile || ''}
                     onChange={(e) => updateRateField(serviceType.value, 'per_mile', e.target.value)}
                     error={errors[`${serviceType.value}_per_mile`]}
+                  />
+                  <Input
+                    label="Per Hour Wait ($)"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={rates[serviceType.value]?.per_hour_wait || ''}
+                    onChange={(e) => updateRateField(serviceType.value, 'per_hour_wait', e.target.value)}
+                    error={errors[`${serviceType.value}_per_hour_wait`]}
                   />
                 </div>
               )}

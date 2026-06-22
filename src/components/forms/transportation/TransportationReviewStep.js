@@ -129,11 +129,9 @@ const TransportationReviewStep = ({
             <div key={type} className="mt-2 text-sm bg-gray-50 p-2 rounded">
               <p className="font-medium capitalize">{type}</p>
               <p>Per mile: ${Number(rates.per_mile).toFixed(2)}</p>
-              {(type === 'bls' || type === 'als') && (
-                <>
-                  <p>Per hour wait: ${Number(rates.per_hour_wait).toFixed(2)}</p>
-                  <p>Load fee: ${Number(rates.load_fee).toFixed(2)}</p>
-                </>
+              <p>Per hour wait: ${Number(rates.per_hour_wait || 0).toFixed(2)}</p>
+              {(type === 'wheelchair' || type === 'bls' || type === 'als') && (
+                <p>Load fee: ${Number(rates.load_fee || 0).toFixed(2)}</p>
               )}
             </div>
           ))}

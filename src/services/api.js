@@ -190,6 +190,18 @@ export const transportationProviderAPI = {
 
   getTrip: (jobId) =>
     api.get(`/transportation-providers/my-trips/${jobId}`).then((r) => r.data),
+
+  getAvailableTrips: () =>
+    api.get('/transportation-providers/available-trips').then((r) => r.data),
+
+  getAvailableTrip: (jobId) =>
+    api.get(`/transportation-providers/available-trips/${jobId}`).then((r) => r.data),
+
+  submitQuote: (jobId, payload) =>
+    api.post(`/transportation-providers/available-trips/${jobId}/quote`, payload).then((r) => r.data),
+
+  declineTrip: (jobId, payload) =>
+    api.post(`/transportation-providers/available-trips/${jobId}/decline`, payload).then((r) => r.data),
 };
 
 // Parametric Data API

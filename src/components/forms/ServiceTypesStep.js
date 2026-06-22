@@ -259,7 +259,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                 });
             
             case 'medical':
-                // Medical-Legal requires any court certification OR medical certification
+                // Medical Certified requires any court certification OR medical certification
                 return userCertificates.some(cert => {
                     const certCode = getCertificateTypeCode(cert.certificate_type_id);
                     return certCode && [

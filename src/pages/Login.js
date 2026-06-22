@@ -125,7 +125,7 @@ const Login = () => {
             transition={{ delay: 0.3 }}
             className="mt-6 text-3xl font-extrabold text-gray-900"
           >
-            Interpreter Login
+            Provider Login
           </motion.h2>
           
           <motion.p

@@ -60,6 +60,7 @@ const Sidebar = ({ isOpen, onClose }) => {
   const navigation = isTransport
     ? [
         { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+        { name: 'Find Trips', href: '/trips/find', icon: MagnifyingGlassIcon },
         { name: 'Profile', href: '/profile', icon: UserIcon },
       ]
     : [

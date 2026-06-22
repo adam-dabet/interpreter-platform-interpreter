@@ -75,12 +75,17 @@ const Home = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="flex flex-col sm:flex-row gap-4 justify-center"
+              className="flex flex-col sm:flex-row flex-wrap gap-4 justify-center"
             >
               <Link to="/apply">
                 <Button variant="inverse" size="lg">
-                  Apply Now
+                  Apply as Interpreter
                   <ArrowRightIcon className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+              <Link to="/apply-transportation">
+                <Button variant="outline-inverse" size="lg">
+                  Apply as Transportation Provider
                 </Button>
               </Link>
               <Link to="/status">
@@ -232,11 +237,17 @@ const Home = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
+            className="flex flex-col sm:flex-row flex-wrap gap-4 justify-center"
           >
             <Link to="/apply">
               <Button variant="inverse" size="lg">
-                Apply Now
+                Apply as Interpreter
                 <ArrowRightIcon className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+            <Link to="/apply-transportation">
+              <Button variant="outline-inverse" size="lg">
+                Apply as Transportation Provider
               </Button>
             </Link>
           </motion.div>

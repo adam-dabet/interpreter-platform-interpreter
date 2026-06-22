@@ -67,6 +67,7 @@ const MobileBottomNav = () => {
   const navItems = isTransport
     ? [
         { name: 'Home', path: '/dashboard', icon: HomeIcon, iconSolid: HomeIconSolid },
+        { name: 'Find', path: '/trips/find', icon: MagnifyingGlassIcon, iconSolid: MagnifyingGlassIconSolid },
         { name: 'Profile', path: '/profile', icon: UserIcon, iconSolid: UserIconSolid },
       ]
     : [
@@ -84,7 +85,7 @@ const MobileBottomNav = () => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 lg:hidden z-50">
-      <div className="grid grid-cols-6 h-16">
+      <div className={`grid h-16 ${navItems.length <= 3 ? 'grid-cols-3' : 'grid-cols-6'}`}>
         {navItems.map((item) => {
           const active = isActive(item.path);
           const Icon = active ? item.iconSolid : item.icon;

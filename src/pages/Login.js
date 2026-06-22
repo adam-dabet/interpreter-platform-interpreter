@@ -256,8 +256,14 @@ const Login = () => {
             >
               Apply to Become an Interpreter
             </Link>
+            <Link
+              to="/apply-transportation"
+              className="inline-block w-full mt-3 py-3 px-4 bg-white text-blue-700 font-semibold rounded-lg border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all duration-200"
+            >
+              Apply as Transportation Provider
+            </Link>
             <p className="mt-3 text-xs text-gray-500">
-              Join our network of professional interpreters
+              Join our network of professional interpreters or transportation providers
             </p>
           </div>
         </motion.div>

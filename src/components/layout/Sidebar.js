@@ -94,32 +94,37 @@ const Sidebar = ({ isOpen, onClose }) => {
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 lg:h-screen
+        fixed inset-y-0 left-0 z-50 w-64 flex-shrink-0 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 lg:h-screen overflow-hidden
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full min-w-0">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center space-x-3">
-              <div className="flex-shrink-0">
-                <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
-                  {(profile?.business_name?.[0] || profile?.first_name?.[0] || user?.first_name?.[0] || 'P').toUpperCase()}
-                </div>
+          <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-200 min-w-0">
+            <div className="flex-shrink-0">
+              <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
+                {(profile?.business_name?.[0] || profile?.first_name?.[0] || user?.first_name?.[0] || 'P').toUpperCase()}
               </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-sm font-semibold text-gray-900 truncate">
-                  {isTransport
-                    ? (profile?.business_name || `${profile?.first_name || ''} ${profile?.last_name?.[0] || ''}.`.trim())
-                    : `${profile?.first_name || user?.first_name || 'Interpreter'} ${profile?.last_name?.[0] || user?.last_name?.[0] || ''}.`}
-                </h2>
-                <p className="text-xs text-gray-500 truncate">
-                  {isTransport ? 'Transportation Portal' : 'Interpreter Portal'}
-                </p>
-              </div>
+            </div>
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <h2
+                className="text-sm font-semibold text-gray-900 truncate"
+                title={
+                  isTransport
+                    ? (profile?.business_name || `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim())
+                    : `${profile?.first_name || user?.first_name || 'Interpreter'} ${profile?.last_name || user?.last_name || ''}`.trim()
+                }
+              >
+                {isTransport
+                  ? (profile?.business_name || `${profile?.first_name || ''} ${profile?.last_name?.[0] || ''}.`.trim())
+                  : `${profile?.first_name || user?.first_name || 'Interpreter'} ${profile?.last_name?.[0] || user?.last_name?.[0] || ''}.`}
+              </h2>
+              <p className="text-xs text-gray-500 truncate">
+                {isTransport ? 'Transportation Portal' : 'Interpreter Portal'}
+              </p>
             </div>
             <button
               onClick={onClose}
-              className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              className="lg:hidden flex-shrink-0 p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

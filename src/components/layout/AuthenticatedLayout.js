@@ -72,7 +72,7 @@ const AuthenticatedLayout = ({ children }) => {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main content */}
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <main className="bg-gray-50 pb-20 lg:pb-0">
           {children}
         </main>

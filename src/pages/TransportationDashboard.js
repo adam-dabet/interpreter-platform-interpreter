@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { TruckIcon, DocumentTextIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { transportationProviderAPI } from '../services/api';
@@ -27,6 +27,7 @@ const formatTime = (timeStr) => {
 };
 
 const TransportationDashboard = () => {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const [trips, setTrips] = useState([]);
   const [filter, setFilter] = useState('upcoming');
@@ -128,7 +129,19 @@ const TransportationDashboard = () => {
       ) : (
         <div className="space-y-4">
           {trips.map((trip) => (
-            <div key={trip.id} className="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow">
+            <div
+              key={trip.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(`/transportation/trips/${trip.id}`)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigate(`/transportation/trips/${trip.id}`);
+                }
+              }}
+              className="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow cursor-pointer"
+            >
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-2">
@@ -166,10 +179,14 @@ const TransportationDashboard = () => {
                       Est. ${Number(getProviderApprovedTotal(trip)).toFixed(2)}
                     </p>
                   )}
-                  <div className="flex gap-2">
-                    <Link to={`/transportation/trips/${trip.id}`}>
-                      <Button variant="outline" size="sm">View Details</Button>
-                    </Link>
+                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/transportation/trips/${trip.id}`)}
+                    >
+                      View Details
+                    </Button>
                     {trip.completion_report_path && !trip.completion_report_submitted && (
                       <a href={trip.completion_report_path}>
                         <Button size="sm">Submit Report</Button>

@@ -4,6 +4,7 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import TransportationTripLegs from '../components/transportation/TransportationTripLegs';
 import { transportationProviderAPI } from '../services/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import SlideToAction from '../components/ui/SlideToAction';
 import Button from '../components/ui/Button';
 import { useTripLocationTracking } from '../hooks/useTripLocationTracking';
 import {
@@ -183,23 +184,33 @@ const TransportationTripDetails = () => {
                 </div>
               ) : (
                 <p className="text-sm text-gray-600">
-                  Start your trip when you are en route so admin can see your live location.
+                  Slide to start your trip when you are en route so admin can see your live location.
                 </p>
               )}
               {trackingError && (
                 <p className="text-sm text-red-600">{trackingError}</p>
               )}
-              <div className="flex flex-wrap gap-3">
-                {!trackingActive ? (
-                  <Button onClick={startTracking} disabled={starting}>
-                    {starting ? 'Starting…' : 'Start Trip'}
-                  </Button>
-                ) : (
-                  <Button variant="outline" onClick={stopTracking} disabled={stopping}>
-                    {stopping ? 'Stopping…' : 'End Trip'}
-                  </Button>
-                )}
-              </div>
+              {(starting || stopping) && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <LoadingSpinner size="sm" />
+                  <span>Updating trip status…</span>
+                </div>
+              )}
+              {!trackingActive ? (
+                <SlideToAction
+                  label="Slide to Start Trip"
+                  onComplete={startTracking}
+                  disabled={starting || stopping}
+                  variant="success"
+                />
+              ) : (
+                <SlideToAction
+                  label="Slide to End Trip"
+                  onComplete={stopTracking}
+                  disabled={starting || stopping}
+                  variant="neutral"
+                />
+              )}
             </section>
           )}
 

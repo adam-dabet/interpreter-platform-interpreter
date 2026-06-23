@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { MagnifyingGlassIcon, TruckIcon } from '@heroicons/react/24/outline';
 import { transportationProviderAPI } from '../services/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -39,6 +39,7 @@ const responseLabel = (status) => {
 };
 
 const TransportationFindTrips = () => {
+  const navigate = useNavigate();
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -84,7 +85,19 @@ const TransportationFindTrips = () => {
       ) : (
         <div className="space-y-4">
           {trips.map((trip) => (
-            <div key={trip.id} className="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow">
+            <div
+              key={trip.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(`/trips/find/${trip.id}`)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigate(`/trips/find/${trip.id}`);
+                }
+              }}
+              className="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow cursor-pointer"
+            >
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-2">
@@ -115,12 +128,13 @@ const TransportationFindTrips = () => {
                     </p>
                   )}
                 </div>
-                <div className="flex gap-2">
-                  <Link to={`/trips/find/${trip.id}`}>
-                    <Button size="sm">
-                      {trip.response_status === 'quoted' ? 'View Quote' : 'View & Quote'}
-                    </Button>
-                  </Link>
+                <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    size="sm"
+                    onClick={() => navigate(`/trips/find/${trip.id}`)}
+                  >
+                    {trip.response_status === 'quoted' ? 'View Quote' : 'View & Quote'}
+                  </Button>
                 </div>
               </div>
             </div>

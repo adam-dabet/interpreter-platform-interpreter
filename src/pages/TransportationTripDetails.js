@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeftIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import TransportationTripLegs from '../components/transportation/TransportationTripLegs';
 import { transportationProviderAPI } from '../services/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
@@ -132,26 +133,12 @@ const TransportationTripDetails = () => {
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
               Locations
             </h2>
-            <div className="space-y-3">
-              {trip.pickup_location && (
-                <div className="flex gap-3">
-                  <MapPinIcon className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">Pick-up</p>
-                    <p className="text-gray-900">{trip.pickup_location}</p>
-                  </div>
-                </div>
-              )}
-              {trip.dropoff_location && (
-                <div className="flex gap-3">
-                  <MapPinIcon className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">Drop-off</p>
-                    <p className="text-gray-900">{trip.dropoff_location}</p>
-                  </div>
-                </div>
-              )}
-            </div>
+            <TransportationTripLegs
+              locations={trip.locations}
+              tripType={trip.trip_type}
+              pickupLocation={trip.pickup_location}
+              dropoffLocation={trip.dropoff_location}
+            />
           </section>
 
           {rateRows.length > 0 && (

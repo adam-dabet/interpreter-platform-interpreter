@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeftIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import TransportationTripLegs from '../components/transportation/TransportationTripLegs';
 import toast from 'react-hot-toast';
 import { transportationProviderAPI } from '../services/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -240,26 +241,12 @@ const TransportationTripOpportunity = () => {
 
           <section>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Locations</h2>
-            <div className="space-y-3">
-              {job.pickup_location && (
-                <div className="flex gap-3">
-                  <MapPinIcon className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">Pick-up</p>
-                    <p className="text-gray-900">{job.pickup_location}</p>
-                  </div>
-                </div>
-              )}
-              {job.dropoff_location && (
-                <div className="flex gap-3">
-                  <MapPinIcon className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">Drop-off</p>
-                    <p className="text-gray-900">{job.dropoff_location}</p>
-                  </div>
-                </div>
-              )}
-            </div>
+            <TransportationTripLegs
+              locations={job.locations}
+              tripType={job.trip_type}
+              pickupLocation={job.pickup_location}
+              dropoffLocation={job.dropoff_location}
+            />
           </section>
 
           {job.calculated_mileage != null && (

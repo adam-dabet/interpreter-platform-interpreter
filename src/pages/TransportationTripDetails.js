@@ -4,6 +4,7 @@ import { ArrowLeftIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { transportationProviderAPI } from '../services/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
+import { useTripLocationTracking } from '../hooks/useTripLocationTracking';
 import {
   formatTransportationServiceType,
   formatTripStatus,
@@ -12,6 +13,8 @@ import {
   getProviderApprovedRateRows,
   getProviderApprovedTotal,
 } from '../utils/transportationRateUtils';
+
+const TERMINAL_STATUSES = ['completed', 'cancelled', 'no_show', 'billed', 'paid_driver'];
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'TBD';
@@ -28,6 +31,17 @@ const TransportationTripDetails = () => {
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const canTrackTrip = trip && !TERMINAL_STATUSES.includes(trip.status);
+  const {
+    trackingActive,
+    lastLocationAt,
+    trackingError,
+    starting,
+    stopping,
+    startTracking,
+    stopTracking,
+  } = useTripLocationTracking(tripId, { enabled: canTrackTrip });
 
   useEffect(() => {
     loadTrip();
@@ -163,6 +177,42 @@ const TransportationTripDetails = () => {
                   Estimated total: ${Number(approvedTotal).toFixed(2)}
                 </p>
               )}
+            </section>
+          )}
+
+          {canTrackTrip && (
+            <section className="border border-gray-200 rounded-lg p-4 space-y-3">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+                Live Location Sharing
+              </h2>
+              {trackingActive ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-900">
+                  Sharing your location with our team.
+                  {lastLocationAt && (
+                    <p className="text-green-800 mt-1 text-xs">
+                      Last update: {new Date(lastLocationAt).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  Start your trip when you are en route so admin can see your live location.
+                </p>
+              )}
+              {trackingError && (
+                <p className="text-sm text-red-600">{trackingError}</p>
+              )}
+              <div className="flex flex-wrap gap-3">
+                {!trackingActive ? (
+                  <Button onClick={startTracking} disabled={starting}>
+                    {starting ? 'Starting…' : 'Start Trip'}
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={stopTracking} disabled={stopping}>
+                    {stopping ? 'Stopping…' : 'End Trip'}
+                  </Button>
+                )}
+              </div>
             </section>
           )}
 

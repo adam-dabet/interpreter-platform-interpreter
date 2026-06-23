@@ -203,6 +203,18 @@ export const transportationProviderAPI = {
 
   declineTrip: (jobId, payload) =>
     api.post(`/transportation-providers/available-trips/${jobId}/decline`, payload).then((r) => r.data),
+
+  startTracking: (jobId) =>
+    api.post(`/transportation-providers/my-trips/${jobId}/tracking/start`).then((r) => r.data),
+
+  stopTracking: (jobId) =>
+    api.post(`/transportation-providers/my-trips/${jobId}/tracking/stop`).then((r) => r.data),
+
+  sendTrackingPing: (jobId, payload) =>
+    api.post(`/transportation-providers/my-trips/${jobId}/tracking/ping`, payload).then((r) => r.data),
+
+  getTrackingStatus: (jobId) =>
+    api.get(`/transportation-providers/my-trips/${jobId}/tracking/status`).then((r) => r.data),
 };
 
 // Parametric Data API

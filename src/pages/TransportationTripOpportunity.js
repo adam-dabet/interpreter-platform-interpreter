@@ -79,9 +79,15 @@ const TransportationTripOpportunity = () => {
   }, [jobId]);
 
   useEffect(() => {
-    if (!job || !rateMode) return;
-    if (existingQuote?.is_available) return;
-    if (rateMode === 'flat_total') return;
+    if (!job || !rateMode || existingQuote?.is_available) return;
+    if (rateMode === 'flat_total') {
+      const built = buildRatesFromSource('profile', serviceType, profileRates, TRANSPORTATION_PREFERRED_RATES);
+      setRates((prev) => ({
+        ...prev,
+        rate_per_hour_wait: prev.rate_per_hour_wait || built.rate_per_hour_wait || '',
+      }));
+      return;
+    }
     const built = buildRatesFromSource(rateMode, serviceType, profileRates, TRANSPORTATION_PREFERRED_RATES);
     setRates((prev) => ({
       ...prev,
@@ -331,14 +337,26 @@ const TransportationTripOpportunity = () => {
           )}
 
           {isFlatMode ? (
-            <Input
-              label="Flat Rate Total ($)"
-              type="number"
-              step="0.01"
-              min="0"
-              value={rates.flat_rate}
-              onChange={(e) => handleRateChange('flat_rate', e.target.value)}
-            />
+            <div className="space-y-4">
+              <Input
+                label="Flat Rate Total ($)"
+                type="number"
+                step="0.01"
+                min="0"
+                value={rates.flat_rate}
+                onChange={(e) => handleRateChange('flat_rate', e.target.value)}
+              />
+              {showWaitRate && (
+                <Input
+                  label="Per Hour Wait ($)"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={rates.rate_per_hour_wait}
+                  onChange={(e) => handleRateChange('rate_per_hour_wait', e.target.value)}
+                />
+              )}
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input

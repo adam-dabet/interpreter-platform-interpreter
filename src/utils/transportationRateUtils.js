@@ -108,3 +108,25 @@ export function buildRatesFromSource(source, serviceType, profileRates, preferre
     flat_rate: '',
   };
 }
+
+export function getProviderApprovedTotal(trip) {
+  const flatRate = parseFloat(trip?.provider_flat_rate);
+  if (flatRate > 0) return flatRate;
+  if (trip?.calculated_rate != null && trip.calculated_rate !== '') {
+    return Number(trip.calculated_rate);
+  }
+  return null;
+}
+
+export function getProviderApprovedRateRows(trip) {
+  const flatRate = parseFloat(trip?.provider_flat_rate);
+  if (flatRate > 0) {
+    return [{ label: 'Flat rate', value: flatRate }];
+  }
+
+  return [
+    { label: 'Per mile', value: trip.provider_rate_per_mile },
+    { label: 'Per hour wait', value: trip.provider_rate_per_hour_wait },
+    { label: 'Load fee', value: trip.provider_load_fee },
+  ].filter((row) => row.value != null && row.value !== '');
+}

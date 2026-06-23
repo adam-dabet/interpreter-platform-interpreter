@@ -8,6 +8,10 @@ import {
   formatTransportationServiceType,
   formatTripStatus,
 } from '../utils/providerUtils';
+import {
+  getProviderApprovedRateRows,
+  getProviderApprovedTotal,
+} from '../utils/transportationRateUtils';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'TBD';
@@ -61,11 +65,9 @@ const TransportationTripDetails = () => {
     );
   }
 
-  const rateRows = [
-    { label: 'Per mile', value: trip.provider_rate_per_mile },
-    { label: 'Per hour wait', value: trip.provider_rate_per_hour_wait },
-    { label: 'Load fee', value: trip.provider_load_fee },
-  ].filter((r) => r.value != null && r.value !== '');
+  const rateRows = getProviderApprovedRateRows(trip);
+  const approvedTotal = getProviderApprovedTotal(trip);
+  const showMileage = !trip.provider_flat_rate && trip.calculated_mileage != null;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -151,14 +153,14 @@ const TransportationTripDetails = () => {
                   </div>
                 ))}
               </div>
-              {trip.calculated_mileage != null && (
+              {showMileage && (
                 <p className="text-sm text-gray-600 mt-3">
                   Estimated miles: {Number(trip.calculated_mileage).toFixed(1)}
                 </p>
               )}
-              {trip.calculated_rate != null && (
+              {approvedTotal != null && (
                 <p className="text-sm font-medium text-gray-900 mt-1">
-                  Estimated total: ${Number(trip.calculated_rate).toFixed(2)}
+                  Estimated total: ${Number(approvedTotal).toFixed(2)}
                 </p>
               )}
             </section>

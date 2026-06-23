@@ -9,6 +9,7 @@ import {
   formatTransportationServiceType,
   formatTripStatus,
 } from '../utils/providerUtils';
+import { getProviderApprovedTotal } from '../utils/transportationRateUtils';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'TBD';
@@ -160,9 +161,9 @@ const TransportationDashboard = () => {
                   )}
                 </div>
                 <div className="flex flex-col sm:items-end gap-2">
-                  {trip.calculated_rate != null && (
+                  {getProviderApprovedTotal(trip) != null && (
                     <p className="text-sm font-medium text-gray-900">
-                      Est. ${Number(trip.calculated_rate).toFixed(2)}
+                      Est. ${Number(getProviderApprovedTotal(trip)).toFixed(2)}
                     </p>
                   )}
                   <div className="flex gap-2">

@@ -2,45 +2,47 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { transportationProviderAPI } from '../services/api';
 
 const PING_INTERVAL_MS = 30 * 1000;
+const MIN_API_PING_MS = 25 * 1000;
 const ACTIVE_TRIP_KEY = 'activeTrackingTripId';
 
 let globalJobId = null;
-let watchIdRef = null;
 let pingIntervalRef = null;
-let lastSentRef = { lat: null, lng: null, at: 0 };
+let lastApiPingAt = 0;
+
+function isRateLimitError(error) {
+  const message = error?.message || '';
+  return message.toLowerCase().includes('too many requests') || error?.response?.status === 429;
+}
 
 function clearGlobalWatchers() {
-  if (watchIdRef != null && navigator.geolocation) {
-    navigator.geolocation.clearWatch(watchIdRef);
-    watchIdRef = null;
-  }
   if (pingIntervalRef) {
     clearInterval(pingIntervalRef);
     pingIntervalRef = null;
   }
 }
 
-async function sendPing(jobId, position, { force = false } = {}) {
-  if (!jobId || !position?.coords) return;
-  const { latitude, longitude, accuracy, heading, speed } = position.coords;
+async function sendPing(jobId, position) {
+  if (!jobId || !position?.coords) return false;
   const now = Date.now();
-  const last = lastSentRef;
-  const movedEnough =
-    last.lat == null ||
-    Math.abs(last.lat - latitude) > 0.0001 ||
-    Math.abs(last.lng - longitude) > 0.0001;
-  if (!force && !movedEnough && now - last.at < PING_INTERVAL_MS) {
-    return;
-  }
+  if (now - lastApiPingAt < MIN_API_PING_MS) return false;
 
-  await transportationProviderAPI.sendTrackingPing(jobId, {
-    latitude,
-    longitude,
-    accuracy,
-    heading,
-    speed,
-  });
-  lastSentRef = { lat: latitude, lng: longitude, at: now };
+  const { latitude, longitude, accuracy, heading, speed } = position.coords;
+  try {
+    await transportationProviderAPI.sendTrackingPing(jobId, {
+      latitude,
+      longitude,
+      accuracy,
+      heading,
+      speed,
+    });
+    lastApiPingAt = now;
+    return true;
+  } catch (err) {
+    if (isRateLimitError(err)) {
+      return false;
+    }
+    throw err;
+  }
 }
 
 function startGlobalWatchers(jobId, onError) {
@@ -49,37 +51,32 @@ function startGlobalWatchers(jobId, onError) {
     return;
   }
 
-  if (globalJobId === jobId && watchIdRef != null) {
+  if (globalJobId === jobId && pingIntervalRef != null) {
     return;
   }
 
   clearGlobalWatchers();
   globalJobId = jobId;
-  lastSentRef = { lat: null, lng: null, at: 0 };
+  lastApiPingAt = 0;
 
-  watchIdRef = navigator.geolocation.watchPosition(
-    (position) => {
-      sendPing(jobId, position).catch((err) => {
-        onError?.(err.response?.data?.message || err.message || 'Failed to send location');
-      });
-    },
-    (err) => {
-      onError?.(err.message || 'Unable to access location');
-    },
-    { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }
-  );
-
-  pingIntervalRef = setInterval(() => {
+  const tick = () => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        sendPing(jobId, position, { force: true }).catch((err) => {
-          onError?.(err.response?.data?.message || err.message || 'Failed to send location');
+        sendPing(jobId, position).catch((err) => {
+          if (!isRateLimitError(err)) {
+            onError?.(err.response?.data?.message || err.message || 'Failed to send location');
+          }
         });
       },
-      () => {},
+      (err) => {
+        onError?.(err.message || 'Unable to access location');
+      },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
-  }, PING_INTERVAL_MS);
+  };
+
+  tick();
+  pingIntervalRef = setInterval(tick, PING_INTERVAL_MS);
 }
 
 export function useTripLocationTracking(jobId, { enabled = true } = {}) {
@@ -103,16 +100,9 @@ export function useTripLocationTracking(jobId, { enabled = true } = {}) {
       setTrackingActive(active);
       setLastLocationAt(data.lastLocation?.recordedAt || null);
       if (active) {
-        const storedTripId = localStorage.getItem(ACTIVE_TRIP_KEY);
-        if (!storedTripId) {
-          localStorage.setItem(ACTIVE_TRIP_KEY, jobId);
-        }
+        localStorage.setItem(ACTIVE_TRIP_KEY, jobId);
         startGlobalWatchers(jobId, (message) => onErrorRef.current(message));
-        navigator.geolocation?.getCurrentPosition(
-          (position) => sendPing(jobId, position, { force: true }).catch(() => {}),
-          () => {},
-          { enableHighAccuracy: true, timeout: 15000 }
-        );
+        setTrackingError(null);
       } else if (globalJobId === jobId) {
         clearGlobalWatchers();
         globalJobId = null;
@@ -148,11 +138,6 @@ export function useTripLocationTracking(jobId, { enabled = true } = {}) {
       localStorage.setItem(ACTIVE_TRIP_KEY, jobId);
       setTrackingActive(true);
       startGlobalWatchers(jobId, (message) => onErrorRef.current(message));
-      navigator.geolocation.getCurrentPosition(
-        (position) => sendPing(jobId, position, { force: true }).catch(() => {}),
-        () => {},
-        { enableHighAccuracy: true, timeout: 15000 }
-      );
     } catch (err) {
       setTrackingError(err.response?.data?.message || err.message || 'Failed to start tracking');
     } finally {

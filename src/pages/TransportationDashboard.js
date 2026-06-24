@@ -163,6 +163,12 @@ const TransportationDashboard = () => {
                         Report needed
                       </span>
                     )}
+                    {!trip.provider_confirmed &&
+                      !['completed', 'cancelled', 'no_show', 'billed', 'paid_driver'].includes(trip.status) && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800 font-medium">
+                        Confirm needed
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-gray-700">
                     <strong>Patient:</strong> {trip.claimant_display_name}

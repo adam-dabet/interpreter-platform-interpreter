@@ -216,6 +216,9 @@ export const transportationProviderAPI = {
   getTrackingStatus: (jobId) =>
     api.get(`/transportation-providers/my-trips/${jobId}/tracking/status`).then((r) => r.data),
 
+  confirmTrip: (jobId) =>
+    api.post(`/transportation-providers/my-trips/${jobId}/confirm`).then((r) => r.data),
+
   completeTrip: (jobId) =>
     api.post(`/transportation-providers/my-trips/${jobId}/complete`).then((r) => r.data),
 

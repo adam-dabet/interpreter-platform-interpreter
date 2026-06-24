@@ -158,7 +158,7 @@ const TransportationTripOpportunity = () => {
           response.message ||
             'You have been automatically assigned to this trip at preferred platform rates.'
         );
-        navigate('/dashboard');
+        navigate(`/transportation/trips/${jobId}`);
         return;
       }
 

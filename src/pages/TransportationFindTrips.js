@@ -5,6 +5,7 @@ import { transportationProviderAPI } from '../services/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
 import { formatTransportationServiceType } from '../utils/providerUtils';
+import { formatTime } from '../utils/dateUtils';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'TBD';
@@ -112,7 +113,7 @@ const TransportationFindTrips = () => {
                   <p className="text-sm text-gray-700">
                     {formatDate(trip.scheduled_date)}
                     {(trip.pickup_time || trip.scheduled_time) &&
-                      ` · Pickup ${trip.pickup_time || trip.scheduled_time}`}
+                      ` · Pickup ${formatTime(trip.pickup_time || trip.scheduled_time)}`}
                   </p>
                   {trip.pickup_city && (
                     <p className="text-sm text-gray-500 mt-1">Pickup: {trip.pickup_city}</p>

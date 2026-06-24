@@ -113,16 +113,10 @@ const TransportationCompletionReportPublic = () => {
 
   const getTimeString = (hour, minute, period) => {
     if (!hour || !minute || !period) return null;
-    const h = parseInt(hour.value);
-    const m = parseInt(minute.value);
+    const h = parseInt(hour.value, 10);
+    const m = String(parseInt(minute.value, 10)).padStart(2, '0');
     const p = period.value;
-    
-    // Convert to 24-hour format
-    let hour24 = h;
-    if (p === "AM" && h === 12) hour24 = 0;
-    else if (p === "PM" && h !== 12) hour24 = h + 12;
-    
-    return `${String(hour24).padStart(2, "0")}:${String(m).padStart(2, "0")} ${p}`;
+    return `${h}:${m} ${p}`;
   };
 
   const handleSubmit = async (e) => {

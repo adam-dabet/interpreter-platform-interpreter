@@ -15,6 +15,7 @@ import {
   buildRatesFromSource,
 } from '../utils/transportationRateUtils';
 import { formatTransportationServiceType } from '../utils/providerUtils';
+import { formatTime } from '../utils/dateUtils';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'TBD';
@@ -232,7 +233,7 @@ const TransportationTripOpportunity = () => {
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Schedule</h2>
             <p className="text-gray-900">{formatDate(job.scheduled_date)}</p>
             {(job.pickup_time || job.scheduled_time) && (
-              <p className="text-gray-700 mt-1">Pickup: {job.pickup_time || job.scheduled_time}</p>
+              <p className="text-gray-700 mt-1">Pickup: {formatTime(job.pickup_time || job.scheduled_time)}</p>
             )}
             {job.appointment_type && (
               <p className="text-gray-600 text-sm mt-1">{job.appointment_type}</p>

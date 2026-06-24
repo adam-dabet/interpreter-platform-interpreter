@@ -73,20 +73,55 @@ export const formatDateShort = (dateString) => {
 };
 
 /**
- * Format a time string for display
+ * Format a time string for 12-hour display (e.g. "2:30 PM").
+ * Accepts 24-hour ("14:30", "14:30:00"), 12-hour ("2:30 PM"),
+ * and malformed values like "20:18 PM" from legacy submissions.
  */
 export const formatTime = (timeString) => {
   if (!timeString) return 'N/A';
-  
-  // Handle both HH:MM and HH:MM:SS formats
-  const timeParts = timeString.split(':');
-  const hours = parseInt(timeParts[0], 10);
-  const minutes = timeParts[1];
-  
-  const period = hours >= 12 ? 'PM' : 'AM';
-  const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-  
-  return `${displayHour}:${minutes} ${period}`;
+
+  const str = String(timeString).trim();
+
+  const amPmMatch = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+  if (amPmMatch) {
+    let hour = parseInt(amPmMatch[1], 10);
+    const minute = amPmMatch[2];
+    const period = amPmMatch[3].toUpperCase();
+    if (hour > 12) {
+      hour = hour % 12 || 12;
+    }
+    if (hour === 0) hour = 12;
+    return `${hour}:${minute} ${period}`;
+  }
+
+  const parts = str.split(':');
+  if (parts.length >= 2) {
+    const hours = parseInt(parts[0], 10);
+    const minutePart = parts[1].replace(/\D/g, '');
+    const minutes = minutePart.padStart(2, '0').slice(0, 2);
+    if (!Number.isNaN(hours)) {
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+      return `${displayHour}:${minutes} ${period}`;
+    }
+  }
+
+  return str;
+};
+
+/** Format a date+time for display in 12-hour locale (e.g. "Jun 23, 2026, 3:12 PM"). */
+export const formatDateTime = (dateInput) => {
+  if (!dateInput) return '';
+  const d = new Date(dateInput);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
 };
 
 /**

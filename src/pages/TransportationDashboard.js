@@ -13,6 +13,7 @@ import {
   getTransportationEarningsLabel,
   isTransportationTripPaid,
 } from '../utils/transportationRateUtils';
+import { formatTime } from '../utils/dateUtils';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'TBD';
@@ -22,11 +23,6 @@ const formatDate = (dateStr) => {
     day: 'numeric',
     year: 'numeric',
   });
-};
-
-const formatTime = (timeStr) => {
-  if (!timeStr) return '';
-  return timeStr;
 };
 
 const TransportationDashboard = () => {

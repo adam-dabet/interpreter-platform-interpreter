@@ -13,6 +13,10 @@ import {
   getTransportationEarningsLabel,
   isTransportationTripPaid,
 } from '../utils/transportationRateUtils';
+import {
+  getTransportationTripAction,
+  sortTripsByActionPriority,
+} from '../utils/transportationTripActions';
 import { formatTime } from '../utils/dateUtils';
 
 const formatDate = (dateStr) => {
@@ -40,7 +44,8 @@ const TransportationDashboard = () => {
     try {
       setLoading(true);
       const response = await transportationProviderAPI.getMyTrips({ status: filter });
-      setTrips(response.data?.trips || []);
+      const loaded = response.data?.trips || [];
+      setTrips(sortTripsByActionPriority(loaded));
     } catch (error) {
       console.error('Failed to load trips:', error);
       setTrips([]);
@@ -54,6 +59,17 @@ const TransportationDashboard = () => {
   ).length;
 
   const displayName = profile?.business_name || `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim();
+
+  const openTrip = (trip) => {
+    const action = getTransportationTripAction(trip);
+    if (action?.type === 'submit_report') {
+      navigate(`/transportation/trips/${trip.id}/completion-report`, {
+        state: { jobNumber: trip.job_number },
+      });
+      return;
+    }
+    navigate(`/transportation/trips/${trip.id}`);
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -91,6 +107,7 @@ const TransportationDashboard = () => {
       <div className="flex flex-wrap gap-2 mb-6">
         {[
           { key: 'upcoming', label: 'Upcoming' },
+          { key: 'action_needed', label: 'Action Needed' },
           { key: 'completed', label: 'Completed' },
           { key: 'needs_report', label: 'Needs Report' },
         ].map((tab) => (
@@ -118,7 +135,9 @@ const TransportationDashboard = () => {
           <TruckIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
           <h2 className="text-lg font-medium text-gray-900 mb-2">No trips found</h2>
           <p className="text-gray-500 text-sm max-w-md mx-auto">
-            {filter === 'upcoming'
+            {filter === 'action_needed'
+              ? 'No trips need your attention right now.'
+              : filter === 'upcoming'
               ? 'You have no upcoming trips. New assignments will appear here and you will also receive email notifications.'
               : filter === 'needs_report'
               ? 'No completed trips are waiting for a completion report.'
@@ -131,17 +150,18 @@ const TransportationDashboard = () => {
             const displayStatus = getTransportationProviderDisplayStatus(trip);
             const earningsLabel = getTransportationEarningsLabel(trip);
             const isPaid = isTransportationTripPaid(trip);
+            const action = getTransportationTripAction(trip);
 
             return (
             <div
               key={trip.id}
               role="button"
               tabIndex={0}
-              onClick={() => navigate(`/transportation/trips/${trip.id}`)}
+              onClick={() => openTrip(trip)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  navigate(`/transportation/trips/${trip.id}`);
+                  openTrip(trip);
                 }
               }}
               className="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow cursor-pointer"
@@ -158,15 +178,15 @@ const TransportationDashboard = () => {
                     }`}>
                       {displayStatus}
                     </span>
-                    {trip.status === 'completed' && !trip.completion_report_submitted && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800 font-medium">
-                        Report needed
-                      </span>
-                    )}
-                    {!trip.provider_confirmed &&
-                      !['completed', 'cancelled', 'no_show', 'billed', 'paid_driver'].includes(trip.status) && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800 font-medium">
-                        Confirm needed
+                    {action && (
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        action.tone === 'green'
+                          ? 'bg-green-100 text-green-800'
+                          : action.tone === 'teal'
+                          ? 'bg-teal-100 text-teal-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {action.shortLabel}
                       </span>
                     )}
                   </div>
@@ -195,9 +215,9 @@ const TransportationDashboard = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate(`/transportation/trips/${trip.id}`)}
+                      onClick={() => openTrip(trip)}
                     >
-                      View Details
+                      {action ? action.shortLabel : 'View Details'}
                     </Button>
                     {trip.completion_report_path && !trip.completion_report_submitted && (
                       <a href={trip.completion_report_path}>

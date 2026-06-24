@@ -17,6 +17,7 @@ import {
   getTransportationEarningsLabel,
   isTransportationTripPaid,
 } from '../utils/transportationRateUtils';
+import { getTransportationTripAction } from '../utils/transportationTripActions';
 import { formatTime, formatDateTime } from '../utils/dateUtils';
 
 const TERMINAL_STATUSES = ['completed', 'cancelled', 'no_show', 'billed', 'paid_driver'];
@@ -131,6 +132,17 @@ const TransportationTripDetails = () => {
   const showMileage = !trip.provider_flat_rate && trip.calculated_mileage != null;
   const tripIsFinished = TERMINAL_STATUSES.includes(trip.status) || trip.completion_report_submitted;
   const needsConfirmation = !trip.provider_confirmed && !tripIsFinished;
+  const action = getTransportationTripAction({
+    ...trip,
+    provider_tracking_active: trackingActive,
+  });
+
+  const actionBannerClass =
+    action?.tone === 'green'
+      ? 'bg-green-50 border-green-200 text-green-900'
+      : action?.tone === 'teal'
+      ? 'bg-teal-50 border-teal-200 text-teal-900'
+      : 'bg-amber-50 border-amber-200 text-amber-900';
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -157,6 +169,25 @@ const TransportationTripDetails = () => {
         </div>
 
         <div className="p-6 space-y-6">
+          {action && !tripIsFinished && (
+            <section className={`border rounded-lg p-4 ${actionBannerClass}`}>
+              <p className="font-medium">{action.label}</p>
+              {action.type === 'submit_report' && (
+                <div className="mt-3">
+                  <Button
+                    onClick={() =>
+                      navigate(`/transportation/trips/${tripId}/completion-report`, {
+                        state: { jobNumber: trip.job_number },
+                      })
+                    }
+                  >
+                    Submit Report
+                  </Button>
+                </div>
+              )}
+            </section>
+          )}
+
           {trip.provider_confirmed && !tripIsFinished && (
             <section className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
               <CheckCircleIcon className="h-6 w-6 text-green-600 flex-shrink-0" />

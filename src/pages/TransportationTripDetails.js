@@ -157,20 +157,6 @@ const TransportationTripDetails = () => {
         </div>
 
         <div className="p-6 space-y-6">
-          {needsConfirmation && (
-            <section className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <h2 className="text-sm font-semibold text-amber-900 uppercase tracking-wide mb-2">
-                Confirmation Required
-              </h2>
-              <p className="text-sm text-amber-800 mb-4">
-                Please confirm you can provide this trip at the approved rates shown below.
-              </p>
-              <Button onClick={handleConfirmAppointment} disabled={confirming}>
-                {confirming ? 'Confirming…' : 'Confirm Appointment'}
-              </Button>
-            </section>
-          )}
-
           {trip.provider_confirmed && !tripIsFinished && (
             <section className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
               <CheckCircleIcon className="h-6 w-6 text-green-600 flex-shrink-0" />
@@ -266,6 +252,20 @@ const TransportationTripDetails = () => {
             </section>
           )}
 
+          {needsConfirmation && (
+            <section className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <h2 className="text-sm font-semibold text-amber-900 uppercase tracking-wide mb-2">
+                Confirmation Required
+              </h2>
+              <p className="text-sm text-amber-800 mb-4">
+                Please confirm you can provide this trip at the approved rates above.
+              </p>
+              <Button onClick={handleConfirmAppointment} disabled={confirming}>
+                {confirming ? 'Confirming…' : 'Confirm Appointment'}
+              </Button>
+            </section>
+          )}
+
           {canTrackTrip && (
             <section className="border border-gray-200 rounded-lg p-4 space-y-3">
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
@@ -280,6 +280,10 @@ const TransportationTripDetails = () => {
                     </p>
                   )}
                 </div>
+              ) : needsConfirmation ? (
+                <p className="text-sm text-amber-800">
+                  Confirm the appointment above before starting live location sharing.
+                </p>
               ) : (
                 <p className="text-sm text-gray-600">
                   Slide to start your trip when you are en route so admin can see your live location.
@@ -295,12 +299,14 @@ const TransportationTripDetails = () => {
                 </div>
               )}
               {!trackingActive ? (
-                <SlideToAction
-                  label="Slide to Start Trip"
-                  onComplete={startTracking}
-                  disabled={starting || stopping || endingTrip}
-                  variant="success"
-                />
+                !needsConfirmation ? (
+                  <SlideToAction
+                    label="Slide to Start Trip"
+                    onComplete={startTracking}
+                    disabled={starting || stopping || endingTrip}
+                    variant="success"
+                  />
+                ) : null
               ) : (
                 <SlideToAction
                   label="Slide to End Trip"

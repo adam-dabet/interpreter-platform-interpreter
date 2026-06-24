@@ -9,6 +9,7 @@ const SlideToAction = ({
   label,
   onComplete,
   disabled = false,
+  hint,
   variant = 'success',
   className = '',
 }) => {
@@ -106,9 +107,11 @@ const SlideToAction = ({
           </span>
         )}
       </div>
-      <p className="mt-1 text-center text-xs text-gray-500">
-        {disabled ? 'Action unavailable' : 'Slide to confirm'}
-      </p>
+      {hint ? (
+        <p className="mt-1 text-center text-xs text-gray-500">
+          {disabled ? 'Action unavailable' : hint}
+        </p>
+      ) : null}
     </div>
   );
 };

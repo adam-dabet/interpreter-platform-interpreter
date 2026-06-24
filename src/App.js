@@ -25,6 +25,7 @@ import TransportationCompletionReportPublic from './pages/TransportationCompleti
 import TransportationProviderProfile from './pages/TransportationProviderProfile';
 import TransportationTerms from './pages/TransportationTerms';
 import TransportationTripDetails from './pages/TransportationTripDetails';
+import TransportationCompletionReport from './pages/TransportationCompletionReport';
 import TransportationFindTrips from './pages/TransportationFindTrips';
 import TransportationTripOpportunity from './pages/TransportationTripOpportunity';
 import ProviderHome from './pages/ProviderHome';
@@ -67,6 +68,7 @@ function App() {
             <Route path="/jobs/:jobId/report/:token" element={<CompletionReportPublic />} />
             <Route path="/transportation-jobs/:jobId/report/:token" element={<TransportationCompletionReportPublic />} />
             <Route path="/transportation/trips/:tripId" element={<ProtectedRoute><AuthenticatedLayout><TransportationTripDetails /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/transportation/trips/:tripId/completion-report" element={<ProtectedRoute><AuthenticatedLayout><TransportationCompletionReport /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/trips/find" element={<ProtectedRoute><AuthenticatedLayout><TransportationFindTrips /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/trips/find/:jobId" element={<ProtectedRoute><AuthenticatedLayout><TransportationTripOpportunity /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><ProviderHome /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />

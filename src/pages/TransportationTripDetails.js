@@ -9,11 +9,12 @@ import Button from '../components/ui/Button';
 import { useTripLocationTracking } from '../hooks/useTripLocationTracking';
 import {
   formatTransportationServiceType,
-  formatTripStatus,
 } from '../utils/providerUtils';
 import {
   getProviderApprovedRateRows,
-  getProviderApprovedTotal,
+  getTransportationProviderDisplayStatus,
+  getTransportationEarningsLabel,
+  isTransportationTripPaid,
 } from '../utils/transportationRateUtils';
 
 const TERMINAL_STATUSES = ['completed', 'cancelled', 'no_show', 'billed', 'paid_driver'];
@@ -108,8 +109,11 @@ const TransportationTripDetails = () => {
   }
 
   const rateRows = getProviderApprovedRateRows(trip);
-  const approvedTotal = getProviderApprovedTotal(trip);
+  const earningsLabel = getTransportationEarningsLabel(trip);
+  const displayStatus = getTransportationProviderDisplayStatus(trip);
+  const isPaid = isTransportationTripPaid(trip);
   const showMileage = !trip.provider_flat_rate && trip.calculated_mileage != null;
+  const tripIsFinished = TERMINAL_STATUSES.includes(trip.status) || trip.completion_report_submitted;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -129,8 +133,8 @@ const TransportationTripDetails = () => {
             <span className="text-xs px-2 py-1 rounded-full bg-white/20">
               {formatTransportationServiceType(trip.transportation_service_type)}
             </span>
-            <span className="text-xs px-2 py-1 rounded-full bg-white/20">
-              {formatTripStatus(trip.status)}
+            <span className={`text-xs px-2 py-1 rounded-full ${isPaid ? 'bg-green-100 text-green-800' : 'bg-white/20'}`}>
+              {displayStatus}
             </span>
           </div>
         </div>
@@ -168,7 +172,23 @@ const TransportationTripDetails = () => {
             />
           </section>
 
-          {rateRows.length > 0 && (
+          {earningsLabel && tripIsFinished && (
+            <section className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                {isPaid ? 'Payment' : 'Your Earnings'}
+              </h2>
+              <p className={`text-2xl font-bold ${isPaid ? 'text-green-700' : 'text-gray-900'}`}>
+                ${Number(earningsLabel.amount).toFixed(2)}
+              </p>
+              <p className="text-sm text-gray-600 mt-1">
+                {isPaid
+                  ? `Paid${trip.provider_paid_date ? ` on ${formatDate(trip.provider_paid_date)}` : ''}`
+                  : 'Payment pending — we will process your earnings shortly'}
+              </p>
+            </section>
+          )}
+
+          {rateRows.length > 0 && !tripIsFinished && (
             <section>
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
                 Approved Rates
@@ -186,9 +206,9 @@ const TransportationTripDetails = () => {
                   Estimated miles: {Number(trip.calculated_mileage).toFixed(1)}
                 </p>
               )}
-              {approvedTotal != null && (
+              {earningsLabel && (
                 <p className="text-sm font-medium text-gray-900 mt-1">
-                  Estimated total: ${Number(approvedTotal).toFixed(2)}
+                  Estimated total: ${Number(earningsLabel.amount).toFixed(2)}
                 </p>
               )}
             </section>

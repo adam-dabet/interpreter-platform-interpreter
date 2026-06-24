@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Link, useParams, useLocation } from 'react-router-dom';
+import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -81,6 +81,7 @@ const TimeSelects = ({ label, hour, minute, period, onChange, hint }) => (
 const TransportationCompletionReport = () => {
   const { tripId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const { suggestedPickupAt, suggestedDropoffAt, jobNumber } = location.state || {};
 
   const pickupDefaults = useMemo(
@@ -152,10 +153,17 @@ const TransportationCompletionReport = () => {
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
         <CheckCircleIcon className="h-16 w-16 text-green-600 mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Report Submitted</h1>
-        <p className="text-gray-600 mb-6">Thank you for completing your trip report.</p>
-        <Link to="/dashboard">
-          <Button>Back to Dashboard</Button>
-        </Link>
+        <p className="text-gray-600 mb-6">
+          Your trip is marked completed. You can view your earnings on the trip details page.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button onClick={() => navigate(`/transportation/trips/${tripId}`)}>
+            View Trip & Earnings
+          </Button>
+          <Link to="/dashboard">
+            <Button variant="outline">Back to Dashboard</Button>
+          </Link>
+        </div>
       </div>
     );
   }

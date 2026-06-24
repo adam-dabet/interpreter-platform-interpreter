@@ -7,9 +7,12 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
 import {
   formatTransportationServiceType,
-  formatTripStatus,
 } from '../utils/providerUtils';
-import { getProviderApprovedTotal } from '../utils/transportationRateUtils';
+import {
+  getTransportationProviderDisplayStatus,
+  getTransportationEarningsLabel,
+  isTransportationTripPaid,
+} from '../utils/transportationRateUtils';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'TBD';
@@ -128,7 +131,12 @@ const TransportationDashboard = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {trips.map((trip) => (
+          {trips.map((trip) => {
+            const displayStatus = getTransportationProviderDisplayStatus(trip);
+            const earningsLabel = getTransportationEarningsLabel(trip);
+            const isPaid = isTransportationTripPaid(trip);
+
+            return (
             <div
               key={trip.id}
               role="button"
@@ -149,8 +157,10 @@ const TransportationDashboard = () => {
                     <span className="text-xs px-2 py-1 rounded-full bg-teal-100 text-teal-800 font-medium">
                       {formatTransportationServiceType(trip.transportation_service_type)}
                     </span>
-                    <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700 font-medium">
-                      {formatTripStatus(trip.status)}
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      isPaid ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {displayStatus}
                     </span>
                     {trip.status === 'completed' && !trip.completion_report_submitted && (
                       <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800 font-medium">
@@ -174,9 +184,9 @@ const TransportationDashboard = () => {
                   )}
                 </div>
                 <div className="flex flex-col sm:items-end gap-2">
-                  {getProviderApprovedTotal(trip) != null && (
-                    <p className="text-sm font-medium text-gray-900">
-                      Est. ${Number(getProviderApprovedTotal(trip)).toFixed(2)}
+                  {earningsLabel && (
+                    <p className={`text-sm font-medium ${isPaid ? 'text-green-700' : 'text-gray-900'}`}>
+                      {earningsLabel.prefix}: ${Number(earningsLabel.amount).toFixed(2)}
                     </p>
                   )}
                   <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
@@ -196,7 +206,8 @@ const TransportationDashboard = () => {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

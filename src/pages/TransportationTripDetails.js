@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 import TransportationTripLegs from '../components/transportation/TransportationTripLegs';
 import { transportationProviderAPI } from '../services/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -37,6 +38,7 @@ const TransportationTripDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [endingTrip, setEndingTrip] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const canTrackTrip = trip && !TERMINAL_STATUSES.includes(trip.status);
   const {
@@ -63,6 +65,19 @@ const TransportationTripDetails = () => {
       setError(err.message || 'Failed to load trip');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleConfirmAppointment = async () => {
+    setConfirming(true);
+    try {
+      const response = await transportationProviderAPI.confirmTrip(tripId);
+      toast.success(response.message || 'Appointment confirmed');
+      await loadTrip();
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to confirm appointment');
+    } finally {
+      setConfirming(false);
     }
   };
 
@@ -115,6 +130,7 @@ const TransportationTripDetails = () => {
   const isPaid = isTransportationTripPaid(trip);
   const showMileage = !trip.provider_flat_rate && trip.calculated_mileage != null;
   const tripIsFinished = TERMINAL_STATUSES.includes(trip.status) || trip.completion_report_submitted;
+  const needsConfirmation = !trip.provider_confirmed && !tripIsFinished;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -141,6 +157,41 @@ const TransportationTripDetails = () => {
         </div>
 
         <div className="p-6 space-y-6">
+          {needsConfirmation && (
+            <section className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <h2 className="text-sm font-semibold text-amber-900 uppercase tracking-wide mb-2">
+                Confirmation Required
+              </h2>
+              <p className="text-sm text-amber-800 mb-4">
+                Please confirm you can provide this trip at the approved rates shown below.
+              </p>
+              <Button onClick={handleConfirmAppointment} disabled={confirming}>
+                {confirming ? 'Confirming…' : 'Confirm Appointment'}
+              </Button>
+            </section>
+          )}
+
+          {trip.provider_confirmed && !tripIsFinished && (
+            <section className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+              <CheckCircleIcon className="h-6 w-6 text-green-600 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-green-900">Appointment confirmed</p>
+                {trip.provider_confirmed_at && (
+                  <p className="text-sm text-green-800 mt-1">
+                    Confirmed on{' '}
+                    {new Date(trip.provider_confirmed_at).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
+
           <section>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
               Schedule

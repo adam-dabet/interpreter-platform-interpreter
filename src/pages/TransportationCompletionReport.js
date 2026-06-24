@@ -25,10 +25,9 @@ function parseDateToTimeParts(dateInput) {
 }
 
 function formatCompletionTime(hour, minute, period) {
-  let hour24 = parseInt(hour, 10);
-  if (period === 'AM' && hour24 === 12) hour24 = 0;
-  else if (period === 'PM' && hour24 !== 12) hour24 += 12;
-  return `${String(hour24).padStart(2, '0')}:${minute} ${period}`;
+  const h = parseInt(hour, 10);
+  const m = String(minute).padStart(2, '0');
+  return `${h}:${m} ${period}`;
 }
 
 function convertTo24Hour(hour, period) {

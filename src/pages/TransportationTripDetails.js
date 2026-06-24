@@ -16,6 +16,7 @@ import {
   getTransportationEarningsLabel,
   isTransportationTripPaid,
 } from '../utils/transportationRateUtils';
+import { formatTime, formatDateTime } from '../utils/dateUtils';
 
 const TERMINAL_STATUSES = ['completed', 'cancelled', 'no_show', 'billed', 'paid_driver'];
 
@@ -147,7 +148,7 @@ const TransportationTripDetails = () => {
             <p className="text-gray-900">{formatDate(trip.scheduled_date)}</p>
             {(trip.pickup_time || trip.scheduled_time) && (
               <p className="text-gray-700 mt-1">
-                Pickup: {trip.pickup_time || trip.scheduled_time}
+                Pickup: {formatTime(trip.pickup_time || trip.scheduled_time)}
               </p>
             )}
             {trip.appointment_type && (
@@ -224,7 +225,7 @@ const TransportationTripDetails = () => {
                   Sharing your location with our team.
                   {lastLocationAt && (
                     <p className="text-green-800 mt-1 text-xs">
-                      Last update: {new Date(lastLocationAt).toLocaleString()}
+                      Last update: {formatDateTime(lastLocationAt)}
                     </p>
                   )}
                 </div>

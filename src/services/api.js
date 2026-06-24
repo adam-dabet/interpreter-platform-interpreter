@@ -214,6 +214,12 @@ export const transportationProviderAPI = {
 
   getTrackingStatus: (jobId) =>
     api.get(`/transportation-providers/my-trips/${jobId}/tracking/status`).then((r) => r.data),
+
+  completeTrip: (jobId) =>
+    api.post(`/transportation-providers/my-trips/${jobId}/complete`).then((r) => r.data),
+
+  submitCompletionReport: (jobId, payload) =>
+    api.post(`/transportation-providers/my-trips/${jobId}/completion-report`, payload).then((r) => r.data),
 };
 
 // Parametric Data API

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import TransportationTripLegs from '../components/transportation/TransportationTripLegs';
 import { transportationProviderAPI } from '../services/api';
@@ -30,9 +30,11 @@ const formatDate = (dateStr) => {
 
 const TransportationTripDetails = () => {
   const { tripId } = useParams();
+  const navigate = useNavigate();
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [endingTrip, setEndingTrip] = useState(false);
 
   const canTrackTrip = trip && !TERMINAL_STATUSES.includes(trip.status);
   const {
@@ -59,6 +61,30 @@ const TransportationTripDetails = () => {
       setError(err.message || 'Failed to load trip');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEndTrip = async () => {
+    const confirmed = window.confirm(
+      'Has the patient been dropped off at the final destination?'
+    );
+    if (!confirmed) return;
+
+    setEndingTrip(true);
+    try {
+      await stopTracking();
+      const result = await transportationProviderAPI.completeTrip(tripId);
+      navigate(`/transportation/trips/${tripId}/completion-report`, {
+        state: {
+          jobNumber: trip?.job_number,
+          suggestedPickupAt: result.data?.suggested_pickup_at,
+          suggestedDropoffAt: result.data?.suggested_dropoff_at,
+        },
+      });
+    } catch (err) {
+      setError(err.message || 'Failed to end trip');
+    } finally {
+      setEndingTrip(false);
     }
   };
 
@@ -190,7 +216,7 @@ const TransportationTripDetails = () => {
               {trackingError && (
                 <p className="text-sm text-red-600">{trackingError}</p>
               )}
-              {(starting || stopping) && (
+              {(starting || stopping || endingTrip) && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <LoadingSpinner size="sm" />
                   <span>Updating trip status…</span>
@@ -200,14 +226,14 @@ const TransportationTripDetails = () => {
                 <SlideToAction
                   label="Slide to Start Trip"
                   onComplete={startTracking}
-                  disabled={starting || stopping}
+                  disabled={starting || stopping || endingTrip}
                   variant="success"
                 />
               ) : (
                 <SlideToAction
                   label="Slide to End Trip"
-                  onComplete={stopTracking}
-                  disabled={starting || stopping}
+                  onComplete={handleEndTrip}
+                  disabled={starting || stopping || endingTrip}
                   variant="neutral"
                 />
               )}

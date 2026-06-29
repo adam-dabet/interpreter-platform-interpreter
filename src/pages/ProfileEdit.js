@@ -444,15 +444,23 @@ const ProfileEdit = () => {
                     issuing_organization: cert.issuing_organization,
                     issue_date: cert.issue_date,
                     expiry_date: cert.expiry_date,
-                    certificate_number: cert.certificate_number
+                    certificate_number: cert.certificate_number,
+                    issuing_state_id: cert.issuing_state_id || undefined,
+                    new_file: Boolean(cert.file),
                 }));
                 formDataToSubmit.append('certificates_metadata', JSON.stringify(certificatesMetadata));
             }
             
-            // Handle certificate files
-            if (submissionData.certificateFiles && submissionData.certificateFiles.length > 0) {
-                submissionData.certificateFiles.forEach((file, index) => {
-                    formDataToSubmit.append(`certificate_files`, file);
+            // Handle certificate files (append in order of certs that have new uploads)
+            if (submissionData.certificates && submissionData.certificates.length > 0) {
+                submissionData.certificates.forEach((cert) => {
+                    if (cert.file) {
+                        formDataToSubmit.append('certificate_files', cert.file);
+                    }
+                });
+            } else if (submissionData.certificateFiles && submissionData.certificateFiles.length > 0) {
+                submissionData.certificateFiles.filter(Boolean).forEach((file) => {
+                    formDataToSubmit.append('certificate_files', file);
                 });
             }
             

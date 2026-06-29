@@ -410,7 +410,7 @@ const ProfileEdit = () => {
             if (submissionData.is_certified !== false && submissionData.certificates?.length) {
                 const certNeedingFile = submissionData.certificates.find(requiresCertificateFile);
                 if (certNeedingFile) {
-                    toast.error('A certificate file is required for certifications that are expired or expiring soon.');
+                    toast.error('A certificate file is required for each certification.');
                     setIsSubmitting(false);
                     return;
                 }

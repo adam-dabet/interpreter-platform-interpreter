@@ -9,7 +9,7 @@ import PersonalInfoStep from '../components/forms/PersonalInfoStep';
 import AddressStep from '../components/forms/AddressStep';
 import LanguagesStep from '../components/forms/LanguagesStep';
 import ServiceTypesStep from '../components/forms/ServiceTypesStep';
-import CertificatesStep from '../components/forms/CertificatesStep';
+import CertificatesStep, { requiresCertificateFile } from '../components/forms/CertificatesStep';
 import W9FormStep from '../components/forms/W9FormStep';
 import ReviewStep from '../components/forms/ReviewStep';
 import EmailLookupStep from '../components/forms/EmailLookupStep';
@@ -446,6 +446,15 @@ const InterpreterProfile = () => {
         
         try {
             const submissionData = { ...formData, ...finalData };
+
+            if (submissionData.is_certified !== false && submissionData.certificates?.length) {
+                const certNeedingFile = submissionData.certificates.find(requiresCertificateFile);
+                if (certNeedingFile) {
+                    toast.error('A certificate file is required for each certification.');
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
             
             // Create FormData for file uploads
             const formDataToSubmit = new FormData();
@@ -475,9 +484,13 @@ const InterpreterProfile = () => {
                     issuing_state_id: cert.issuing_state_id || null
                 }));
                 formDataToSubmit.append('certificates_metadata', JSON.stringify(certificateMetadata));
+
+                submissionData.certificates.forEach((cert) => {
+                    if (cert.file) {
+                        formDataToSubmit.append('certificates', cert.file);
+                    }
+                });
             }
-            
-            // Handle W-9 form data
             if (submissionData.w9_entry_method) {
                 formDataToSubmit.append('w9_entry_method', submissionData.w9_entry_method);
                 
@@ -508,10 +521,7 @@ const InterpreterProfile = () => {
             // Add all other form fields
             Object.keys(submissionData).forEach(key => {
                 if (key === 'certificateFiles') {
-                    // Handle file uploads
-                    submissionData[key].forEach((file, index) => {
-                        formDataToSubmit.append('certificates', file);
-                    });
+                    return;
                 } else if (key === 'languages' || key === 'service_types' || key === 'certificates' || key === 'w9_data' || key === 'w9_entry_method' || key === 'w9_file') {
                     // Already handled above
                     return;
@@ -539,16 +549,12 @@ const InterpreterProfile = () => {
             // Use appropriate endpoint based on whether this is profile completion or new application
             let response;
             if (completionToken) {
-                // Profile completion for imported interpreters
                 response = await fetch(`${process.env.REACT_APP_API_URL}/profile-completion/submit/${completionToken}`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(submissionData)
+                    body: formDataToSubmit,
                 });
                 const result = await response.json();
-                response = { data: result }; // Normalize response structure
+                response = { data: result };
             } else {
                 // Normal new application
                 response = await interpreterAPI.createProfile(formDataToSubmit);

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { PlusIcon, TrashIcon, DocumentIcon, CloudArrowUpIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, DocumentIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
-import FileUpload from '../ui/FileUpload';
+import CertificateFileInput from './CertificateFileInput';
 import toast from 'react-hot-toast';
 
 // Certificate type names to exclude from the selection dropdown
@@ -42,12 +42,8 @@ export function isCertExpiringSoon(cert, alertDays = CERT_EXPIRY_ALERT_DAYS) {
 
 export function requiresCertificateFile(cert) {
     if (cert.file) return false;
-    return (
-        cert.alert_status === 'expired' ||
-        cert.alert_status === 'expiring_soon' ||
-        isCertExpired(cert) ||
-        isCertExpiringSoon(cert)
-    );
+    if (cert.file_path) return false;
+    return true;
 }
 
 const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, rejectedFields = [], onUpdate }) => {
@@ -245,7 +241,7 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
 
                 if (requiresCertificateFile(cert)) {
                     newErrors[`certificate_${cert.id}_file`] =
-                        'A certificate file is required for certifications that are expired or expiring soon.';
+                        'A certificate file is required for each certification.';
                 }
             });
         }
@@ -383,7 +379,7 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                         <h4 className="font-medium text-green-900 mb-2">Certification Details</h4>
                         <p className="text-sm text-green-800">
-                            Please provide details for each of your certifications. Certificate number, issuing organization, and expiration date are required.
+                            Please provide details for each of your certifications. Certificate number, issuing organization, expiration date, and a certificate file are required.
                         </p>
                     </div>
 
@@ -590,14 +586,15 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
 
                                     <div className="md:col-span-2">
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Certificate File {fileRequired ? '(Required)' : '(Optional)'}
-                                            {fileRequired && <span className="text-red-600 ml-1">*</span>}
+                                            Certificate File <span className="text-red-600">*</span>
                                         </label>
-                                        {fileRequired && (
-                                            <p className={`text-sm mb-2 ${expired ? 'text-red-700' : 'text-amber-700'}`}>
+                                        {fileRequired && !certificate.file_path && (
+                                            <p className={`text-sm mb-2 ${expired ? 'text-red-700' : alertStatus === 'expiring_soon' ? 'text-amber-700' : 'text-gray-600'}`}>
                                                 {expired
-                                                    ? 'This certification has expired. Upload your renewed certificate document to continue.'
-                                                    : 'This certification is expiring soon. Upload your renewed certificate document to continue.'}
+                                                    ? 'This certification has expired. Upload your renewed certificate document.'
+                                                    : alertStatus === 'expiring_soon'
+                                                        ? 'This certification is expiring soon. Upload your renewed certificate document.'
+                                                        : 'Upload a clear photo or scan of this certificate.'}
                                             </p>
                                         )}
                                         
@@ -626,11 +623,21 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                     Remove
                                                 </Button>
                                             </div>
+                                        ) : certificate.file_path ? (
+                                            <div className="space-y-3">
+                                                <div className="flex items-center p-3 bg-gray-50 border border-gray-200 rounded-md">
+                                                    <DocumentIcon className="w-5 h-5 text-gray-600 mr-2" />
+                                                    <p className="text-sm text-gray-800">
+                                                        {certificate.file_name || 'Certificate on file'}
+                                                    </p>
+                                                </div>
+                                                <CertificateFileInput
+                                                    onFileSelect={(file) => handleFileUpload(certificate.id, file)}
+                                                />
+                                            </div>
                                         ) : (
-                                            <FileUpload
+                                            <CertificateFileInput
                                                 onFileSelect={(file) => handleFileUpload(certificate.id, file)}
-                                                accept=".pdf,.jpg,.jpeg,.png"
-                                                maxSize={10 * 1024 * 1024} // 10MB
                                             />
                                         )}
                                         {errors[`certificate_${certificate.id}_file`] && (
@@ -682,7 +689,8 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                         <li>• Accepted formats: PDF, JPG, PNG</li>
                         <li>• Maximum file size: 10MB per file</li>
                         <li>• Ensure documents are clear and readable</li>
-                        <li>• Certificate files are optional unless a certification has expired or is expiring within 30 days — then upload is required</li>
+                        <li>• Certificate files are required for every certification</li>
+                        <li>• Use &quot;Take photo&quot; on your phone to capture the certificate directly</li>
                     </ul>
                 </div>
             )}

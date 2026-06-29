@@ -10,7 +10,7 @@ import PersonalInfoStep from '../components/forms/PersonalInfoStep';
 import AddressStep from '../components/forms/AddressStep';
 import LanguagesStep from '../components/forms/LanguagesStep';
 import ServiceTypesStep from '../components/forms/ServiceTypesStep';
-import CertificatesStep from '../components/forms/CertificatesStep';
+import CertificatesStep, { requiresCertificateFile } from '../components/forms/CertificatesStep';
 import W9FormStep from '../components/forms/W9FormStep';
 import ReviewStep from '../components/forms/ReviewStep';
 import { interpreterAPI, parametricAPI } from '../services/api';
@@ -406,6 +406,15 @@ const ProfileEdit = () => {
         
         try {
             const submissionData = { ...formData, ...finalData };
+
+            if (submissionData.is_certified !== false && submissionData.certificates?.length) {
+                const certNeedingFile = submissionData.certificates.find(requiresCertificateFile);
+                if (certNeedingFile) {
+                    toast.error('A certificate file is required for certifications that are expired or expiring soon.');
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
             
             // Create FormData for file uploads
             const formDataToSubmit = new FormData();

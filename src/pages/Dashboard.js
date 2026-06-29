@@ -434,6 +434,70 @@ const DashboardNew = () => {
           </motion.div>
         )}
 
+        {/* Certification expiry alert */}
+        {(profile?.certification_alerts?.length > 0) && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6"
+          >
+            <div className={`rounded-xl p-4 sm:p-5 shadow-sm border ${
+              profile.certification_alerts.some((a) => a.status === 'expired')
+                ? 'bg-red-50 border-red-200'
+                : 'bg-amber-50 border-amber-200'
+            }`}>
+              <div className="flex items-start gap-3">
+                <div className={`rounded-lg p-2 flex-shrink-0 ${
+                  profile.certification_alerts.some((a) => a.status === 'expired')
+                    ? 'bg-red-100'
+                    : 'bg-amber-100'
+                }`}>
+                  <ExclamationTriangleIcon className={`h-6 w-6 ${
+                    profile.certification_alerts.some((a) => a.status === 'expired')
+                      ? 'text-red-700'
+                      : 'text-amber-700'
+                  }`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className={`text-base sm:text-lg font-semibold ${
+                    profile.certification_alerts.some((a) => a.status === 'expired')
+                      ? 'text-red-900'
+                      : 'text-amber-900'
+                  }`}>
+                    {profile.certification_alerts.some((a) => a.status === 'expired')
+                      ? 'Certification expired'
+                      : 'Certification expiring soon'}
+                  </h3>
+                  <p className={`text-sm mt-1 ${
+                    profile.certification_alerts.some((a) => a.status === 'expired')
+                      ? 'text-red-800'
+                      : 'text-amber-800'
+                  }`}>
+                    {profile.certification_alerts.length === 1
+                      ? `${profile.certification_alerts[0].certificate_type_name} expires ${new Date(profile.certification_alerts[0].expiry_date).toLocaleDateString()}.`
+                      : `${profile.certification_alerts.length} certifications need attention.`}
+                    {' '}Submit an updated certificate to stay eligible for job assignments.
+                  </p>
+                  <div className="mt-3">
+                    <Button
+                      onClick={() => navigate('/profile/edit', { state: { initialStep: 4 } })}
+                      size="sm"
+                      className={
+                        profile.certification_alerts.some((a) => a.status === 'expired')
+                          ? 'bg-red-600 hover:bg-red-700 text-white'
+                          : 'bg-amber-600 hover:bg-amber-700 text-white'
+                      }
+                    >
+                      Update certificates
+                      <ArrowRightIcon className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Critical Alerts */}
         {criticalItems.total > 0 && (
         <motion.div

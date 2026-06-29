@@ -23,32 +23,12 @@ export function getTransportationTripAction(trip) {
     };
   }
 
-  if (trip.provider_tracking_active) {
-    return {
-      type: 'end_trip',
-      label: 'End trip — sharing live location',
-      shortLabel: 'End trip',
-      priority: 3,
-      tone: 'green',
-    };
-  }
-
-  if (trip.provider_confirmed && !TERMINAL_STATUSES.includes(trip.status)) {
-    return {
-      type: 'start_trip',
-      label: 'Start trip & share location',
-      shortLabel: 'Start trip',
-      priority: 4,
-      tone: 'teal',
-    };
-  }
-
   return null;
 }
 
 export function tripNeedsProviderAction(trip) {
   const action = getTransportationTripAction(trip);
-  return !!action && ['confirm', 'submit_report', 'start_trip', 'end_trip'].includes(action.type);
+  return !!action && ['confirm', 'submit_report'].includes(action.type);
 }
 
 export function sortTripsByActionPriority(trips) {

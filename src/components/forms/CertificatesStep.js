@@ -347,12 +347,32 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
 
                     {/* Certificates List */}
                     <div className="space-y-4">
-                        {certificates.map((certificate, index) => (
-                            <div key={certificate.id} className="border border-gray-200 rounded-lg p-4">
+                        {certificates.map((certificate, index) => {
+                            const alertStatus = certificate.alert_status || 'ok';
+                            const cardClass =
+                                alertStatus === 'expired'
+                                    ? 'border border-red-200 bg-red-50 rounded-lg p-4'
+                                    : alertStatus === 'expiring_soon'
+                                        ? 'border border-amber-200 bg-amber-50 rounded-lg p-4'
+                                        : 'border border-gray-200 rounded-lg p-4';
+                            return (
+                            <div key={certificate.id} className={cardClass}>
                                 <div className="flex items-center justify-between mb-4">
-                                    <h4 className="font-medium text-gray-900">
-                                        Certification {index + 1}
-                                    </h4>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <h4 className="font-medium text-gray-900">
+                                            Certification {index + 1}
+                                        </h4>
+                                        {alertStatus === 'expired' && (
+                                            <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-medium">
+                                                Expired
+                                            </span>
+                                        )}
+                                        {alertStatus === 'expiring_soon' && (
+                                            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">
+                                                Expiring soon
+                                            </span>
+                                        )}
+                                    </div>
                                     <Button
                                         onClick={() => handleRemoveCertificate(certificate.id)}
                                         variant="outline"
@@ -558,7 +578,8 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                     </div>
                                 </div>
                             </div>
-                        ))}
+                        );
+                        })}
                     </div>
 
                     {/* Add Certificate Button */}

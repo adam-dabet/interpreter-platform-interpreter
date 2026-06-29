@@ -275,6 +275,7 @@ const ProfileEdit = () => {
                     issuing_organization: cert.issuing_organization || '',
                     issue_date: cert.issue_date || '',
                     expiry_date: cert.expiry_date || '',
+                    alert_status: cert.alert_status || 'ok',
                     issuing_state_id: cert.issuing_state_id || '',
                     certificate_type_name: cert.certificate_type_name || '',
                     file_path: cert.file_path || '',

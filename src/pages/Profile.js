@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { CheckCircleIcon, MapPinIcon, UserIcon, DocumentTextIcon, LanguageIcon, BriefcaseIcon, DocumentIcon, PencilIcon, ClockIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, MapPinIcon, UserIcon, DocumentTextIcon, LanguageIcon, BriefcaseIcon, DocumentIcon, PencilIcon, ClockIcon, XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import ProgressBar from '../components/ui/ProgressBar';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -103,6 +103,17 @@ const Profile = () => {
         // Navigate to edit page, passing current step via state
         navigate('/profile/edit', { state: { initialStep: currentStep } });
     };
+
+    const handleEditCertificates = () => {
+        if (pendingUpdate) {
+            toast.error('You already have a pending update. Please wait for admin approval or cancel it first.');
+            return;
+        }
+        navigate('/profile/edit', { state: { initialStep: 4 } });
+    };
+
+    const certAlerts = profile?.certification_alerts || [];
+    const hasExpiredCerts = certAlerts.some((a) => a.status === 'expired');
 
     const handleStepClick = (stepId) => {
         setCurrentStep(stepId);
@@ -262,12 +273,32 @@ const Profile = () => {
             <h3 className="text-xl font-semibold text-gray-900">Certificates</h3>
             {profile?.certificates && profile.certificates.length > 0 ? (
                 <div className="space-y-3">
-                    {profile.certificates.map((cert, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    {profile.certificates.map((cert, index) => {
+                        const alertStatus = cert.alert_status || 'ok';
+                        const cardClass =
+                            alertStatus === 'expired'
+                                ? 'flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg'
+                                : alertStatus === 'expiring_soon'
+                                    ? 'flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-lg'
+                                    : 'flex items-center justify-between p-4 bg-gray-50 rounded-lg';
+                        return (
+                        <div key={index} className={cardClass}>
                             <div>
-                                <h4 className="text-sm font-medium text-gray-900">
-                                    {cert.certificate_type_name || 'Unknown Certificate'}
-                                </h4>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h4 className="text-sm font-medium text-gray-900">
+                                        {cert.certificate_type_name || 'Unknown Certificate'}
+                                    </h4>
+                                    {alertStatus === 'expired' && (
+                                        <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-medium">
+                                            Expired
+                                        </span>
+                                    )}
+                                    {alertStatus === 'expiring_soon' && (
+                                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">
+                                            Expiring soon
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="mt-2 space-y-1 text-xs text-gray-600">
                                     <p>
                                         <span className="font-medium text-gray-700">Number:</span>{' '}
@@ -283,7 +314,15 @@ const Profile = () => {
                                     </p>
                                     <p>
                                         <span className="font-medium text-gray-700">Expires:</span>{' '}
-                                        {formatDateDisplay(cert.expiry_date)}
+                                        <span className={
+                                            alertStatus === 'expired'
+                                                ? 'text-red-700 font-medium'
+                                                : alertStatus === 'expiring_soon'
+                                                    ? 'text-amber-700 font-medium'
+                                                    : ''
+                                        }>
+                                            {formatDateDisplay(cert.expiry_date)}
+                                        </span>
                                     </p>
                                 </div>
                             </div>
@@ -295,7 +334,8 @@ const Profile = () => {
                                 {cert.verification_status || 'pending'}
                             </span>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             ) : (
                 <div className="text-center py-8">
@@ -546,6 +586,47 @@ const Profile = () => {
                                 >
                                     <XMarkIcon className="h-4 w-4 mr-1" />
                                     Cancel Update
+                                </Button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* Certification expiry alert */}
+                {certAlerts.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`border-l-4 p-4 mb-6 ${
+                            hasExpiredCerts
+                                ? 'bg-red-50 border-red-500'
+                                : 'bg-amber-50 border-amber-500'
+                        }`}
+                    >
+                        <div className="flex">
+                            <div className="flex-shrink-0">
+                                <ExclamationTriangleIcon
+                                    className={`h-5 w-5 ${hasExpiredCerts ? 'text-red-500' : 'text-amber-500'}`}
+                                />
+                            </div>
+                            <div className="ml-3 flex-1">
+                                <p className={`text-sm font-semibold ${hasExpiredCerts ? 'text-red-800' : 'text-amber-800'}`}>
+                                    {hasExpiredCerts ? 'Certification expired' : 'Certification expiring soon'}
+                                </p>
+                                <p className={`mt-1 text-sm ${hasExpiredCerts ? 'text-red-700' : 'text-amber-700'}`}>
+                                    {certAlerts.length === 1
+                                        ? `${certAlerts[0].certificate_type_name} expires ${formatDateDisplay(certAlerts[0].expiry_date)}.`
+                                        : `${certAlerts.length} certifications need attention.`}
+                                    {' '}Update your certification to stay eligible for assignments.
+                                </p>
+                            </div>
+                            <div className="ml-3">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleEditCertificates}
+                                >
+                                    Update certificates
                                 </Button>
                             </div>
                         </div>

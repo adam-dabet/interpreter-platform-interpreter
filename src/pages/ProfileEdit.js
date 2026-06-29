@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import { CheckCircleIcon, MapPinIcon, UserIcon, DocumentTextIcon, LanguageIcon, BriefcaseIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import ProgressBar from '../components/ui/ProgressBar';
@@ -67,11 +67,33 @@ const INTERPRETER_STEPS = [
     }
 ];
 
+const CERTIFICATES_STEP = 4;
+
+function resolveInitialStep(searchParams, locationStateStep) {
+    const stepParam = (searchParams.get('step') || '').trim().toLowerCase();
+    if (stepParam === 'certificates' || stepParam === 'certificate' || stepParam === '4') {
+        return CERTIFICATES_STEP;
+    }
+    const parsed = parseInt(stepParam, 10);
+    if (Number.isFinite(parsed) && parsed >= 1 && parsed <= INTERPRETER_STEPS.length) {
+        return parsed;
+    }
+    if (locationStateStep != null) {
+        const fromState = parseInt(locationStateStep, 10);
+        if (Number.isFinite(fromState) && fromState >= 1 && fromState <= INTERPRETER_STEPS.length) {
+            return fromState;
+        }
+    }
+    return 1;
+}
+
 const ProfileEdit = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const initialStep = location.state?.initialStep || 1;
-    const [currentStep, setCurrentStep] = useState(initialStep);
+    const [searchParams] = useSearchParams();
+    const [currentStep, setCurrentStep] = useState(() =>
+        resolveInitialStep(searchParams, location.state?.initialStep)
+    );
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isEditingFromReview, setIsEditingFromReview] = useState(false);

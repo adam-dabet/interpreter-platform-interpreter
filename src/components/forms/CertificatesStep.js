@@ -9,6 +9,47 @@ import toast from 'react-hot-toast';
 // Certificate type names to exclude from the selection dropdown
 const EXCLUDED_CERTIFICATE_TYPE_NAMES = ['CCHI', 'CMI', 'Oregon HCI Program'];
 
+const CERT_EXPIRY_ALERT_DAYS = 30;
+
+export function isCertExpired(cert) {
+    if (cert.expiry_date) {
+        const expiryDate = new Date(cert.expiry_date);
+        if (!Number.isNaN(expiryDate.getTime())) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            expiryDate.setHours(0, 0, 0, 0);
+            return expiryDate < today;
+        }
+    }
+    return cert.alert_status === 'expired';
+}
+
+export function isCertExpiringSoon(cert, alertDays = CERT_EXPIRY_ALERT_DAYS) {
+    if (cert.expiry_date) {
+        const expiryDate = new Date(cert.expiry_date);
+        if (!Number.isNaN(expiryDate.getTime())) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            expiryDate.setHours(0, 0, 0, 0);
+            if (expiryDate < today) return false;
+            const windowEnd = new Date(today);
+            windowEnd.setDate(windowEnd.getDate() + alertDays);
+            return expiryDate <= windowEnd;
+        }
+    }
+    return cert.alert_status === 'expiring_soon';
+}
+
+export function requiresCertificateFile(cert) {
+    if (cert.file) return false;
+    return (
+        cert.alert_status === 'expired' ||
+        cert.alert_status === 'expiring_soon' ||
+        isCertExpired(cert) ||
+        isCertExpiringSoon(cert)
+    );
+}
+
 const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, rejectedFields = [], onUpdate }) => {
     const [isCertified, setIsCertified] = useState(formData.is_certified ?? null); // null, true, false
 
@@ -105,6 +146,9 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
         if (errors[`certificate_${certificateId}_${field}`]) {
             setErrors(prev => ({ ...prev, [`certificate_${certificateId}_${field}`]: null }));
         }
+        if (field === 'file' && errors[`certificate_${certificateId}_file`]) {
+            setErrors(prev => ({ ...prev, [`certificate_${certificateId}_file`]: null }));
+        }
     };
 
     const handleFileUpload = (certificateId, file) => {
@@ -198,6 +242,11 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     (!cert.issuing_state_id || cert.issuing_state_id === '')) {
                     newErrors[`certificate_${cert.id}_issuing_state_id`] = 'Please select the state for this certification';
                 }
+
+                if (requiresCertificateFile(cert)) {
+                    newErrors[`certificate_${cert.id}_file`] =
+                        'A certificate file is required for certifications that are expired or expiring soon.';
+                }
             });
         }
 
@@ -207,8 +256,7 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
 
     const handleNext = () => {
         if (!validateForm()) {
-            const errorMessage = Object.values(errors)[0];
-            toast.error(errorMessage);
+            toast.error('Please fix the errors on this step before continuing.');
             return;
         }
 
@@ -349,6 +397,8 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     <div className="space-y-4">
                         {certificates.map((certificate, index) => {
                             const alertStatus = certificate.alert_status || 'ok';
+                            const expired = isCertExpired(certificate);
+                            const fileRequired = requiresCertificateFile(certificate);
                             const cardClass =
                                 alertStatus === 'expired'
                                     ? 'border border-red-200 bg-red-50 rounded-lg p-4'
@@ -540,8 +590,16 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
 
                                     <div className="md:col-span-2">
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Certificate File (Optional)
+                                            Certificate File {fileRequired ? '(Required)' : '(Optional)'}
+                                            {fileRequired && <span className="text-red-600 ml-1">*</span>}
                                         </label>
+                                        {fileRequired && (
+                                            <p className={`text-sm mb-2 ${expired ? 'text-red-700' : 'text-amber-700'}`}>
+                                                {expired
+                                                    ? 'This certification has expired. Upload your renewed certificate document to continue.'
+                                                    : 'This certification is expiring soon. Upload your renewed certificate document to continue.'}
+                                            </p>
+                                        )}
                                         
                                         {certificate.file ? (
                                             <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-md">
@@ -574,6 +632,11 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                 accept=".pdf,.jpg,.jpeg,.png"
                                                 maxSize={10 * 1024 * 1024} // 10MB
                                             />
+                                        )}
+                                        {errors[`certificate_${certificate.id}_file`] && (
+                                            <p className="mt-2 text-sm text-red-600">
+                                                {errors[`certificate_${certificate.id}_file`]}
+                                            </p>
                                         )}
                                     </div>
                                 </div>
@@ -619,7 +682,7 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                         <li>• Accepted formats: PDF, JPG, PNG</li>
                         <li>• Maximum file size: 10MB per file</li>
                         <li>• Ensure documents are clear and readable</li>
-                        <li>• Certificate files are optional but recommended</li>
+                        <li>• Certificate files are optional unless a certification has expired or is expiring within 30 days — then upload is required</li>
                     </ul>
                 </div>
             )}

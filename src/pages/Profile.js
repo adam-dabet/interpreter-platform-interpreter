@@ -8,7 +8,10 @@ import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
 import { interpreterAPI } from '../services/api';
-import { getBackendAssetUrl } from '../utils/uploadUrls';
+import {
+  downloadAuthenticatedFile,
+  getInterpreterCertificateFilePath,
+} from '../utils/downloadFile';
 
 const PROFILE_STEPS = [
     {
@@ -328,14 +331,22 @@ const Profile = () => {
                                     {cert.file_path && (
                                         <p>
                                             <span className="font-medium text-gray-700">Certificate file:</span>{' '}
-                                            <a
-                                                href={getBackendAssetUrl(cert.file_path)}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
+                                            <button
+                                                type="button"
+                                                onClick={async () => {
+                                                    try {
+                                                        await downloadAuthenticatedFile(
+                                                            getInterpreterCertificateFilePath(cert.id),
+                                                            cert.file_name || 'certificate'
+                                                        );
+                                                    } catch (error) {
+                                                        toast.error(error.message || 'Failed to open certificate file');
+                                                    }
+                                                }}
                                                 className="text-blue-600 hover:underline"
                                             >
                                                 {cert.file_name || 'View document'}
-                                            </a>
+                                            </button>
                                         </p>
                                     )}
                                 </div>

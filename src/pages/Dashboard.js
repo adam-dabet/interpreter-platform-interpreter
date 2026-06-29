@@ -480,7 +480,7 @@ const DashboardNew = () => {
                   </p>
                   <div className="mt-3">
                     <Button
-                      onClick={() => navigate('/profile/edit', { state: { initialStep: 4 } })}
+                      onClick={() => navigate('/profile/edit?step=certificates')}
                       size="sm"
                       className={
                         profile.certification_alerts.some((a) => a.status === 'expired')

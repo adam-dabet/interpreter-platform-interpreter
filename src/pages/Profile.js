@@ -109,7 +109,7 @@ const Profile = () => {
             toast.error('You already have a pending update. Please wait for admin approval or cancel it first.');
             return;
         }
-        navigate('/profile/edit', { state: { initialStep: 4 } });
+        navigate('/profile/edit?step=certificates');
     };
 
     const certAlerts = profile?.certification_alerts || [];

@@ -8,6 +8,7 @@ import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
 import { interpreterAPI } from '../services/api';
+import { getBackendAssetUrl } from '../utils/uploadUrls';
 
 const PROFILE_STEPS = [
     {
@@ -324,6 +325,19 @@ const Profile = () => {
                                             {formatDateDisplay(cert.expiry_date)}
                                         </span>
                                     </p>
+                                    {cert.file_path && (
+                                        <p>
+                                            <span className="font-medium text-gray-700">Certificate file:</span>{' '}
+                                            <a
+                                                href={getBackendAssetUrl(cert.file_path)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:underline"
+                                            >
+                                                {cert.file_name || 'View document'}
+                                            </a>
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                             <span className={`text-xs px-2 py-1 rounded-full ${

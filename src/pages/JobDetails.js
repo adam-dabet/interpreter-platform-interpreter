@@ -27,7 +27,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useJobRestrictions } from '../contexts/JobRestrictionContext';
 import { formatDate, formatTime, formatCurrency, getTimeUntilJob } from '../utils/dateUtils';
 import { milesInputToNumber, isPartialMilesInput } from '../utils/mileageInputUtils';
-import { getProviderJobStatusLabel } from '../utils/providerJobStatus';
+import { getProviderJobStatusLabel, isProviderJobCompleted } from '../utils/providerJobStatus';
 import FacilityDurationFollowUpNotice from '../components/FacilityDurationFollowUpNotice';
 
 const LAST_LIST_ROUTE_KEY = 'interpreterLastJobListRoute';
@@ -1228,10 +1228,12 @@ const JobDetails = () => {
                 ) : (
                   <div className="text-center py-4">
                     <div className="text-lg font-semibold text-gray-600 mb-2">
-                      Job Status: {job.status}
+                      Job Status: {getProviderJobStatusLabel(job)}
                     </div>
                     <p className="text-sm text-gray-500">
-                      This job is not available for acceptance
+                      {isProviderJobCompleted(job)
+                        ? 'This job has been completed'
+                        : 'This job is not available for acceptance'}
                     </p>
                   </div>
                 )}

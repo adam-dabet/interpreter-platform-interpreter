@@ -2,10 +2,24 @@ export function getApiBaseUrl() {
   return process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 }
 
-export async function downloadAuthenticatedFile(apiPath, fileName, tokenKey = 'interpreterToken') {
+function guessMimeType(fileName) {
+  if (!fileName) return 'application/octet-stream';
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  const map = {
+    pdf: 'application/pdf',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    webp: 'image/webp',
+  };
+  return map[ext] || 'application/octet-stream';
+}
+
+export async function openAuthenticatedFile(apiPath, fileName, tokenKey = 'interpreterToken') {
   const token = localStorage.getItem(tokenKey) || localStorage.getItem('token');
   if (!token) {
-    throw new Error('You must be logged in to download this file.');
+    throw new Error('You must be logged in to view this file.');
   }
 
   const response = await fetch(`${getApiBaseUrl()}${apiPath}`, {
@@ -15,7 +29,7 @@ export async function downloadAuthenticatedFile(apiPath, fileName, tokenKey = 'i
   });
 
   if (!response.ok) {
-    let message = 'Failed to download file';
+    let message = 'Failed to open file';
     try {
       const data = await response.json();
       if (data?.message) message = data.message;
@@ -26,18 +40,23 @@ export async function downloadAuthenticatedFile(apiPath, fileName, tokenKey = 'i
   }
 
   const blob = await response.blob();
-  const objectUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = objectUrl;
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  if (fileName) {
-    link.download = fileName;
+  const mimeType = guessMimeType(fileName);
+  const typedBlob =
+    blob.type && blob.type !== 'application/octet-stream'
+      ? blob
+      : new Blob([blob], { type: mimeType });
+  const objectUrl = URL.createObjectURL(typedBlob);
+  const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer');
+  if (!opened) {
+    URL.revokeObjectURL(objectUrl);
+    throw new Error('Pop-up blocked. Please allow pop-ups to view this file.');
   }
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 120_000);
+}
+
+/** @deprecated Use openAuthenticatedFile — opens in a new tab for viewing. */
+export async function downloadAuthenticatedFile(apiPath, fileName, tokenKey = 'interpreterToken') {
+  return openAuthenticatedFile(apiPath, fileName, tokenKey);
 }
 
 export function getInterpreterCertificateFilePath(certificateId) {

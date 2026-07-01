@@ -9,7 +9,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
 import { interpreterAPI } from '../services/api';
 import {
-  downloadAuthenticatedFile,
+  openAuthenticatedFile,
   getInterpreterCertificateFilePath,
 } from '../utils/downloadFile';
 
@@ -335,7 +335,7 @@ const Profile = () => {
                                                 type="button"
                                                 onClick={async () => {
                                                     try {
-                                                        await downloadAuthenticatedFile(
+                                                        await openAuthenticatedFile(
                                                             getInterpreterCertificateFilePath(cert.id),
                                                             cert.file_name || 'certificate'
                                                         );

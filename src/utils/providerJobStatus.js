@@ -2,7 +2,11 @@
  * Provider-facing job status display.
  * Once an interpreter has been paid, later admin workflow statuses
  * (e.g. billed, closed) should not replace "Paid" in the portal.
+ * "billed" and "closed" are customer/admin billing steps — providers see "Completed".
  */
+
+export const isProviderJobCompleted = (job) =>
+  ['completed', 'completion_report', 'billed', 'closed'].includes(job?.status);
 
 export const isJobPaidToInterpreter = (job) =>
   Boolean(job?.interpreter_paid_at) || job?.status === 'interpreter_paid';
@@ -27,9 +31,8 @@ export const getProviderJobStatusLabel = (job) => {
     case 'interpreter_paid':
       return 'Paid';
     case 'billed':
-      return 'Billed';
     case 'closed':
-      return 'Closed';
+      return 'Completed';
     case 'completion_report':
       return 'Report Submitted';
     case 'completed':
@@ -54,7 +57,7 @@ export const getProviderJobStatusBadgeClasses = (job) => {
       return 'bg-green-100 text-green-800 border border-green-200';
     case 'billed':
     case 'closed':
-      return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+      return 'bg-blue-50 text-blue-700 border border-blue-200';
     case 'completion_report':
       return 'bg-amber-50 text-amber-700 border border-amber-200';
     case 'completed':

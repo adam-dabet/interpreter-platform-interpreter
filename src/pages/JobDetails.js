@@ -29,6 +29,7 @@ import { formatDate, formatTime, formatCurrency, getTimeUntilJob } from '../util
 import { milesInputToNumber, isPartialMilesInput } from '../utils/mileageInputUtils';
 import { getProviderJobStatusLabel, isProviderJobCompleted } from '../utils/providerJobStatus';
 import FacilityDurationFollowUpNotice from '../components/FacilityDurationFollowUpNotice';
+import ProviderInvoiceNotice from '../components/ProviderInvoiceNotice';
 
 const LAST_LIST_ROUTE_KEY = 'interpreterLastJobListRoute';
 const DEFAULT_RETURN_PATH = '/jobs';
@@ -1089,6 +1090,8 @@ const JobDetails = () => {
               </div>
             </motion.div>
             )}
+
+            <ProviderInvoiceNotice job={job} profile={profile} />
 
             {/* Action Buttons */}
             <motion.div

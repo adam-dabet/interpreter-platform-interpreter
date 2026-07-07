@@ -632,6 +632,7 @@ const ProfileEdit = () => {
                                     onEdit={handleEdit}
                                     isResubmission={false}
                                     rejectedFields={[]}
+                                    addressOnlyEdit={true}
                                 />
                             ) : (
                                 <CurrentStepComponent

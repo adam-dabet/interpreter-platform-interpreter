@@ -9,7 +9,7 @@ import { SERVICE_TYPES, EDUCATION_LEVELS, US_STATES } from '../../utils/constant
 
 const trim = (v) => (v != null && String(v).trim() !== '' ? String(v).trim() : '');
 
-const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametricData, w9Required = true }) => {
+const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametricData, w9Required = true, addressOnlyEdit = false }) => {
   const [agreements, setAgreements] = useState({
     terms_accepted: data.terms_accepted || false,
     privacy_policy_accepted: data.privacy_policy_accepted || false,
@@ -68,6 +68,25 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
 
   const validateW9IfRequired = () => {
     if (!w9Required) return true;
+
+    if (addressOnlyEdit) {
+      if (data.w9_entry_method === 'manual' && data.w9_data && typeof data.w9_data === 'object') {
+        const w = data.w9_data;
+        const missing = [];
+        if (!trim(w.address)) missing.push('address');
+        if (!trim(w.city)) missing.push('city');
+        if (!trim(w.state)) missing.push('state');
+        if (!trim(w.zip_code)) missing.push('ZIP code');
+        if (missing.length > 0) {
+          toast.error(`Please complete the W-9 address before submitting. Missing: ${missing.join(', ')}.`);
+          return false;
+        }
+        return true;
+      }
+      toast.error('W-9 information is required. Please review the W-9 step.');
+      return false;
+    }
+
     const method = data.w9_entry_method;
     if (method === 'upload') {
       if (!data.w9_file) {

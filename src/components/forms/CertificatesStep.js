@@ -43,6 +43,7 @@ export function isCertExpiringSoon(cert, alertDays = CERT_EXPIRY_ALERT_DAYS) {
 export function requiresCertificateFile(cert) {
     if (cert.file) return false;
     if (cert.file_path) return false;
+    if (cert.certificate_id) return false;
     return true;
 }
 
@@ -588,7 +589,7 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Certificate File <span className="text-red-600">*</span>
                                         </label>
-                                        {fileRequired && !certificate.file_path && (
+                                        {fileRequired && requiresCertificateFile(certificate) && (
                                             <p className={`text-sm mb-2 ${expired ? 'text-red-700' : alertStatus === 'expiring_soon' ? 'text-amber-700' : 'text-gray-600'}`}>
                                                 {expired
                                                     ? 'This certification has expired. Upload your renewed certificate document.'
@@ -623,7 +624,7 @@ const CertificatesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                     Remove
                                                 </Button>
                                             </div>
-                                        ) : certificate.file_path ? (
+                                        ) : (certificate.file_path || certificate.certificate_id) ? (
                                             <div className="space-y-3">
                                                 <div className="flex items-center p-3 bg-gray-50 border border-gray-200 rounded-md">
                                                     <DocumentIcon className="w-5 h-5 text-gray-600 mr-2" />

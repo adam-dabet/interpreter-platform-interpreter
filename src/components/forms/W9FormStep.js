@@ -5,7 +5,9 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import toast from 'react-hot-toast';
 
-const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, rejectedFields = [], parametricData }) => {
+const PROVIDER_SUPPORT_EMAIL = 'providers@theintegritycompanyinc.com';
+
+const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, rejectedFields = [], parametricData, addressOnlyEdit = false }) => {
     
     // Helper to check if a W9 field is rejected
     // Supports both granular field names (old) and grouped section names (new)
@@ -132,36 +134,50 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
         }
     };
 
+    const taxClassificationLabels = {
+        individual: 'Individual/sole proprietor',
+        c_corporation: 'C corporation',
+        s_corporation: 'S corporation',
+        partnership: 'Partnership',
+        trust_estate: 'Trust/estate',
+        llc: 'LLC',
+        other: 'Other (see instructions)'
+    };
+
+    const readOnlyInputClass = addressOnlyEdit ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : '';
+
     const validateForm = () => {
         const newErrors = {};
 
-        // Line 1: Name validation
-        if (!w9Data.business_name?.trim()) {
-            newErrors.business_name = 'Name of entity/individual is required';
-        }
-        
-        // Line 3a: Tax classification validation
-        if (!w9Data.tax_classification) {
-            newErrors.tax_classification = 'Federal tax classification is required';
-        }
-        
-        // LLC classification validation
-        if (w9Data.tax_classification === 'llc' && (!w9Data.llc_classification || (typeof w9Data.llc_classification === 'string' && !w9Data.llc_classification.trim()))) {
-            newErrors.llc_classification = 'LLC classification is required';
-        }
-        
-        // TIN validation: require at least one of SSN or EIN (provider may enter either)
-        const hasSsn = w9Data.ssn?.trim();
-        const hasEin = w9Data.ein?.trim();
-        if (!hasSsn && !hasEin) {
-            newErrors.ssn = 'Enter either Social Security Number or Employer Identification Number (at least one required)';
-            newErrors.ein = 'Enter either Social Security Number or Employer Identification Number (at least one required)';
-        } else {
-            if (hasSsn && !/^\d{3}-\d{2}-\d{4}$/.test(w9Data.ssn)) {
-                newErrors.ssn = 'SSN must be in format XXX-XX-XXXX';
+        if (!addressOnlyEdit) {
+            // Line 1: Name validation
+            if (!w9Data.business_name?.trim()) {
+                newErrors.business_name = 'Name of entity/individual is required';
             }
-            if (hasEin && !/^\d{2}-\d{7}$/.test(w9Data.ein)) {
-                newErrors.ein = 'EIN must be in format XX-XXXXXXX';
+            
+            // Line 3a: Tax classification validation
+            if (!w9Data.tax_classification) {
+                newErrors.tax_classification = 'Federal tax classification is required';
+            }
+            
+            // LLC classification validation
+            if (w9Data.tax_classification === 'llc' && (!w9Data.llc_classification || (typeof w9Data.llc_classification === 'string' && !w9Data.llc_classification.trim()))) {
+                newErrors.llc_classification = 'LLC classification is required';
+            }
+            
+            // TIN validation: require at least one of SSN or EIN (provider may enter either)
+            const hasSsn = w9Data.ssn?.trim();
+            const hasEin = w9Data.ein?.trim();
+            if (!hasSsn && !hasEin) {
+                newErrors.ssn = 'Enter either Social Security Number or Employer Identification Number (at least one required)';
+                newErrors.ein = 'Enter either Social Security Number or Employer Identification Number (at least one required)';
+            } else {
+                if (hasSsn && !/^\d{3}-\d{2}-\d{4}$/.test(w9Data.ssn)) {
+                    newErrors.ssn = 'SSN must be in format XXX-XX-XXXX';
+                }
+                if (hasEin && !/^\d{2}-\d{7}$/.test(w9Data.ein)) {
+                    newErrors.ein = 'EIN must be in format XX-XXXXXXX';
+                }
             }
         }
         
@@ -185,23 +201,25 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
             newErrors.zip_code = 'ZIP code must be in format 12345 or 12345-6789';
         }
         
-        // Signature validation
-        if (!w9Data.signature?.trim()) {
-            newErrors.signature = 'Electronic signature is required';
-        }
-        
-        if (!w9Data.signature_date || (typeof w9Data.signature_date === 'string' && !w9Data.signature_date.trim())) {
-            newErrors.signature_date = 'Signature date is required';
-        } else {
-            // Validate that signature date is today's date
-            const today = getTodayDate();
-            if (w9Data.signature_date !== today) {
-                newErrors.signature_date = 'Signature date must be today\'s date';
+        if (!addressOnlyEdit) {
+            // Signature validation
+            if (!w9Data.signature?.trim()) {
+                newErrors.signature = 'Electronic signature is required';
             }
-        }
-        
-        if (!w9Data.electronic_signature_acknowledgment) {
-            newErrors.electronic_signature_acknowledgment = 'Electronic signature acknowledgment is required';
+            
+            if (!w9Data.signature_date || (typeof w9Data.signature_date === 'string' && !w9Data.signature_date.trim())) {
+                newErrors.signature_date = 'Signature date is required';
+            } else {
+                // Validate that signature date is today's date
+                const today = getTodayDate();
+                if (w9Data.signature_date !== today) {
+                    newErrors.signature_date = 'Signature date must be today\'s date';
+                }
+            }
+            
+            if (!w9Data.electronic_signature_acknowledgment) {
+                newErrors.electronic_signature_acknowledgment = 'Electronic signature acknowledgment is required';
+            }
         }
 
         setErrors(newErrors);
@@ -260,8 +278,25 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                     Form W-9 - Request for Taxpayer Identification Number and Certification
                 </h3>
                 <p className="text-gray-600 mb-6">
-                    Please provide your W-9 tax form information. This information is required for tax reporting purposes and will be used to generate your 1099 form.
+                    {addressOnlyEdit
+                        ? 'You can update your W-9 mailing address below. Other tax information is on file and cannot be changed here.'
+                        : 'Please provide your W-9 tax form information. This information is required for tax reporting purposes and will be used to generate your 1099 form.'}
                 </p>
+
+                {addressOnlyEdit && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <p className="text-sm text-blue-900">
+                            To change your name, business name, tax classification, SSN, or EIN, please contact{' '}
+                            <a
+                                href={`mailto:${PROVIDER_SUPPORT_EMAIL}`}
+                                className="font-medium underline hover:text-blue-700"
+                            >
+                                {PROVIDER_SUPPORT_EMAIL}
+                            </a>
+                            .
+                        </p>
+                    </div>
+                )}
                 
                 {/* Show notice if W9 fields are rejected */}
                 {hasRejectedW9Fields && (
@@ -304,7 +339,9 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                             onChange={(e) => handleW9DataChange('business_name', e.target.value)}
                             error={errors.business_name || (isFieldRejected('w9_business_name') && !w9Data.business_name?.trim() ? 'This field needs to be updated' : '')}
                             placeholder="Enter your full name or business name"
-                            required
+                            required={!addressOnlyEdit}
+                            readOnly={addressOnlyEdit}
+                            className={readOnlyInputClass}
                         />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
@@ -322,6 +359,8 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                         value={w9Data.business_name_alt || ''}
                         onChange={(e) => handleW9DataChange('business_name_alt', e.target.value)}
                         placeholder="Enter business name if different from above"
+                        readOnly={addressOnlyEdit}
+                        className={readOnlyInputClass}
                     />
                 </div>
 
@@ -332,6 +371,14 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                         {isFieldRejected('w9_tax_classification') && !w9Data.tax_classification && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
                     </label>
                     <p className="text-xs text-gray-500 mb-2">Check only one of the following seven boxes.</p>
+                    {addressOnlyEdit ? (
+                        <p className="text-sm text-gray-900 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                            {taxClassificationLabels[w9Data.tax_classification] || w9Data.tax_classification || 'Not provided'}
+                            {w9Data.tax_classification === 'llc' && w9Data.llc_classification && (
+                                <span className="text-gray-600"> ({w9Data.llc_classification} classification)</span>
+                            )}
+                        </p>
+                    ) : (
                     <div className="space-y-2">
                         {[
                             { value: 'individual', label: 'Individual/sole proprietor' },
@@ -355,7 +402,8 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                             </label>
                         ))}
                     </div>
-                    {w9Data.tax_classification === 'llc' && (
+                    )}
+                    {!addressOnlyEdit && w9Data.tax_classification === 'llc' && (
                         <div className="mt-2 ml-6">
                             <Select
                                 value={w9Data.llc_classification || ''}
@@ -380,6 +428,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                 </div>
 
                 {/* Line 3b: Foreign partners checkbox */}
+                {!addressOnlyEdit && (
                 <div className="mb-4">
                     <label className="flex items-center">
                         <input
@@ -394,8 +443,10 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                         </span>
                     </label>
                 </div>
+                )}
 
                 {/* Line 4: Exemptions */}
+                {!addressOnlyEdit && (
                 <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                         Line 4: Exemptions (codes apply only to certain entities, not individuals; see instructions on page 3)
@@ -422,6 +473,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                         </div>
                     </div>
                 </div>
+                )}
 
                 {/* Line 5: Address */}
                 <div className={`mb-4 ${isFieldRejected('w9_address') && !w9Data.address?.trim() ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
@@ -480,6 +532,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                 </div>
 
                 {/* Line 7: Account number (optional) */}
+                {!addressOnlyEdit && (
                 <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Line 7: List account number(s) here (optional)
@@ -491,6 +544,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                         placeholder="Account number"
                     />
                 </div>
+                )}
 
                 {/* TIN Section */}
                 <div className={`mb-6 ${(isFieldRejected('w9_ssn') || isFieldRejected('w9_ein')) && !w9Data.ssn?.trim() && !w9Data.ein?.trim() ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
@@ -506,20 +560,24 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                             <label className="block text-sm font-medium text-gray-700 mb-1">Social Security Number (SSN)</label>
                             <Input
                                 type="text"
-                                value={w9Data.ssn}
+                                value={addressOnlyEdit ? (w9Data.ssn ? '***-**-****' : '') : w9Data.ssn}
                                 onChange={(e) => handleW9DataChange('ssn', e.target.value)}
                                 error={errors.ssn || (isFieldRejected('w9_ssn') && !w9Data.ssn?.trim() && !w9Data.ein?.trim() ? 'Please enter SSN or EIN' : '')}
                                 placeholder="XXX-XX-XXXX"
+                                readOnly={addressOnlyEdit}
+                                className={readOnlyInputClass}
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Employer Identification Number (EIN)</label>
                             <Input
                                 type="text"
-                                value={w9Data.ein}
+                                value={addressOnlyEdit ? (w9Data.ein ? '**-*******' : '') : w9Data.ein}
                                 onChange={(e) => handleW9DataChange('ein', e.target.value)}
                                 error={errors.ein || (isFieldRejected('w9_ein') && !w9Data.ssn?.trim() && !w9Data.ein?.trim() ? 'Please enter SSN or EIN' : '')}
                                 placeholder="XX-XXXXXXX"
+                                readOnly={addressOnlyEdit}
+                                className={readOnlyInputClass}
                             />
                         </div>
                     </div>
@@ -530,6 +588,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
             </div>
 
             {/* Part II: Certification */}
+            {!addressOnlyEdit && (
             <div className="bg-white border border-gray-300 rounded-lg p-6">
                 <div className="mb-4">
                     <h4 className="text-lg font-semibold text-gray-900 mb-2">Part II - Certification</h4>
@@ -615,9 +674,10 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                     </div>
                 </div>
             </div>
+            )}
 
             {/* Auto-populate profile information button */}
-            {(formData.first_name || formData.street_address || formData.city || formData.state_id || formData.zip_code) && (
+            {!addressOnlyEdit && (formData.first_name || formData.street_address || formData.city || formData.state_id || formData.zip_code) && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <Button
                         onClick={() => {
@@ -644,15 +704,47 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                 </div>
             )}
 
+            {addressOnlyEdit && (formData.street_address || formData.city || formData.state_id || formData.zip_code) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <Button
+                        onClick={() => {
+                            setW9Data(prev => ({
+                                ...prev,
+                                address: formData.street_address || prev.address,
+                                city: formData.city || prev.city,
+                                state: getStateCodeFromId(formData.state_id) || prev.state,
+                                zip_code: formData.zip_code || prev.zip_code
+                            }));
+                            toast.success('Address populated from your profile');
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                    >
+                        Use Profile Address
+                    </Button>
+                </div>
+            )}
+
             {/* Important Notes */}
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <h4 className="font-medium text-yellow-900 mb-2">Important Notes:</h4>
                 <ul className="text-sm text-yellow-800 space-y-1">
-                    <li>• The W-9 form is required for tax reporting purposes</li>
-                    <li>• Ensure all information is accurate and up-to-date</li>
-                    <li>• Your SSN or EIN will be used for 1099 tax reporting</li>
-                    <li>• This information is kept secure and confidential</li>
-                    <li>• All required fields must be completed to proceed</li>
+                    {addressOnlyEdit ? (
+                        <>
+                            <li>• Only your W-9 mailing address can be updated here</li>
+                            <li>• Contact {PROVIDER_SUPPORT_EMAIL} to change name, business name, tax classification, SSN, or EIN</li>
+                            <li>• Address changes require admin approval before being applied</li>
+                        </>
+                    ) : (
+                        <>
+                            <li>• The W-9 form is required for tax reporting purposes</li>
+                            <li>• Ensure all information is accurate and up-to-date</li>
+                            <li>• Your SSN or EIN will be used for 1099 tax reporting</li>
+                            <li>• This information is kept secure and confidential</li>
+                            <li>• All required fields must be completed to proceed</li>
+                        </>
+                    )}
                 </ul>
             </div>
 

@@ -328,7 +328,7 @@ const Profile = () => {
                                             {formatDateDisplay(cert.expiry_date)}
                                         </span>
                                     </p>
-                                    {cert.file_path && (
+                                    {(cert.file_name || cert.file_path) && (
                                         <p>
                                             <span className="font-medium text-gray-700">Certificate file:</span>{' '}
                                             <button

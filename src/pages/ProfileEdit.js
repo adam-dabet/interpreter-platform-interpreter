@@ -646,6 +646,7 @@ const ProfileEdit = () => {
                                     isEditing={isEditingFromReview}
                                     rejectedFields={[]}
                                     isResubmission={false}
+                                    addressOnlyEdit={currentStep === 6}
                                 />
                             )}
                         </motion.div>

@@ -30,6 +30,7 @@ import { milesInputToNumber, isPartialMilesInput } from '../utils/mileageInputUt
 import { getProviderJobStatusLabel, isProviderJobCompleted } from '../utils/providerJobStatus';
 import FacilityDurationFollowUpNotice from '../components/FacilityDurationFollowUpNotice';
 import ProviderInvoiceNotice from '../components/ProviderInvoiceNotice';
+import { isJobAssignedToCurrentInterpreter } from '../utils/claimantPrivacy';
 
 const LAST_LIST_ROUTE_KEY = 'interpreterLastJobListRoute';
 const DEFAULT_RETURN_PATH = '/jobs';
@@ -175,10 +176,7 @@ const JobDetails = () => {
     return new Date() >= arrivalDateTime;
   }, [job]);
 
-  const assignedToCurrentInterpreter =
-    !!profile?.id &&
-    !!job?.assigned_interpreter_id &&
-    String(profile.id) === String(job.assigned_interpreter_id);
+  const assignedToCurrentInterpreter = isJobAssignedToCurrentInterpreter(job, profile?.id);
 
   const showJobTimingModule =
     assignedToCurrentInterpreter &&
@@ -816,7 +814,8 @@ const JobDetails = () => {
               </div>
             </motion.div>
 
-            {/* Claimant Information */}
+            {/* Claimant Information — only visible once assigned to this interpreter */}
+            {assignedToCurrentInterpreter && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -871,6 +870,7 @@ const JobDetails = () => {
                 )}
               </div>
             </motion.div>
+            )}
 
             {/* Completion Report */}
             {job.completion_report_submitted && job.completion_report_data && (

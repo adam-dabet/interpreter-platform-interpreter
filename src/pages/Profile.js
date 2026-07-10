@@ -248,7 +248,11 @@ const Profile = () => {
             </div>
 
             <div className="border-t border-gray-200 pt-6">
-                <InterpreterServiceAreas initialAreas={profile?.service_areas || []} />
+                <InterpreterServiceAreas
+                  initialAreas={profile?.service_areas || []}
+                  serviceTypes={profile?.service_types || []}
+                  defaultRates={profile?.service_rates || []}
+                />
             </div>
         </div>
     );

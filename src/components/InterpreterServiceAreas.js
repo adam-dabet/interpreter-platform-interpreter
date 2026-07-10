@@ -36,7 +36,22 @@ const emptyForm = {
   longitude: null,
   formatted_address: '',
   place_id: '',
+  rates: [],
 };
+
+const formatRateLabel = (rate) => {
+  if (!rate) return null;
+  if (rate.rate_type === 'platform') return 'Platform rate';
+  if (rate.rate_amount == null) return null;
+  const unit =
+    rate.rate_unit === 'minutes' ? 'min'
+    : rate.rate_unit === '3hours' ? '3hr'
+    : rate.rate_unit === '6hours' ? '6hr'
+    : 'hr';
+  return `$${rate.rate_amount}/${unit}`;
+};
+
+const getServiceTypeId = (st) => st.id || st.service_type_id;
 
 const formatAreaAddress = (area) => {
   const parts = [
@@ -48,7 +63,7 @@ const formatAreaAddress = (area) => {
   return parts.join(', ') || area.formatted_address || 'Address not set';
 };
 
-const InterpreterServiceAreas = ({ initialAreas = [], onAreasChange }) => {
+const InterpreterServiceAreas = ({ initialAreas = [], serviceTypes = [], defaultRates = [], onAreasChange }) => {
   const [areas, setAreas] = useState(initialAreas);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -109,6 +124,40 @@ const InterpreterServiceAreas = ({ initialAreas = [], onAreasChange }) => {
     setShowModal(true);
   };
 
+  const getRateForType = (serviceTypeId) =>
+    (formData.rates || []).find((r) => Number(r.service_type_id) === Number(serviceTypeId));
+
+  const toggleRateOverride = (serviceTypeId, enabled) => {
+    setFormData((prev) => {
+      let rates = [...(prev.rates || [])];
+      if (enabled) {
+        if (!rates.find((r) => Number(r.service_type_id) === Number(serviceTypeId))) {
+          const defaultRate = defaultRates.find((r) => Number(r.service_type_id) === Number(serviceTypeId));
+          const st = serviceTypes.find((s) => Number(getServiceTypeId(s)) === Number(serviceTypeId));
+          const isLegalVideo = st?.code === 'legal' || st?.code === 'video';
+          rates.push({
+            service_type_id: serviceTypeId,
+            rate_type: 'custom',
+            rate_amount: defaultRate?.rate_amount ?? '',
+            rate_unit: defaultRate?.rate_unit || (isLegalVideo ? '3hours' : 'hours'),
+          });
+        }
+      } else {
+        rates = rates.filter((r) => Number(r.service_type_id) !== Number(serviceTypeId));
+      }
+      return { ...prev, rates };
+    });
+  };
+
+  const updateAreaRate = (serviceTypeId, field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      rates: (prev.rates || []).map((r) =>
+        Number(r.service_type_id) === Number(serviceTypeId) ? { ...r, [field]: value } : r
+      ),
+    }));
+  };
+
   const openEditModal = (area) => {
     setEditingArea(area);
     setFormData({
@@ -123,6 +172,12 @@ const InterpreterServiceAreas = ({ initialAreas = [], onAreasChange }) => {
       longitude: area.longitude,
       formatted_address: area.formatted_address || '',
       place_id: area.place_id || '',
+      rates: (area.rates || []).map((r) => ({
+        service_type_id: r.service_type_id,
+        rate_type: r.rate_type || 'custom',
+        rate_amount: r.rate_amount,
+        rate_unit: r.rate_unit || 'hours',
+      })),
     });
     setShowModal(true);
   };
@@ -140,6 +195,7 @@ const InterpreterServiceAreas = ({ initialAreas = [], onAreasChange }) => {
         ...formData,
         state_id: formData.state_id || null,
         service_radius_miles: parseInt(formData.service_radius_miles, 10) || 25,
+        rates: (formData.rates || []).filter((r) => r.rate_amount != null && r.rate_amount !== ''),
       };
 
       if (editingArea) {
@@ -214,6 +270,18 @@ const InterpreterServiceAreas = ({ initialAreas = [], onAreasChange }) => {
                 <p className="text-xs text-gray-500 mt-1">
                   Radius: {area.service_radius_miles || 25} miles
                 </p>
+                {area.rates?.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {area.rates.map((rate) => (
+                      <span
+                        key={rate.service_type_id}
+                        className="inline-block text-xs bg-teal-100 text-teal-800 px-2 py-0.5 rounded-full"
+                      >
+                        {rate.service_type_name}: {formatRateLabel(rate)}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex gap-2 ml-4">
                 <button type="button" onClick={() => openEditModal(area)} className="p-2 text-gray-500 hover:text-teal-600">
@@ -316,6 +384,80 @@ const InterpreterServiceAreas = ({ initialAreas = [], onAreasChange }) => {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 />
               </div>
+
+              {serviceTypes.length > 0 && (
+                <div className="border-t border-gray-200 pt-4">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Area-Specific Rates (optional)</h4>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Set different rates for jobs in this area. Unchecked service types use your default profile rates.
+                  </p>
+                  <div className="space-y-3">
+                    {serviceTypes.map((st) => {
+                      const typeId = getServiceTypeId(st);
+                      const typeName = st.name || st.service_type_name;
+                      const areaRate = getRateForType(typeId);
+                      const defaultRate = defaultRates.find((r) => Number(r.service_type_id) === Number(typeId));
+                      const isLegalVideo = st.code === 'legal' || st.code === 'video';
+
+                      return (
+                        <div key={typeId} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!!areaRate}
+                              onChange={(e) => toggleRateOverride(typeId, e.target.checked)}
+                              className="rounded border-gray-300 text-teal-600"
+                            />
+                            <span className="text-sm font-medium text-gray-900">{typeName}</span>
+                            {!areaRate && defaultRate && (
+                              <span className="text-xs text-gray-500 ml-auto">
+                                Default: {formatRateLabel(defaultRate)}
+                              </span>
+                            )}
+                          </label>
+                          {areaRate && (
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-xs text-gray-600 mb-1">Rate ($)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={areaRate.rate_amount ?? ''}
+                                  onChange={(e) => updateAreaRate(typeId, 'rate_amount', parseFloat(e.target.value))}
+                                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-600 mb-1">Unit</label>
+                                {isLegalVideo ? (
+                                  <select
+                                    value={areaRate.rate_unit || '3hours'}
+                                    onChange={(e) => updateAreaRate(typeId, 'rate_unit', e.target.value)}
+                                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                                  >
+                                    <option value="3hours">Per 3 hours</option>
+                                    <option value="6hours">Per 6 hours</option>
+                                    <option value="hours">Per hour</option>
+                                  </select>
+                                ) : (
+                                  <select
+                                    value={areaRate.rate_unit || 'hours'}
+                                    onChange={(e) => updateAreaRate(typeId, 'rate_unit', e.target.value)}
+                                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                                  >
+                                    <option value="hours">Per hour</option>
+                                    <option value="minutes">Per minute</option>
+                                  </select>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-end gap-3 pt-2">
                 <button

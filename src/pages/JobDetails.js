@@ -529,6 +529,88 @@ const JobDetails = () => {
     return basePayment + mileageReimbursement;
   };
 
+  const getBillableHours = (job) => {
+    const estimatedMinutes = parseFloat(job.estimated_duration_minutes) || 0;
+    const minimumHours = parseFloat(job.interpreter_minimum_hours) || 1;
+    const minimumMinutes = minimumHours * 60;
+    const billingIncrement = parseFloat(job.interpreter_interval_minutes) || 15;
+    const finalBillableMinutes = Math.max(estimatedMinutes, minimumMinutes);
+    const roundedMinutes =
+      finalBillableMinutes <= minimumMinutes
+        ? finalBillableMinutes
+        : minimumMinutes +
+          Math.ceil((finalBillableMinutes - minimumMinutes) / billingIncrement) * billingIncrement;
+
+    return {
+      billableHours: roundedMinutes / 60,
+      roundedMinutes,
+    };
+  };
+
+  const formatEarningsBreakdown = (job) => {
+    if (job.use_interpreter_flat_rate && parseFloat(job.interpreter_flat_rate || 0) > 0) {
+      const flatRateAmount = parseFloat(job.interpreter_flat_rate);
+      const flatRateHours = parseFloat(job.interpreter_flat_rate_hours || 3);
+      const estimatedHours = (parseFloat(job.estimated_duration_minutes) || 0) / 60;
+      if (flatRateHours > 0 && estimatedHours > flatRateHours) {
+        const blocks = Math.ceil(estimatedHours / flatRateHours);
+        return `${formatCurrency(flatRateAmount)} flat rate × ${blocks} blocks = ${formatCurrency(flatRateAmount * blocks)}`;
+      }
+      return `${formatCurrency(flatRateAmount)} flat rate (covers ${flatRateHours} hours)`;
+    }
+
+    const { billableHours, roundedMinutes } = getBillableHours(job);
+
+    // Backend-resolved rate (service area, language-specific, or profile)
+    if (job.interpreter_original_rate_amount != null && job.interpreter_rate_unit) {
+      const amount = parseFloat(job.interpreter_original_rate_amount);
+      const rateUnit = (job.interpreter_rate_unit || 'hours').toLowerCase();
+
+      if (rateUnit === 'minutes') {
+        return `${formatCurrency(amount)}/min × ${roundedMinutes} min = ${formatCurrency(amount * roundedMinutes)}`;
+      }
+      if (rateUnit === 'word') {
+        const wordCount = parseInt(job.estimated_word_count || 0, 10);
+        return `${formatCurrency(amount)}/word × ${wordCount} words = ${formatCurrency(amount * wordCount)}`;
+      }
+
+      const blockMatch = rateUnit.match(/^(\d+)hours?$/);
+      if (blockMatch) {
+        const blockHours = parseInt(blockMatch[1], 10);
+        const effectiveHourly = amount / blockHours;
+        return `${formatCurrency(amount)}/${blockHours}hr (${formatCurrency(effectiveHourly)}/hr) × ${billableHours.toFixed(1)} hours = ${formatCurrency(effectiveHourly * billableHours)}`;
+      }
+
+      return `${formatCurrency(amount)}/hour × ${billableHours.toFixed(1)} hours = ${formatCurrency(amount * billableHours)}`;
+    }
+
+    if (job.hourly_rate) {
+      const hourly = parseFloat(job.hourly_rate);
+      return `${formatCurrency(hourly)}/hour × ${billableHours.toFixed(1)} hours = ${formatCurrency(hourly * billableHours)}`;
+    }
+
+    if (profile?.service_rates) {
+      const serviceRate = profile.service_rates.find(
+        (rate) => rate.service_type_id === job.service_type_id
+      );
+      if (serviceRate?.rate_amount && serviceRate.rate_unit) {
+        const rateUnit = (serviceRate.rate_unit || 'hours').toLowerCase();
+        if (rateUnit === 'minutes') {
+          return `${formatCurrency(serviceRate.rate_amount)}/min × ${roundedMinutes} min = ${formatCurrency(serviceRate.rate_amount * roundedMinutes)}`;
+        }
+        const blockMatch = rateUnit.match(/^(\d+)hours?$/);
+        if (blockMatch) {
+          const blockHours = parseInt(blockMatch[1], 10);
+          const effectiveHourly = serviceRate.rate_amount / blockHours;
+          return `${formatCurrency(serviceRate.rate_amount)}/${blockHours}hr (${formatCurrency(effectiveHourly)}/hr) × ${billableHours.toFixed(1)} hours = ${formatCurrency(effectiveHourly * billableHours)}`;
+        }
+        return `${formatCurrency(serviceRate.rate_amount)}/hour × ${billableHours.toFixed(1)} hours = ${formatCurrency(serviceRate.rate_amount * billableHours)}`;
+      }
+    }
+
+    return 'Rate not set';
+  };
+
   const getPriorityColor = (priority) => {
     switch (priority) {
       case 'urgent': return 'text-red-600 bg-red-100';
@@ -1022,51 +1104,7 @@ const JobDetails = () => {
                   Total earnings for this job
                 </p>
                         <div className="text-xs text-gray-400 mb-4">
-                          {(() => {
-                            // Flat rate set by admin takes priority over all other rate displays
-                            if (job.use_interpreter_flat_rate && parseFloat(job.interpreter_flat_rate || 0) > 0) {
-                              const flatRateAmount = parseFloat(job.interpreter_flat_rate);
-                              const flatRateHours = parseFloat(job.interpreter_flat_rate_hours || 3);
-                              const estimatedHours = (parseFloat(job.estimated_duration_minutes) || 0) / 60;
-                              if (flatRateHours > 0 && estimatedHours > flatRateHours) {
-                                const blocks = Math.ceil(estimatedHours / flatRateHours);
-                                return `${formatCurrency(flatRateAmount)} flat rate × ${blocks} blocks = ${formatCurrency(flatRateAmount * blocks)}`;
-                              }
-                              return `${formatCurrency(flatRateAmount)} flat rate (covers ${flatRateHours} hours)`;
-                            }
-                            const estimatedMinutes = parseFloat(job.estimated_duration_minutes) || 0;
-                            const minimumHours = parseFloat(job.interpreter_minimum_hours) || 1;
-                            const minimumMinutes = minimumHours * 60;
-                            const billingIncrement = parseFloat(job.interpreter_interval_minutes) || 15;
-                            const finalBillableMinutes = Math.max(estimatedMinutes, minimumMinutes);
-                            const roundedMinutes = finalBillableMinutes <= minimumMinutes
-                              ? finalBillableMinutes
-                              : minimumMinutes + Math.ceil((finalBillableMinutes - minimumMinutes) / billingIncrement) * billingIncrement;
-                            const billableHours = roundedMinutes / 60;
-                            if (profile?.service_rates) {
-                              const serviceRate = profile.service_rates.find(
-                                rate => rate.service_type_id === job.service_type_id
-                              );
-                              if (serviceRate && serviceRate.rate_amount && serviceRate.rate_unit) {
-                                const rateUnit = (serviceRate.rate_unit || 'hours').toLowerCase();
-                                if (rateUnit === 'minutes') {
-                                  return `${formatCurrency(serviceRate.rate_amount)}/min × ${roundedMinutes} min = ${formatCurrency(serviceRate.rate_amount * roundedMinutes)}`;
-                                }
-                                // Handle block rates like '3hours', '6hours'
-                                const blockMatch = rateUnit.match(/^(\d+)hours?$/);
-                                if (blockMatch) {
-                                  const blockHours = parseInt(blockMatch[1], 10);
-                                  const effectiveHourly = serviceRate.rate_amount / blockHours;
-                                  return `${formatCurrency(serviceRate.rate_amount)}/${blockHours}hr (${formatCurrency(effectiveHourly)}/hr) × ${billableHours.toFixed(1)} hours = ${formatCurrency(effectiveHourly * billableHours)}`;
-                                }
-                                return `${formatCurrency(serviceRate.rate_amount)}/hour × ${billableHours.toFixed(1)} hours = ${formatCurrency(serviceRate.rate_amount * billableHours)}`;
-                              }
-                            }
-                            if (job.hourly_rate) {
-                              return `${formatCurrency(job.hourly_rate)}/hour × ${billableHours.toFixed(1)} hours = ${formatCurrency(job.hourly_rate * billableHours)}`;
-                            }
-                            return 'Rate not set';
-                          })()}
+                          {formatEarningsBreakdown(job)}
                         </div>
                 {job.mileage_reimbursement && parseFloat(job.mileage_reimbursement) > 0 && (
                   <div className="mt-4 pt-4 border-t border-gray-200">

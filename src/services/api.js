@@ -169,6 +169,11 @@ export const interpreterAPI = {
   cancelPendingUpdate: () => {
     return api.delete('/interpreters/profile/pending-update');
   },
+
+  getServiceAreas: () => api.get('/interpreters/service-areas'),
+  createServiceArea: (data) => api.post('/interpreters/service-areas', data),
+  updateServiceArea: (areaId, data) => api.put(`/interpreters/service-areas/${areaId}`, data),
+  deleteServiceArea: (areaId) => api.delete(`/interpreters/service-areas/${areaId}`),
 };
 
 export const transportationProviderAPI = {

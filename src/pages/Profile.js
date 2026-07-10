@@ -8,6 +8,7 @@ import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
 import { interpreterAPI } from '../services/api';
+import InterpreterServiceAreas from '../components/InterpreterServiceAreas';
 import {
   openAuthenticatedFile,
   getInterpreterCertificateFilePath,
@@ -244,6 +245,10 @@ const Profile = () => {
                     <label className="block text-sm font-medium text-gray-700">Service Radius</label>
                     <p className="mt-1 text-sm text-gray-900">{profile?.service_radius_miles || 25} miles</p>
                 </div>
+            </div>
+
+            <div className="border-t border-gray-200 pt-6">
+                <InterpreterServiceAreas initialAreas={profile?.service_areas || []} />
             </div>
         </div>
     );

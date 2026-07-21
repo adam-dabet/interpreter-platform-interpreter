@@ -288,10 +288,10 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
           </div>
         </div>
 
-        {/* Address Information */}
+        {/* Physical Address */}
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Address Information</h3>
+            <h3 className="text-lg font-medium text-gray-900">Physical Address</h3>
             <button 
               onClick={() => onEdit && onEdit(2)}
               className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
@@ -523,7 +523,7 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
                     </div>
                   )}
                   <div>
-                    <span className="font-medium text-gray-700">Address:</span>
+                    <span className="font-medium text-gray-700">Billing Address:</span>
                     <span className="ml-2 text-gray-600">{data.w9_data.address}</span>
                   </div>
                   <div>

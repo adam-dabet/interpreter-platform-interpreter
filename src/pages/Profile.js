@@ -23,8 +23,8 @@ const PROFILE_STEPS = [
     },
     {
         id: 2,
-        title: 'Address Information',
-        description: 'Location and contact details',
+        title: 'Physical Address',
+        description: 'Used for nearby job offers',
         icon: MapPinIcon
     },
     {
@@ -215,7 +215,12 @@ const Profile = () => {
 
     const renderAddressInfo = () => (
         <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-gray-900">Address Information</h3>
+            <div>
+                <h3 className="text-xl font-semibold text-gray-900">Physical Address</h3>
+                <p className="mt-1 text-sm text-gray-600">
+                    Used to match you with nearby job offers (along with any service areas below).
+                </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Street Address</label>
@@ -486,6 +491,20 @@ const Profile = () => {
                         </div>
                     </div>
                     <div className="pt-4 border-t border-gray-200">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Billing Address</h4>
+                        <p className="text-sm text-gray-900">
+                            {profile.w9_forms[0].address || 'Not provided'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                            {[profile.w9_forms[0].city, profile.w9_forms[0].state, profile.w9_forms[0].zip_code]
+                                .filter(Boolean)
+                                .join(', ') || 'City, state, ZIP not provided'}
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500">
+                            Used for tax forms (1099). Separate from your physical address used for job offers.
+                        </p>
+                    </div>
+                    <div className="pt-4 border-t border-gray-200">
                         <p className="text-xs text-gray-500">
                             W-9 form submitted on {new Date(profile.w9_forms[0].created_at).toLocaleDateString()}
                         </p>
@@ -517,9 +536,9 @@ const Profile = () => {
                     <p className="text-sm text-gray-600">{profile?.phone}</p>
                 </div>
 
-                {/* Address Summary */}
+                {/* Physical Address Summary */}
                 <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Location</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Physical Address</h4>
                     <p className="text-sm text-gray-900">
                         {profile?.street_address}
                         {profile?.street_address_2 && <>, {profile.street_address_2}</>}

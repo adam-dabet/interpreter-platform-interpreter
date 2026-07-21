@@ -279,7 +279,7 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                 </h3>
                 <p className="text-gray-600 mb-6">
                     {addressOnlyEdit
-                        ? 'You can update your W-9 mailing address below. Other tax information is on file and cannot be changed here.'
+                        ? 'You can update your billing address (W-9 mailing address) below. Other tax information is on file and cannot be changed here.'
                         : 'Please provide your W-9 tax form information. This information is required for tax reporting purposes and will be used to generate your 1099 form.'}
                 </p>
 
@@ -475,10 +475,10 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                 </div>
                 )}
 
-                {/* Line 5: Address */}
+                {/* Line 5: Billing Address (W-9 mailing) */}
                 <div className={`mb-4 ${isFieldRejected('w9_address') && !w9Data.address?.trim() ? 'ring-2 ring-red-500 rounded-lg p-3 bg-red-50' : ''}`}>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Line 5: Address (number, street, and apt. or suite no.)
+                        Billing Address — Line 5: Address (number, street, and apt. or suite no.)
                         {isFieldRejected('w9_address') && !w9Data.address?.trim() && <span className="ml-2 text-red-600 text-sm">⚠ Needs update</span>}
                     </label>
                     <Input
@@ -489,6 +489,9 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                         placeholder="Street address"
                         required
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                        This is your billing / mailing address for tax forms (1099). It is separate from your physical address used for job offers.
+                    </p>
                 </div>
 
                 {/* Line 6: City, state, and ZIP code */}
@@ -715,13 +718,13 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                                 state: getStateCodeFromId(formData.state_id) || prev.state,
                                 zip_code: formData.zip_code || prev.zip_code
                             }));
-                            toast.success('Address populated from your profile');
+                            toast.success('Billing address populated from your physical address');
                         }}
                         variant="outline"
                         size="sm"
                         className="text-blue-700 border-blue-300 hover:bg-blue-100"
                     >
-                        Use Profile Address
+                        Use Physical Address
                     </Button>
                 </div>
             )}
@@ -732,9 +735,9 @@ const W9FormStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, reje
                 <ul className="text-sm text-yellow-800 space-y-1">
                     {addressOnlyEdit ? (
                         <>
-                            <li>• Only your W-9 mailing address can be updated here</li>
+                            <li>• Only your billing address (W-9 mailing) can be updated here</li>
                             <li>• Contact {PROVIDER_SUPPORT_EMAIL} to change name, business name, tax classification, SSN, or EIN</li>
-                            <li>• Address changes require admin approval before being applied</li>
+                            <li>• Billing address changes require admin approval before being applied</li>
                         </>
                     ) : (
                         <>

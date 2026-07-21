@@ -25,8 +25,8 @@ const INTERPRETER_STEPS = [
     },
     {
         id: 2,
-        title: 'Address Information',
-        description: 'Location and contact details',
+        title: 'Physical Address',
+        description: 'Used for nearby job offers',
         icon: MapPinIcon,
         component: AddressStep
     },

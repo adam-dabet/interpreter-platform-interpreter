@@ -29,6 +29,10 @@ const AddressAutocomplete = ({
 
         if (!inputRef.current) return;
 
+        if (!window.google?.maps?.places?.Autocomplete) {
+          throw new Error('Google Places Autocomplete is unavailable');
+        }
+
         // Create autocomplete instance
         autocompleteRef.current = new window.google.maps.places.Autocomplete(
           inputRef.current,

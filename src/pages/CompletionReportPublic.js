@@ -247,11 +247,14 @@ const CompletionReportPublic = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Notes (Optional)
               </label>
+              <p className="text-sm text-gray-500 mb-2">
+                Only include necessary and important details.
+              </p>
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({...formData, notes: e.target.value})}
                 rows={4}
-                placeholder="Any additional notes about the job..."
+                placeholder="Necessary details only (e.g. issues or special circumstances)..."
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>

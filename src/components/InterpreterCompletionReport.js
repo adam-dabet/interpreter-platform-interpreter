@@ -817,13 +817,16 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Notes
             </label>
+            <p className="text-sm text-gray-500 mb-2">
+              Only include necessary and important details.
+            </p>
             <textarea
               name="notes"
               value={formData.notes}
               onChange={handleInputChange}
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Additional notes about the assignment..."
+              placeholder="Necessary details only (e.g. issues or special circumstances)..."
             />
           </div>
 

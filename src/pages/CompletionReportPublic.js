@@ -42,16 +42,16 @@ const CompletionReportPublic = () => {
         const job = response.data.data;
         setJobDetails(job);
         
-        // Pre-fill times if job has start/end times
-        if (job.job_started_at) {
-          const startTime = new Date(job.job_started_at);
+        // Pre-fill times from Start Job / Complete Job click timestamps
+        if (job.in_progress_at || job.job_started_at) {
+          const startTime = new Date(job.in_progress_at || job.job_started_at);
           setFormData(prev => ({
             ...prev,
             start_time: startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
           }));
         }
-        if (job.job_ended_at) {
-          const endTime = new Date(job.job_ended_at);
+        if (job.job_ended_at || job.completed_at) {
+          const endTime = new Date(job.job_ended_at || job.completed_at);
           setFormData(prev => ({
             ...prev,
             end_time: endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })

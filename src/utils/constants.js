@@ -136,6 +136,7 @@ export const RATE_UNITS = [
 export const TRANSPORTATION_SERVICE_TYPES = [
   { value: 'ambulatory', label: 'Ambulatory', description: 'Non-emergency ambulatory transport' },
   { value: 'wheelchair', label: 'Wheelchair', description: 'Wheelchair accessible transport' },
+  { value: 'stretcher', label: 'Stretcher', description: 'Stretcher / gurney transport' },
   { value: 'bls', label: 'Basic Life Support (BLS)', description: 'BLS medical transport' },
   { value: 'als', label: 'Advanced Life Support (ALS)', description: 'ALS medical transport' },
 ];

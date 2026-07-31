@@ -6,6 +6,7 @@ export const formatTransportationServiceType = (type) => {
   const labels = {
     ambulatory: 'Ambulatory',
     wheelchair: 'Wheelchair',
+    stretcher: 'Stretcher',
     bls: 'BLS',
     als: 'ALS',
   };

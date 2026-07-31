@@ -149,7 +149,7 @@ const TransportationProviderProfile = () => {
     const rates = transportation_rates || interpreter?.transportation_rates || {};
     const parsedRates = typeof rates === 'string' ? JSON.parse(rates) : rates;
     const serviceTypes = Object.keys(parsedRates || {}).filter((key) =>
-      ['ambulatory', 'wheelchair', 'bls', 'als'].includes(key)
+      ['ambulatory', 'wheelchair', 'stretcher', 'bls', 'als'].includes(key)
     );
 
     setFormData((prev) => ({
@@ -219,7 +219,7 @@ const TransportationProviderProfile = () => {
       const rates = data.transportationRates || {};
       const serviceTypes = Object.entries(rates)
         .filter(([key, typeRates]) => {
-          if (!['ambulatory', 'wheelchair', 'bls', 'als'].includes(key)) return false;
+          if (!['ambulatory', 'wheelchair', 'stretcher', 'bls', 'als'].includes(key)) return false;
           const perMile = parseFloat(typeRates?.per_mile);
           return !Number.isNaN(perMile) && perMile > 0;
         })

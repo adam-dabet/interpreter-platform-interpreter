@@ -61,6 +61,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     ? [
         { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
         { name: 'Find Trips', href: '/trips/find', icon: MagnifyingGlassIcon },
+        { name: 'Payout Settings', href: '/payout-settings', icon: BanknotesIcon },
         { name: 'Profile', href: '/profile', icon: UserIcon },
       ]
     : [

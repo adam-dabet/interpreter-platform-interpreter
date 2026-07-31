@@ -8,7 +8,7 @@ import {
   TRANSPORTATION_PREFERRED_RATES,
 } from '../../../utils/constants';
 
-const LOAD_FEE_SERVICE_TYPES = ['wheelchair', 'bls', 'als'];
+const LOAD_FEE_SERVICE_TYPES = ['wheelchair', 'stretcher', 'bls', 'als'];
 
 const TransportationServiceTypesStep = ({
   formData,
@@ -58,7 +58,7 @@ const TransportationServiceTypesStep = ({
           updated[value] = {
             per_mile: '',
             per_hour_wait: '',
-            load_fee: value === 'wheelchair' ? '' : '0',
+            load_fee: LOAD_FEE_SERVICE_TYPES.includes(value) ? '' : '0',
             rate_type: value === 'ambulatory' || value === 'wheelchair' ? '' : 'custom',
           };
         }

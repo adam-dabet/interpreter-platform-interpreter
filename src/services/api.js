@@ -174,6 +174,10 @@ export const interpreterAPI = {
   createServiceArea: (data) => api.post('/interpreters/service-areas', data),
   updateServiceArea: (areaId, data) => api.put(`/interpreters/service-areas/${areaId}`, data),
   deleteServiceArea: (areaId) => api.delete(`/interpreters/service-areas/${areaId}`),
+
+  getAgencyMembers: () => api.get('/interpreters/agency-members'),
+  createTeamMember: (memberData) => api.post('/interpreters/agency-members/create', memberData),
+  removeAgencyMember: (memberId) => api.delete(`/interpreters/agency-members/${memberId}`),
 };
 
 export const transportationProviderAPI = {

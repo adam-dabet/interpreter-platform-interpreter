@@ -71,8 +71,8 @@ const AgencyMembers = () => {
   }, []);
 
   useEffect(() => {
-    // Redirect non-agency users
-    if (profile && !profile.is_agency) {
+    if (!profile) return;
+    if (!profile.is_agency) {
       toast.error('This page is only available for agency accounts');
       navigate('/profile');
       return;

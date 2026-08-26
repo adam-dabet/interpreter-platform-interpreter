@@ -9,7 +9,8 @@ import {
   ArrowRightOnRectangleIcon,
   BellIcon,
   GiftIcon,
-  BanknotesIcon
+  BanknotesIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import jobAPI from '../../services/jobAPI';
@@ -57,6 +58,25 @@ const Sidebar = ({ isOpen, onClose }) => {
     }
   };
 
+  const interpreterNav = [
+    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+    { name: 'My Schedule', href: '/schedule', icon: CalendarIcon },
+    { name: 'Find Jobs', href: '/jobs/search', icon: MagnifyingGlassIcon },
+    { name: 'Pending', href: '/pending', icon: BellIcon, badge: pendingCount },
+    { name: 'My Jobs', href: '/jobs', icon: CalendarIcon },
+    { name: 'Refer & Earn', href: '/refer', icon: GiftIcon },
+    { name: 'Payout Settings', href: '/payout-settings', icon: BanknotesIcon },
+    { name: 'Profile', href: '/profile', icon: UserIcon },
+  ];
+
+  if (profile?.is_agency) {
+    interpreterNav.splice(interpreterNav.length - 1, 0, {
+      name: 'Team Members',
+      href: '/agency-members',
+      icon: UsersIcon,
+    });
+  }
+
   const navigation = isTransport
     ? [
         { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
@@ -64,16 +84,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         { name: 'Payout Settings', href: '/payout-settings', icon: BanknotesIcon },
         { name: 'Profile', href: '/profile', icon: UserIcon },
       ]
-    : [
-        { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-        { name: 'My Schedule', href: '/schedule', icon: CalendarIcon },
-        { name: 'Find Jobs', href: '/jobs/search', icon: MagnifyingGlassIcon },
-        { name: 'Pending', href: '/pending', icon: BellIcon, badge: pendingCount },
-        { name: 'My Jobs', href: '/jobs', icon: CalendarIcon },
-        { name: 'Refer & Earn', href: '/refer', icon: GiftIcon },
-        { name: 'Payout Settings', href: '/payout-settings', icon: BanknotesIcon },
-        { name: 'Profile', href: '/profile', icon: UserIcon },
-      ];
+    : interpreterNav;
 
   const isActive = (path) => {
     return location.pathname === path;

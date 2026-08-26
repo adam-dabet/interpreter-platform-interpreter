@@ -16,10 +16,12 @@ import {
   EnvelopeIcon,
   PlayIcon,
   StopIcon,
-  XMarkIcon
+  XMarkIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
+import { interpreterAPI } from '../services/api';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import InterpreterJobWorkflow from '../components/InterpreterJobWorkflow';
@@ -78,6 +80,10 @@ const JobDetails = () => {
   const [mileageRate, setMileageRate] = useState(0.70);
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
   const FEDERAL_MILEAGE_CAP = 0.72;
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [showTeamMemberModal, setShowTeamMemberModal] = useState(false);
+  const [selectedTeamMemberId, setSelectedTeamMemberId] = useState('');
+  const [assigningTeamMember, setAssigningTeamMember] = useState(false);
 
   const getStoredReturnPath = useCallback(() => {
     const statePath = location.state?.returnTo;
@@ -102,6 +108,23 @@ const JobDetails = () => {
   useEffect(() => {
     loadJobDetails();
   }, [jobId]);
+
+  useEffect(() => {
+    if (!profile?.is_agency) return undefined;
+
+    const loadTeamMembers = async () => {
+      try {
+        const response = await interpreterAPI.getAgencyMembers();
+        if (response.data.success) {
+          setTeamMembers(response.data.data.members || []);
+        }
+      } catch (error) {
+        console.error('Error loading team members:', error);
+      }
+    };
+
+    loadTeamMembers();
+  }, [profile?.is_agency]);
 
   // Email "CONFIRM ASSIGNMENT" links include ?confirmAvailability=1 — open modal once job + profile are ready
   useEffect(() => {
@@ -134,9 +157,11 @@ const JobDetails = () => {
     };
   }, [showMileagePrompt]);
 
-  const loadJobDetails = async () => {
+  const loadJobDetails = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       setIsUnavailableToInterpreter(false);
       setUnavailableMessage('');
       const response = await jobAPI.getJobById(jobId);
@@ -160,7 +185,9 @@ const JobDetails = () => {
         toast.error('Failed to load job details');
       }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -177,6 +204,10 @@ const JobDetails = () => {
   }, [job]);
 
   const assignedToCurrentInterpreter = isJobAssignedToCurrentInterpreter(job, profile?.id);
+  const canSetTeamMember =
+    profile?.is_agency &&
+    assignedToCurrentInterpreter &&
+    ['assigned', 'reminders_sent', 'in_progress'].includes(job?.status);
 
   const showJobTimingModule =
     assignedToCurrentInterpreter &&
@@ -462,6 +493,39 @@ const JobDetails = () => {
       toast.error(`Failed to accept job: ${error.response?.data?.message || error.message}`);
     } finally {
       setMileagePromptLoading(false);
+    }
+  };
+
+  const openTeamMemberModal = () => {
+    const currentId = job?.team_member_id ? String(job.team_member_id) : '';
+    const matchedByName = !currentId && job?.team_member_first_name
+      ? teamMembers.find(
+          (member) =>
+            member.first_name === job.team_member_first_name &&
+            member.last_name === job.team_member_last_name
+        )
+      : null;
+    setSelectedTeamMemberId(currentId || (matchedByName ? String(matchedByName.id) : ''));
+    setShowTeamMemberModal(true);
+  };
+
+  const handleAssignTeamMember = async () => {
+    if (!selectedTeamMemberId) {
+      toast.error('Please select a team member');
+      return;
+    }
+
+    try {
+      setAssigningTeamMember(true);
+      await jobAPI.assignTeamMember(jobId, parseInt(selectedTeamMemberId, 10));
+      toast.success('Team member assigned');
+      setShowTeamMemberModal(false);
+      await loadJobDetails({ silent: true });
+    } catch (error) {
+      console.error('Error assigning team member:', error);
+      toast.error(error.response?.data?.message || 'Failed to assign team member');
+    } finally {
+      setAssigningTeamMember(false);
     }
   };
 
@@ -1131,6 +1195,44 @@ const JobDetails = () => {
 
             <ProviderInvoiceNotice job={job} profile={profile} />
 
+            {profile?.is_agency && assignedToCurrentInterpreter && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+                className="bg-white rounded-lg shadow-sm border p-6"
+              >
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                  <UsersIcon className="h-5 w-5 mr-2 text-blue-600" />
+                  Team Member
+                </h3>
+                {job.team_member_first_name ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {job.team_member_first_name} {job.team_member_last_name}
+                      </p>
+                      <p className="text-xs text-gray-500">Will perform this job</p>
+                    </div>
+                    {canSetTeamMember && (
+                      <Button variant="outline" size="sm" onClick={openTeamMemberModal}>
+                        Change
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm text-gray-500 italic">No team member assigned</p>
+                    {canSetTeamMember && (
+                      <Button size="sm" onClick={openTeamMemberModal}>
+                        Assign
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
             {/* Action Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -1566,6 +1668,84 @@ const JobDetails = () => {
                 </div>
               )}
             </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTeamMemberModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => !assigningTeamMember && setShowTeamMemberModal(false)}
+            />
+            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Select Team Member</h3>
+                <button
+                  type="button"
+                  onClick={() => !assigningTeamMember && setShowTeamMemberModal(false)}
+                  className="text-gray-400 hover:text-gray-500"
+                  disabled={assigningTeamMember}
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                Which team member will perform this job?
+              </p>
+              {teamMembers.length === 0 ? (
+                <p className="text-sm text-gray-500 mb-4">
+                  No team members yet. Add them from Team Members first.
+                </p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg mb-4 divide-y divide-gray-100">
+                  {teamMembers.map((member) => (
+                    <label
+                      key={member.id}
+                      className={`flex items-center px-3 py-3 cursor-pointer hover:bg-gray-50 ${
+                        String(selectedTeamMemberId) === String(member.id) ? 'bg-blue-50' : ''
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="team_member"
+                        value={member.id}
+                        checked={String(selectedTeamMemberId) === String(member.id)}
+                        onChange={() => setSelectedTeamMemberId(String(member.id))}
+                        className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        disabled={assigningTeamMember}
+                      />
+                      <span className="ml-3">
+                        <span className="block text-sm font-medium text-gray-900">
+                          {member.first_name} {member.last_name}
+                        </span>
+                        {member.languages && member.languages !== 'N/A' && (
+                          <span className="block text-xs text-gray-500">{member.languages}</span>
+                        )}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <div className="flex justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowTeamMemberModal(false)}
+                  disabled={assigningTeamMember}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleAssignTeamMember}
+                  disabled={assigningTeamMember || !selectedTeamMemberId || teamMembers.length === 0}
+                >
+                  {assigningTeamMember ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

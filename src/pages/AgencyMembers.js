@@ -12,6 +12,7 @@ import {
   ClockIcon,
   XCircleIcon
 } from '@heroicons/react/24/outline';
+import Select from 'react-select';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
@@ -122,15 +123,6 @@ const AgencyMembers = () => {
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleLanguageToggle = (languageId) => {
-    setNewMember(prev => ({
-      ...prev,
-      languages: prev.languages.includes(languageId)
-        ? prev.languages.filter(id => id !== languageId)
-        : [...prev.languages, languageId]
-    }));
   };
 
   const handleCertificationToggle = (certId) => {
@@ -425,20 +417,36 @@ const AgencyMembers = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Languages * (select at least one)
                     </label>
-                    <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
-                      {languages.map(lang => (
-                        <label key={lang.id} className="flex items-center py-2 hover:bg-gray-50 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={newMember.languages.includes(lang.id)}
-                            onChange={() => handleLanguageToggle(lang.id)}
-                            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                            disabled={saving}
-                          />
-                          <span className="ml-3 text-sm text-gray-700">{lang.name}</span>
-                        </label>
-                      ))}
-                    </div>
+                    <Select
+                      isMulti
+                      isSearchable
+                      isDisabled={saving}
+                      options={languages.map((lang) => ({ value: lang.id, label: lang.name }))}
+                      value={languages
+                        .filter((lang) => newMember.languages.includes(lang.id))
+                        .map((lang) => ({ value: lang.id, label: lang.name }))}
+                      onChange={(selected) =>
+                        setNewMember((prev) => ({
+                          ...prev,
+                          languages: (selected || []).map((option) => option.value)
+                        }))
+                      }
+                      placeholder="Search and select languages..."
+                      noOptionsMessage={() => 'No languages found'}
+                      classNamePrefix="agency-language-select"
+                      menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                      menuPosition="fixed"
+                      styles={{
+                        menuPortal: (base) => ({ ...base, zIndex: 80 }),
+                        control: (base, state) => ({
+                          ...base,
+                          minHeight: 42,
+                          borderColor: state.isFocused ? '#6366f1' : '#d1d5db',
+                          boxShadow: state.isFocused ? '0 0 0 1px #6366f1' : 'none',
+                          '&:hover': { borderColor: state.isFocused ? '#6366f1' : '#9ca3af' }
+                        })
+                      }}
+                    />
                   </div>
 
                   {/* Certifications */}

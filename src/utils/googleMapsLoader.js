@@ -5,6 +5,8 @@
  * Maps was first loaded without them.
  */
 
+import { getGoogleMapsApiKey } from '../runtimeEnv';
+
 class GoogleMapsLoader {
   constructor() {
     this.isLoaded = false;
@@ -128,7 +130,7 @@ class GoogleMapsLoader {
 
   loadScript(libraries) {
     return new Promise((resolve, reject) => {
-      const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+      const apiKey = getGoogleMapsApiKey();
 
       if (!apiKey) {
         this.isLoading = false;

@@ -1,5 +1,7 @@
+import { getApiUrl } from '../runtimeEnv';
+
 export function getApiBaseUrl() {
-  return process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+  return getApiUrl();
 }
 
 function guessMimeType(fileName) {

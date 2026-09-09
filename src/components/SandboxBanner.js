@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { getApiUrl, isSandboxBuild } from '../runtimeEnv';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE = getApiUrl();
 
 /**
  * Always-visible banner shown when this build of the portal is a sandbox,
@@ -11,7 +12,7 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
  * Safety contract: if either side says "sandbox", the banner appears.
  */
 const SandboxBanner = () => {
-  const buildTimeSandbox = process.env.REACT_APP_SANDBOX_MODE === 'true';
+  const buildTimeSandbox = isSandboxBuild();
   const [backendSandbox, setBackendSandbox] = useState(false);
   const [backendLabel, setBackendLabel] = useState(null);
 

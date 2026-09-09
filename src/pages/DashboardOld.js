@@ -23,8 +23,9 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { formatDate as formatDateUtil, formatTime as formatTimeUtil, isToday, isTomorrow } from '../utils/dateUtils';
+import { getApiUrl } from '../runtimeEnv';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE = getApiUrl();
 
 const Dashboard = () => {
   const navigate = useNavigate();

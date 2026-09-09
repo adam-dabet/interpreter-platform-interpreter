@@ -1,5 +1,7 @@
+import { getApiUrl } from '../runtimeEnv';
+
 export function getApiOrigin() {
-  const apiUrl = process.env.REACT_APP_API_URL || '/api';
+  const apiUrl = getApiUrl();
   return apiUrl.replace(/\/api\/?$/, '');
 }
 

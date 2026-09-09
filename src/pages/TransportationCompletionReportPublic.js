@@ -10,37 +10,10 @@ import {
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import axios from 'axios';
+import { getApiUrl } from '../runtimeEnv';
 
 // Determine API base URL with smart hostname detection
-const getApiBaseURL = () => {
-  // If explicitly set, use it
-  if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL;
-  }
-  
-  // In production, detect the backend URL based on hostname
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    
-    // If we're on providers.theintegritycompanyinc.com, backend should be at backend.theintegritycompanyinc.com
-    if (hostname === 'providers.theintegritycompanyinc.com') {
-      return 'https://backend.theintegritycompanyinc.com/api';
-    }
-    
-    // If we're on admin.theintegritycompanyinc.com, backend should be at backend.theintegritycompanyinc.com
-    if (hostname === 'admin.theintegritycompanyinc.com') {
-      return 'https://backend.theintegritycompanyinc.com/api';
-    }
-    
-    // If we're on portal.theintegritycompanyinc.com, backend should be at backend.theintegritycompanyinc.com
-    if (hostname === 'portal.theintegritycompanyinc.com') {
-      return 'https://backend.theintegritycompanyinc.com/api';
-    }
-  }
-  
-  // Default fallback for local development
-  return 'http://localhost:3001/api';
-};
+const getApiBaseURL = () => getApiUrl();
 
 const API_BASE = getApiBaseURL();
 

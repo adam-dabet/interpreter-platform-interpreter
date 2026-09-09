@@ -6,8 +6,9 @@ import toast from 'react-hot-toast';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { getApiUrl } from '../runtimeEnv';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE = getApiUrl();
 
 const SetupPassword = () => {
   const navigate = useNavigate();

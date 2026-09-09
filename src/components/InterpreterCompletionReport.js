@@ -9,8 +9,9 @@ import {
   durationExceedsScheduled,
   FACILITY_DURATION_FOLLOW_UP_MESSAGE,
 } from '../utils/completionReportDuration';
+import { getApiUrl } from '../runtimeEnv';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE = getApiUrl();
 
 const resultOptions = [
   { label: "Completed", value: "Completed" },

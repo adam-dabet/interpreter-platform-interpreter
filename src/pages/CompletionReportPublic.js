@@ -10,8 +10,9 @@ import {
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import axios from 'axios';
+import { getApiUrl } from '../runtimeEnv';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE = getApiUrl();
 
 const CompletionReportPublic = () => {
   const { jobId, token } = useParams();

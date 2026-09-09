@@ -14,6 +14,7 @@ import W9FormStep from '../components/forms/W9FormStep';
 import ReviewStep from '../components/forms/ReviewStep';
 import EmailLookupStep from '../components/forms/EmailLookupStep';
 import { interpreterAPI, parametricAPI } from '../services/api';
+import { getApiUrl } from '../runtimeEnv';
 
 const INTERPRETER_STEPS = [
     {
@@ -161,7 +162,7 @@ const InterpreterProfile = () => {
         // Check and validate referral code if present
         if (refCode) {
             try {
-                const response = await fetch(`${process.env.REACT_APP_API_URL || '/api'}/referrals/check-code/${refCode}`);
+                const response = await fetch(`${getApiUrl()}/referrals/check-code/${refCode}`);
                 const result = await response.json();
                 if (result.success && result.data?.valid) {
                     setReferralCode(refCode);
@@ -194,7 +195,7 @@ const InterpreterProfile = () => {
             console.log('Found profile completion token, loading imported data...');
             setIsLoading(true);
             
-            const response = await fetch(`${process.env.REACT_APP_API_URL}/profile-completion/validate-token/${token}`);
+            const response = await fetch(`${getApiUrl()}/profile-completion/validate-token/${token}`);
             const result = await response.json();
             
             if (!result.success) {
@@ -240,7 +241,7 @@ const InterpreterProfile = () => {
     const loadRejectionData = async (token) => {
         try {
             console.log('Found rejection token, loading application data...');
-            const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/interpreters/rejection/${token}`);
+            const response = await fetch(`${getApiUrl()}/interpreters/rejection/${token}`);
             const data = await response.json();
             
             if (data.success) {
@@ -549,7 +550,7 @@ const InterpreterProfile = () => {
             // Use appropriate endpoint based on whether this is profile completion or new application
             let response;
             if (completionToken) {
-                response = await fetch(`${process.env.REACT_APP_API_URL}/profile-completion/submit/${completionToken}`, {
+                response = await fetch(`${getApiUrl()}/profile-completion/submit/${completionToken}`, {
                     method: 'POST',
                     body: formDataToSubmit,
                 });

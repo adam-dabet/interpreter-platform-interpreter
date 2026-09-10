@@ -5,20 +5,42 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import toast from 'react-hot-toast';
 import { RATE_UNITS } from '../../utils/constants';
+import { isRejectedServiceRate, getRejectedServiceTypeId, didServiceRateChange, formatRejectedFieldLabel, getRejectedFieldStep } from '../../utils/rejectedFields';
 
-const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, onUpdate, rejectedFields = [] }) => {
+const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, parametricData, onUpdate, rejectedFields = [], originalServiceRates = [], isResubmission = false }) => {
     const [selectedServiceTypes, setSelectedServiceTypes] = useState(formData.service_types || []);
     const [serviceRates, setServiceRates] = useState({});
     const [languageRates, setLanguageRates] = useState({}); // { [serviceTypeId]: { [languageId]: { rate_amount, rate_unit } } }
     const [useSameRatesForLanguage, setUseSameRatesForLanguage] = useState({}); // { [languageId]: boolean } - default true
     const [errors, setErrors] = useState({});
     const [showPreferredProviderModal, setShowPreferredProviderModal] = useState(false);
+
+    const isFieldRejected = (fieldName) => rejectedFields.includes(fieldName);
+    const isRateRejected = (serviceTypeId) => isRejectedServiceRate(rejectedFields, serviceTypeId);
+    const rejectedRateIds = (rejectedFields || []).map(getRejectedServiceTypeId).filter(Boolean);
+    const rateOnlyCorrection = isResubmission && rejectedRateIds.length > 0 && !rejectedFields.includes('service_types');
     
     // Helper to check if field is rejected
-    const isFieldRejected = (fieldName) => rejectedFields.includes(fieldName);
+    // Keep rejected service types selected so the interpreter can actually edit them
+    useEffect(() => {
+        if (rejectedRateIds.length === 0) return;
+
+        setSelectedServiceTypes((prev) => {
+            const next = [...prev];
+            let changed = false;
+            rejectedRateIds.forEach((id) => {
+                if (!next.some((existing) => String(existing) === id)) {
+                    next.push(id);
+                    changed = true;
+                }
+            });
+            return changed ? next : prev;
+        });
+    }, [rejectedFields]);
 
     // Show preferred provider modal on first load (only once)
     useEffect(() => {
+        if (rateOnlyCorrection || isResubmission) return;
         const hasSeenModal = sessionStorage.getItem('hasSeenPreferredProviderModal');
         if (!hasSeenModal && !isEditing) {
             // Delay showing modal slightly so user can see the page first
@@ -28,7 +50,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             }, 1000);
             return () => clearTimeout(timer);
         }
-    }, [isEditing]);
+    }, [isEditing, isResubmission, rateOnlyCorrection]);
 
     // Sync selectedServiceTypes with formData.service_types when it changes (e.g., from prefillFormData)
     useEffect(() => {
@@ -83,6 +105,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                         ratesObject[key] = {
                             ...rate,
                             service_type_id: key, // Ensure service_type_id is string
+                            rate_type: rate.rate_type || (rate.rate_amount != null && rate.rate_amount !== '' ? 'custom' : 'platform'),
                             rate_unit: normalizedRateUnit,
                             custom_second_interval_rate_unit: normalizedSecondIntervalUnit
                         };
@@ -386,7 +409,8 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             ...prev,
             [serviceTypeIdStr]: {
                 ...prev[serviceTypeIdStr],
-                [field]: normalizedValue
+                [field]: normalizedValue,
+                ...(isRateRejected(serviceTypeId) && field === 'rate_amount' ? { rate_type: 'custom' } : {})
             }
         }));
     };
@@ -437,8 +461,26 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             }
         }
 
+        const rejectedRateFields = (rejectedFields || []).filter((field) => String(field).startsWith('service_rate_'));
+        for (const field of rejectedRateFields) {
+            const serviceTypeId = getRejectedServiceTypeId(field);
+            const originalRate = (originalServiceRates || []).find((r) => String(r.service_type_id) === String(serviceTypeId));
+            const newRate = serviceRates[String(serviceTypeId)];
+            const rateName = formatRejectedFieldLabel(field, parametricData?.serviceTypes, originalServiceRates);
+
+            if (!selectedServiceTypes.some((id) => String(id) === String(serviceTypeId)) && !newRate) {
+                newErrors.service_rates = `Please update the rejected ${rateName.toLowerCase()} or keep that service type selected`;
+                break;
+            }
+
+            if (!didServiceRateChange(originalRate, newRate)) {
+                newErrors.service_rates = `Please change the rejected ${rateName} before continuing`;
+                break;
+            }
+        }
+
         setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+        return newErrors;
     };
 
     const handleLanguageRateChange = (serviceTypeId, languageId, field, value) => {
@@ -504,9 +546,9 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
     };
 
     const handleNext = () => {
-        if (!validateForm()) {
-            const errorMessage = Object.values(errors)[0];
-            toast.error(errorMessage);
+        const validationErrors = validateForm();
+        if (Object.keys(validationErrors).length > 0) {
+            toast.error(Object.values(validationErrors)[0]);
             return;
         }
 
@@ -555,7 +597,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
     return (
         <div className="space-y-6">
             {/* Preferred Provider Information Modal */}
-            {showPreferredProviderModal && (
+            {showPreferredProviderModal && !rateOnlyCorrection && (
                 <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
                     <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                         {/* Background overlay */}
@@ -621,13 +663,20 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                 <div className="flex items-start justify-between">
                     <div>
                         <h3 className="text-lg font-medium text-gray-900 mb-2">
-                            Service Types & Rates
+                            {rateOnlyCorrection ? 'Update Rejected Rate' : 'Service Types & Rates'}
                         </h3>
                         <p className="text-gray-600 mb-6">
-                            Choose the types of interpretation services you provide and set your rates. 
-                            <span className="text-purple-600 font-medium"> Use platform rates to become a Preferred Provider and self-assign to jobs!</span>
+                            {rateOnlyCorrection
+                                ? 'Change the flagged rate below, then continue to review and resubmit.'
+                                : (
+                                    <>
+                                        Choose the types of interpretation services you provide and set your rates. 
+                                        <span className="text-purple-600 font-medium"> Use platform rates to become a Preferred Provider and self-assign to jobs!</span>
+                                    </>
+                                )}
                         </p>
                     </div>
+                    {!rateOnlyCorrection && (
                     <button
                         type="button"
                         onClick={() => setShowPreferredProviderModal(true)}
@@ -635,6 +684,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     >
                         Learn More
                     </button>
+                    )}
                 </div>
             </div>
 
@@ -644,7 +694,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                 </div>
             )}
 
-            {/* Service Types Grid */}
+            {!rateOnlyCorrection && (
             <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${isFieldRejected('service_types') ? 'ring-2 ring-red-500 rounded-lg p-2 bg-red-50' : ''}`}>
                 {parametricData?.serviceTypes && parametricData.serviceTypes.length > 0 ? (
                     parametricData.serviceTypes
@@ -715,27 +765,32 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     </div>
                 )}
             </div>
+            )}
 
             {/* Service Rates Section */}
             <div className="bg-gray-50 rounded-lg p-6">
-                <h4 className="font-medium text-gray-900 mb-4">Set Your Rates</h4>
+                <h4 className="font-medium text-gray-900 mb-4">{rateOnlyCorrection ? 'Rejected Rate' : 'Set Your Rates'}</h4>
+                {!rateOnlyCorrection && (
                 <p className="text-sm text-gray-600 mb-4">
                     For each selected service type, choose whether to accept our platform rates or set your own custom rates.
                 </p>
+                )}
                 
-                {selectedServiceTypes.length > 0 && (
+                {(rateOnlyCorrection ? rejectedRateIds : selectedServiceTypes).length > 0 && (
                     <div className="space-y-4">
-                        {selectedServiceTypes.map(serviceTypeId => {
+                        {(rateOnlyCorrection ? rejectedRateIds : selectedServiceTypes).map(serviceTypeId => {
                             // Handle both string and number IDs
                             const serviceType = parametricData?.serviceTypes?.find(st => 
                                 String(st.id) === String(serviceTypeId) || st.id === serviceTypeId
-                            );
+                            ) || {
+                                id: serviceTypeId,
+                                name: (serviceRates[String(serviceTypeId)] || (originalServiceRates || []).find((r) => String(r.service_type_id) === String(serviceTypeId)))?.service_type_name
+                                    || `Service type ${serviceTypeId}`,
+                                code: (originalServiceRates || []).find((r) => String(r.service_type_id) === String(serviceTypeId))?.service_type_code || ''
+                            };
                             const rateKey = String(serviceTypeId);
                             const rate = serviceRates[rateKey];
                             
-                            if (!serviceType) return null;
-                            
-                            // If no rate exists, show a message (shouldn't happen due to useEffect, but safety check)
                             if (!rate) {
                                 return (
                                     <div key={serviceTypeId} className="border border-gray-200 rounded-lg p-4">
@@ -746,15 +801,15 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                             }
                             
                             // Check if this specific rate is rejected
-                            const rateRejectedFieldName = `service_rate_${serviceTypeId}`;
-                            const isRateRejected = isFieldRejected(rateRejectedFieldName);
+                            const rateIsRejected = isRateRejected(serviceTypeId);
+                            const showCustomRateInputs = rate.rate_type === 'custom' || rateIsRejected;
                             
                             return (
-                                <div key={serviceTypeId} className={`border-2 rounded-lg p-4 ${isRateRejected ? 'border-red-500 bg-red-50 ring-2 ring-red-200' : 'border-gray-200'}`}>
-                                    {isRateRejected && (
+                                <div key={serviceTypeId} className={`border-2 rounded-lg p-4 ${rateIsRejected ? 'border-red-500 bg-red-50 ring-2 ring-red-200' : 'border-gray-200'}`}>
+                                    {rateIsRejected && (
                                         <div className="mb-3 bg-red-100 border border-red-300 rounded-lg p-3">
                                             <p className="text-sm font-medium text-red-900">
-                                                ⚠️ This rate has been rejected and needs to be updated
+                                                ⚠️ This rate has been rejected and needs to be updated. Change the amount or switch between platform and custom.
                                             </p>
                                         </div>
                                     )}
@@ -861,7 +916,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                             </label>
                                         </div>
                                         
-                                        {rate.rate_type === 'custom' && (
+                                        {showCustomRateInputs && (
                                             <div className="space-y-3">
                                                 <div className="flex gap-2">
                                                     <Input
@@ -1022,7 +1077,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                 )}
 
                 {/* Language Rates Section - Clear separator after main rates */}
-                {formData.languages && formData.languages.length > 1 && selectedServiceTypes.length > 0 && (
+                {!rateOnlyCorrection && formData.languages && formData.languages.length > 1 && selectedServiceTypes.length > 0 && (
                     <div className="mt-8 pt-8 border-t-2 border-gray-300">
                         <h4 className="font-medium text-gray-900 mb-2">Language-Specific Rates</h4>
                         <p className="text-sm text-gray-600 mb-4">
@@ -1135,7 +1190,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             </div>
 
             {/* Selection Summary */}
-            {selectedServiceTypes.length > 0 && (
+            {!rateOnlyCorrection && selectedServiceTypes.length > 0 && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h4 className="font-medium text-blue-900 mb-2">
                         Selected Service Types ({selectedServiceTypes.length})
@@ -1154,6 +1209,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             )}
 
             {/* Additional Information */}
+            {!rateOnlyCorrection && (
             <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900 mb-2">Important Notes:</h4>
                 <ul className="text-sm text-gray-600 space-y-1">
@@ -1163,6 +1219,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                     <li>• Video and telephone interpretation require reliable internet/phone service</li>
                 </ul>
             </div>
+            )}
 
             {/* Navigation */}
             <div className="flex justify-between pt-6">
@@ -1180,7 +1237,11 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                         onClick={handleNext}
                         disabled={selectedServiceTypes.length === 0}
                     >
-                        {isEditing ? 'Save & Return to Review' : 'Next'}
+                        {isEditing
+                            ? 'Save & Return to Review'
+                            : isResubmission && !rejectedFields.some((field) => getRejectedFieldStep(field) > 5)
+                                ? 'Continue to Review'
+                                : 'Next'}
                     </Button>
                 </div>
             </div>

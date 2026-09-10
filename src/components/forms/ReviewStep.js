@@ -6,10 +6,11 @@ import Button from '../ui/Button';
 import Checkbox from '../ui/Checkbox';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import { SERVICE_TYPES, EDUCATION_LEVELS, US_STATES } from '../../utils/constants';
+import { isRejectedServiceRate, getRejectedFieldStep } from '../../utils/rejectedFields';
 
 const trim = (v) => (v != null && String(v).trim() !== '' ? String(v).trim() : '');
 
-const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametricData, w9Required = true, addressOnlyEdit = false }) => {
+const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametricData, w9Required = true, addressOnlyEdit = false, rejectedFields = [], isResubmission = false }) => {
   const [agreements, setAgreements] = useState({
     terms_accepted: data.terms_accepted || false,
     privacy_policy_accepted: data.privacy_policy_accepted || false,
@@ -123,6 +124,25 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
       const finalData = { ...data, ...agreements };
       onSubmit(finalData);
     }
+  };
+
+  const canEditStep = (stepId) => {
+    if (addressOnlyEdit) return stepId === 2;
+    if (!isResubmission) return true;
+    return (rejectedFields || []).some((field) => getRejectedFieldStep(field) === stepId);
+  };
+
+  const renderEditButton = (stepId) => {
+    if (!canEditStep(stepId)) return null;
+    return (
+      <button
+        onClick={() => onEdit && onEdit(stepId)}
+        className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
+      >
+        <PencilIcon className="h-4 w-4 mr-1" />
+        Edit
+      </button>
+    );
   };
 
   const getServiceTypeLabel = (value) => {
@@ -253,7 +273,9 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Review & Submit</h2>
         <p className="text-gray-600">
-          Please review your information before submitting your application.
+          {isResubmission
+            ? 'Confirm your updates, then resubmit your application.'
+            : 'Please review your information before submitting your application.'}
         </p>
       </div>
 
@@ -263,13 +285,7 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">Personal Information</h3>
-            <button 
-              onClick={() => onEdit && onEdit(1)}
-              className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
-            >
-              <PencilIcon className="h-4 w-4 mr-1" />
-              Edit
-            </button>
+            {renderEditButton(1)}
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -292,13 +308,7 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">Physical Address</h3>
-            <button 
-              onClick={() => onEdit && onEdit(2)}
-              className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
-            >
-              <PencilIcon className="h-4 w-4 mr-1" />
-              Edit
-            </button>
+            {renderEditButton(2)}
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -315,13 +325,7 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">Languages</h3>
-            <button 
-              onClick={() => onEdit && onEdit(3)}
-              className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
-            >
-              <PencilIcon className="h-4 w-4 mr-1" />
-              Edit
-            </button>
+            {renderEditButton(3)}
           </div>
           
           <div className="space-y-3">
@@ -350,13 +354,7 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">Service Types & Rates</h3>
-            <button 
-              onClick={() => onEdit && onEdit(5)}
-              className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
-            >
-              <PencilIcon className="h-4 w-4 mr-1" />
-              Edit
-            </button>
+            {renderEditButton(5)}
           </div>
           
           <div className="space-y-3">
@@ -388,8 +386,13 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
                     const displayAmount = showPer3Hours && !asBlock ? (Number(rate.rate_amount) * 3) : Number(rate.rate_amount);
                     const rateUnitDisplay = rate.rate_unit === 'minutes' ? 'min' : rate.rate_unit === 'word' ? 'word' : showPer3Hours ? '3hr' : 'hr';
                     return (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                        <span className="font-medium text-gray-900">{serviceName}</span>
+                      <div key={index} className={`flex items-center justify-between p-3 rounded-md ${isRejectedServiceRate(rejectedFields, rate.service_type_id) ? 'bg-red-50 border border-red-300' : 'bg-gray-50'}`}>
+                        <span className="font-medium text-gray-900">
+                          {serviceName}
+                          {isRejectedServiceRate(rejectedFields, rate.service_type_id) && (
+                            <span className="ml-2 text-xs font-semibold text-red-700">Needs update</span>
+                          )}
+                        </span>
                         <span className="text-sm text-gray-600">
                           {rate.rate_type === 'platform' ? (
                             <span className="px-2 py-1 bg-green-100 text-green-800 rounded">Platform Rate: ${displayAmount.toFixed(2)}/{rateUnitDisplay}</span>
@@ -410,13 +413,7 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">Certification Status</h3>
-            <button 
-              onClick={() => onEdit && onEdit(4)}
-              className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
-            >
-              <PencilIcon className="h-4 w-4 mr-1" />
-              Edit
-            </button>
+            {renderEditButton(4)}
           </div>
           
           <div className="space-y-3">
@@ -484,13 +481,7 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">W-9 Tax Form</h3>
-              <button 
-                onClick={() => onEdit && onEdit(6)}
-                className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
-              >
-                <PencilIcon className="h-4 w-4 mr-1" />
-                Edit
-              </button>
+              {renderEditButton(6)}
             </div>
             
             <div className="space-y-3">
@@ -549,13 +540,7 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">Emergency Contact</h3>
-              <button 
-                onClick={() => onEdit && onEdit(1)}
-                className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
-              >
-                <PencilIcon className="h-4 w-4 mr-1" />
-                Edit
-              </button>
+              {renderEditButton(1)}
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -1098,13 +1083,13 @@ const ReviewStep = ({ data, onPrevious, onSubmit, isSubmitting, onEdit, parametr
           loading={isSubmitting}
           className="min-w-[140px]"
         >
-          {isSubmitting ? (
+            {isSubmitting ? (
             <div className="flex items-center">
               <LoadingSpinner size="sm" className="mr-2" />
-              Submitting...
+              {isResubmission ? 'Resubmitting...' : 'Submitting...'}
             </div>
           ) : (
-            'Submit Application'
+            isResubmission ? 'Resubmit Application' : 'Submit Application'
           )}
         </Button>
       </div>

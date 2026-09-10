@@ -15,6 +15,12 @@ import ReviewStep from '../components/forms/ReviewStep';
 import EmailLookupStep from '../components/forms/EmailLookupStep';
 import { interpreterAPI, parametricAPI } from '../services/api';
 import { getApiUrl } from '../runtimeEnv';
+import {
+    parseRejectedFields,
+    getRejectedFieldStep,
+    formatRejectedFieldLabel,
+    getResubmissionWizardStepIds,
+} from '../utils/rejectedFields';
 
 const INTERPRETER_STEPS = [
     {
@@ -86,6 +92,7 @@ const InterpreterProfile = () => {
     const [rejectedFields, setRejectedFields] = useState([]);
     const [rejectionNote, setRejectionNote] = useState('');
     const [rejectionToken, setRejectionToken] = useState(null);
+    const [originalServiceRates, setOriginalServiceRates] = useState([]);
     
     // Profile completion state (for imported interpreters)
     const [isProfileCompletion, setIsProfileCompletion] = useState(false);
@@ -133,6 +140,7 @@ const InterpreterProfile = () => {
         
         // Service Rates (array of objects with rate info for each service type)
         service_rates: [],
+        language_rates: [],
         
         // Certificates (files and data)
         is_certified: null,
@@ -147,10 +155,33 @@ const InterpreterProfile = () => {
 
     const [profileResult, setProfileResult] = useState(null);
 
+    const reviewStepId = INTERPRETER_STEPS[INTERPRETER_STEPS.length - 1].id;
+    const wizardStepIds = isResubmission && rejectedFields.length > 0
+        ? getResubmissionWizardStepIds(rejectedFields, reviewStepId)
+        : INTERPRETER_STEPS.map((step) => step.id);
+    const wizardSteps = INTERPRETER_STEPS.filter((step) => wizardStepIds.includes(step.id));
+    const currentWizardStep = INTERPRETER_STEPS.find((step) => step.id === currentStep) || INTERPRETER_STEPS[0];
+
     // Load parametric data on component mount
     useEffect(() => {
-        loadParametricData();
-        checkForTokens();
+        const init = async () => {
+            setIsLoading(true);
+            try {
+                const response = await parametricAPI.getAllParametricData();
+                if (response.data.success) {
+                    setParametricData(response.data.data);
+                } else {
+                    toast.error('Failed to load form data');
+                }
+                await checkForTokens();
+            } catch (error) {
+                console.error('Error loading form data:', error);
+                toast.error('Failed to load form data');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        init();
     }, []);
 
     const checkForTokens = async () => {
@@ -193,8 +224,6 @@ const InterpreterProfile = () => {
     const loadProfileCompletionData = async (token) => {
         try {
             console.log('Found profile completion token, loading imported data...');
-            setIsLoading(true);
-            
             const response = await fetch(`${getApiUrl()}/profile-completion/validate-token/${token}`);
             const result = await response.json();
             
@@ -233,8 +262,6 @@ const InterpreterProfile = () => {
         } catch (error) {
             console.error('Error loading profile completion data:', error);
             toast.error('Failed to load your profile data. Please contact support.');
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -247,13 +274,19 @@ const InterpreterProfile = () => {
             if (data.success) {
                 setIsResubmission(true);
                 setRejectionToken(token);
-                setRejectedFields(data.data.rejected_fields || []);
+                const fields = parseRejectedFields(data.data.rejected_fields);
+                setRejectedFields(fields);
                 setRejectionNote(data.data.rejection_note || '');
                 
                 // Pre-fill form with original data
                 if (data.data.original_submission_data) {
                     prefillFormData(data.data.original_submission_data);
                 }
+
+                // Only the rejected steps plus Review are in this wizard.
+                setVisitedSteps(new Set(getResubmissionWizardStepIds(fields, INTERPRETER_STEPS[INTERPRETER_STEPS.length - 1].id)));
+                const rejectedStepIds = getResubmissionWizardStepIds(fields, INTERPRETER_STEPS[INTERPRETER_STEPS.length - 1].id);
+                setCurrentStep(rejectedStepIds[0] || INTERPRETER_STEPS[INTERPRETER_STEPS.length - 1].id);
                 
                 toast.success('Application loaded! Please update the highlighted fields.');
             } else {
@@ -262,8 +295,6 @@ const InterpreterProfile = () => {
         } catch (error) {
             console.error('Error loading rejection data:', error);
             toast.error('Failed to load application data');
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -273,6 +304,29 @@ const InterpreterProfile = () => {
         const { interpreter, languages, service_types, service_rates, certificates, w9 } = originalData;
 
         console.log('Prefilling form data with:', originalData);
+
+        const mappedServiceRates = service_rates?.map(rate => ({
+            service_type_id: String(rate.service_type_id),
+            rate_amount: rate.rate_amount,
+            rate_type: rate.rate_type || (rate.rate_amount != null && rate.rate_amount !== '' ? 'custom' : 'platform'),
+            rate_unit: rate.rate_unit,
+            service_type_name: rate.service_type_name,
+            service_type_code: rate.service_type_code,
+            minimum_hours: rate.custom_minimum_hours || rate.minimum_hours,
+            interval_minutes: rate.custom_interval_minutes || rate.interval_minutes,
+            custom_minimum_hours: rate.custom_minimum_hours || rate.minimum_hours,
+            custom_interval_minutes: rate.custom_interval_minutes || rate.interval_minutes,
+            custom_second_interval_rate_amount: rate.custom_second_interval_rate_amount || rate.second_interval_rate_amount,
+            custom_second_interval_rate_unit: rate.custom_second_interval_rate_unit || rate.second_interval_rate_unit,
+            second_interval_rate_amount: rate.second_interval_rate_amount,
+            second_interval_rate_unit: rate.second_interval_rate_unit
+        })) || [];
+        setOriginalServiceRates(mappedServiceRates);
+
+        const mappedServiceTypeIds = service_types?.map(st => String(st.service_type_id)) || [];
+        const serviceTypeIds = mappedServiceTypeIds.length > 0
+            ? mappedServiceTypeIds
+            : [...new Set(mappedServiceRates.map((rate) => String(rate.service_type_id)))];
 
         // Pre-fill main interpreter data with ALL fields
         setFormData(prev => ({
@@ -314,16 +368,16 @@ const InterpreterProfile = () => {
             })) || [],
             
             // Service Types - as array of IDs (string format for proper selection)
-            service_types: service_types?.map(st => String(st.service_type_id)) || [],
+            service_types: serviceTypeIds,
             
-            // Service Rates - with complete rate information
-            service_rates: service_rates?.map(rate => ({
-                service_type_id: String(rate.service_type_id),
-                rate_amount: rate.rate_amount,
-                rate_type: rate.rate_type,
-                rate_unit: rate.rate_unit,
-                service_type_name: rate.service_type_name
-            })) || [],
+            // Service Rates - with complete rate information so rejected rates stay editable
+            service_rates: mappedServiceRates,
+            language_rates: (originalData.language_rates || []).map(lr => ({
+                service_type_id: String(lr.service_type_id),
+                language_id: String(lr.language_id),
+                rate_amount: lr.rate_amount,
+                rate_unit: lr.rate_unit
+            })),
             
             // Certificates - with all metadata
             is_certified: certificates && certificates.length > 0 ? true : (certificates?.length === 0 ? false : null),
@@ -369,29 +423,6 @@ const InterpreterProfile = () => {
         console.log('Form data prefilled successfully with ALL fields including sms_consent, address validation, service types, and all original submission data');
     };
 
-    const loadParametricData = async () => {
-        try {
-            setIsLoading(true);
-            console.log('Loading parametric data...');
-            const response = await parametricAPI.getAllParametricData();
-            console.log('Parametric data response:', response);
-            
-            if (response.data.success) {
-                console.log('Setting parametric data:', response.data.data);
-                console.log('InterpreterProfile - US States:', response.data.data.usStates);
-                setParametricData(response.data.data);
-            } else {
-                console.error('Failed to load form data:', response.data);
-                toast.error('Failed to load form data');
-            }
-        } catch (error) {
-            console.error('Error loading parametric data:', error);
-            toast.error('Failed to load form data');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const updateFormData = useCallback((stepData) => {
         setFormData(prev => ({ ...prev, ...stepData }));
     }, []);
@@ -402,12 +433,12 @@ const InterpreterProfile = () => {
         // If we're editing from review, go back to review
         if (isEditingFromReview) {
             setIsEditingFromReview(false);
-            setCurrentStep(INTERPRETER_STEPS.length);
+            setCurrentStep(reviewStepId);
         } else {
-            // Normal flow - go to next step
-            const nextStep = Math.min(currentStep + 1, INTERPRETER_STEPS.length);
+            const ids = wizardStepIds;
+            const idx = ids.indexOf(currentStep);
+            const nextStep = ids[idx + 1] || reviewStepId;
             setCurrentStep(nextStep);
-            // Mark the next step as visited
             setVisitedSteps(prev => new Set([...prev, nextStep]));
         }
     };
@@ -417,28 +448,29 @@ const InterpreterProfile = () => {
     };
 
     const handlePrevious = () => {
-        // If we're editing from review and going back, go to review
         if (isEditingFromReview) {
             setIsEditingFromReview(false);
-            setCurrentStep(INTERPRETER_STEPS.length);
-        } else {
-            setCurrentStep(prev => Math.max(prev - 1, 1));
+            setCurrentStep(reviewStepId);
+            return;
+        }
+        const ids = wizardStepIds;
+        const idx = ids.indexOf(currentStep);
+        if (idx > 0) {
+            setCurrentStep(ids[idx - 1]);
         }
     };
 
     const handleStepClick = (stepId) => {
-        // Allow navigation to:
-        // 1. Previous steps (stepId < currentStep)
-        // 2. Steps that have been visited before (visitedSteps.has(stepId))
-        if (stepId < currentStep || visitedSteps.has(stepId)) {
+        if (!wizardStepIds.includes(stepId)) return;
+        if (stepId === currentStep || visitedSteps.has(stepId) || wizardStepIds.indexOf(stepId) < wizardStepIds.indexOf(currentStep)) {
             setCurrentStep(stepId);
         }
     };
 
     const handleEdit = (stepNumber) => {
+        if (isResubmission && !wizardStepIds.includes(stepNumber)) return;
         setIsEditingFromReview(true);
         setCurrentStep(stepNumber);
-        // Mark the step as visited
         setVisitedSteps(prev => new Set([...prev, stepNumber]));
     };
 
@@ -504,6 +536,10 @@ const InterpreterProfile = () => {
                 }
             }
             
+            if (submissionData.language_rates) {
+                formDataToSubmit.append('language_rates', JSON.stringify(submissionData.language_rates));
+            }
+            
             // Add rejection token if this is a resubmission
             if (rejectionToken) {
                 formDataToSubmit.append('rejection_token', rejectionToken);
@@ -523,7 +559,7 @@ const InterpreterProfile = () => {
             Object.keys(submissionData).forEach(key => {
                 if (key === 'certificateFiles') {
                     return;
-                } else if (key === 'languages' || key === 'service_types' || key === 'certificates' || key === 'w9_data' || key === 'w9_entry_method' || key === 'w9_file') {
+                } else if (key === 'languages' || key === 'service_types' || key === 'certificates' || key === 'w9_data' || key === 'w9_entry_method' || key === 'w9_file' || key === 'language_rates') {
                     // Already handled above
                     return;
                 } else if (submissionData[key] !== null && submissionData[key] !== undefined) {
@@ -586,6 +622,16 @@ const InterpreterProfile = () => {
             } else if (error.message) {
                 errorMessage = error.message;
             }
+
+            const unchangedFields = parseRejectedFields(error.response?.data?.unchanged_fields);
+            if (unchangedFields.length > 0) {
+                const labels = unchangedFields.map((field) =>
+                    formatRejectedFieldLabel(field, parametricData?.serviceTypes, originalServiceRates)
+                );
+                errorMessage = `Please update these rejected fields before resubmitting: ${labels.join(', ')}`;
+                const firstUnchangedStep = Math.min(...unchangedFields.map(getRejectedFieldStep));
+                setCurrentStep(firstUnchangedStep);
+            }
             
             toast.error(errorMessage);
             
@@ -599,7 +645,7 @@ const InterpreterProfile = () => {
     };
 
     const getCurrentStepComponent = () => {
-        const step = INTERPRETER_STEPS[currentStep - 1];
+        const step = INTERPRETER_STEPS.find((s) => s.id === currentStep);
         if (!step) return null;
 
         const StepComponent = step.component;
@@ -610,22 +656,16 @@ const InterpreterProfile = () => {
             onNext: handleNext,
             onUpdate: handleUpdate,
             onPrevious: handlePrevious,
-            isLastStep: currentStep === INTERPRETER_STEPS.length,
-            isFirstStep: currentStep === 1,
+            isLastStep: currentStep === reviewStepId,
+            isFirstStep: currentStep === wizardStepIds[0],
             parametricData,
             isEditing: isEditingFromReview, // User is editing only if they came from review step
             rejectedFields: rejectedFields || [], // Pass rejected fields for highlighting
+            originalServiceRates,
             isResubmission
         };
 
-        console.log('Rendering step with props:', {
-            currentStep,
-            parametricData,
-            formData,
-            isEditing: isEditingFromReview
-        });
-
-        if (currentStep === INTERPRETER_STEPS.length) {
+        if (currentStep === reviewStepId) {
             // Review step — W-9 required except agency profile-completion invites
             const w9Required = !isProfileCompletion || !importedData?.isAgency;
             return (
@@ -696,11 +736,13 @@ const InterpreterProfile = () => {
                     </div>
                     
                     <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                        Profile Created Successfully!
+                        {isResubmission ? 'Application Resubmitted!' : 'Profile Created Successfully!'}
                     </h1>
                     
                     <p className="text-gray-600 mb-6">
-                        Your interpreter profile has been submitted for review. You'll receive an email notification once the review process is complete.
+                        {isResubmission
+                            ? 'Your updated application has been submitted for review. You will receive an email once the review is complete.'
+                            : 'Your interpreter profile has been submitted for review. You\'ll receive an email notification once the review process is complete.'}
                     </p>
                     
                     <div className="bg-blue-50 rounded-lg p-4 mb-6">
@@ -734,7 +776,7 @@ const InterpreterProfile = () => {
                     </h1>
                     <p className="text-gray-600">
                         {isResubmission 
-                            ? 'Please review and update the highlighted fields below'
+                            ? 'Update the flagged items below, then review and resubmit.'
                             : 'Complete your professional interpreter profile to join our network'
                         }
                     </p>
@@ -784,9 +826,10 @@ const InterpreterProfile = () => {
                                             {rejectedFields.map(field => (
                                                 <span
                                                     key={field}
-                                                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300"
+                                                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300 cursor-pointer"
+                                                    onClick={() => setCurrentStep(getRejectedFieldStep(field))}
                                                 >
-                                                    {field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                    {formatRejectedFieldLabel(field, parametricData?.serviceTypes, originalServiceRates)}
                                                 </span>
                                             ))}
                                         </div>
@@ -800,7 +843,7 @@ const InterpreterProfile = () => {
                 {/* Progress Steps */}
                 <div className="mb-8">
                     <ProgressBar 
-                        steps={INTERPRETER_STEPS}
+                        steps={wizardSteps}
                         currentStep={currentStep}
                         visitedSteps={visitedSteps}
                         onStepClick={handleStepClick}
@@ -813,16 +856,18 @@ const InterpreterProfile = () => {
                         {/* Step Header */}
                         <div className="flex items-center mb-6">
                             <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mr-4">
-                                {React.createElement(INTERPRETER_STEPS[currentStep - 1]?.icon, {
+                                {React.createElement(currentWizardStep.icon, {
                                     className: "w-6 h-6 text-blue-600"
                                 })}
                             </div>
                             <div>
                                 <h2 className="text-2xl font-bold text-gray-900">
-                                    {INTERPRETER_STEPS[currentStep - 1]?.title}
+                                    {currentWizardStep.title}
                                 </h2>
                                 <p className="text-gray-600">
-                                    {INTERPRETER_STEPS[currentStep - 1]?.description}
+                                    {isResubmission && currentStep !== reviewStepId
+                                        ? 'Update the flagged item, then continue to review'
+                                        : currentWizardStep.description}
                                 </p>
                             </div>
                         </div>

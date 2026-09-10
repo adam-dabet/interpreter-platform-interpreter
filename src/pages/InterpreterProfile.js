@@ -415,8 +415,10 @@ const InterpreterProfile = () => {
                 city: w9.city || '',
                 state: w9.state || '',
                 zip_code: w9.zip_code || '',
+                signature: w9.signature || w9.signature_name || '',
                 signature_name: w9.signature_name || '',
-                signature_date: w9.signature_date || ''
+                signature_date: w9.signature_date || '',
+                electronic_signature_acknowledgment: !!(w9.electronic_signature_acknowledgment || w9.signature_name || w9.signature)
             } : null
         }));
 
@@ -666,8 +668,14 @@ const InterpreterProfile = () => {
         };
 
         if (currentStep === reviewStepId) {
-            // Review step — W-9 required except agency profile-completion invites
-            const w9Required = !isProfileCompletion || !importedData?.isAgency;
+            // Review step — W-9 is required for new applications, but not on
+            // field-specific resubmissions unless W-9 itself was flagged.
+            const w9WasRejected = rejectedFields.some(
+                (field) => field === 'w9_data' || String(field).startsWith('w9_')
+            );
+            const w9Required = isResubmission
+                ? w9WasRejected
+                : (!isProfileCompletion || !importedData?.isAgency);
             return (
                 <StepComponent
                     {...commonProps}

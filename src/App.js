@@ -23,6 +23,7 @@ import ConfirmJob from './pages/ConfirmJob';
 import CompletionReportPublic from './pages/CompletionReportPublic';
 import TransportationCompletionReportPublic from './pages/TransportationCompletionReportPublic';
 import TransportationProviderProfile from './pages/TransportationProviderProfile';
+import ProviderDocumentUpload from './pages/ProviderDocumentUpload';
 import TransportationTerms from './pages/TransportationTerms';
 import TransportationTripDetails from './pages/TransportationTripDetails';
 import TransportationCompletionReport from './pages/TransportationCompletionReport';
@@ -64,6 +65,7 @@ function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/signup" element={<SetupPassword />} />
             <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+            <Route path="/upload-documents/:token" element={<Layout><ProviderDocumentUpload /></Layout>} />
             <Route path="/job-timer/:token" element={<JobTimer />} />
             <Route path="/jobs/:jobId/confirm/:token" element={<ConfirmJob />} />
             <Route path="/jobs/:jobId/report/:token" element={<CompletionReportPublic />} />

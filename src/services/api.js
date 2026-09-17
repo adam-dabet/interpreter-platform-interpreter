@@ -195,6 +195,14 @@ export const transportationProviderAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
+  getDocumentRequest: (token) =>
+    api.get(`/transportation-providers/document-requests/${token}`).then((r) => r.data),
+
+  submitDocumentRequest: (token, formData) =>
+    api.post(`/transportation-providers/document-requests/${token}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
   getMyTrips: (params = {}) =>
     api.get('/transportation-providers/my-trips', { params }).then((r) => r.data),
 

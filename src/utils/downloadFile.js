@@ -68,3 +68,7 @@ export function getInterpreterCertificateFilePath(certificateId) {
 export function getAdminCertificateFilePath(interpreterId, certificateId) {
   return `/admin/interpreters/${interpreterId}/certificates/${certificateId}/file`;
 }
+
+export function getInterpreterProviderDocumentFilePath(documentId) {
+  return `/interpreters/documents/${documentId}/file`;
+}

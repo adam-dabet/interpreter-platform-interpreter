@@ -1,8 +1,10 @@
 import React from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { formatTransportationServiceType } from '../utils/providerUtils';
 import { TRANSPORTATION_DOCUMENT_TYPES } from '../utils/constants';
+import { openAuthenticatedFile, getInterpreterProviderDocumentFilePath } from '../utils/downloadFile';
 
 const Section = ({ title, children }) => (
   <div className="bg-white rounded-lg border p-6">
@@ -107,15 +109,23 @@ const TransportationProfile = () => {
                   <p className="font-medium text-gray-900">{doc.document_name}</p>
                   <p className="text-xs text-gray-500">{doc.original_filename}</p>
                 </div>
-                {doc.file_url && (
-                  <a
-                    href={doc.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                {doc.id && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await openAuthenticatedFile(
+                          getInterpreterProviderDocumentFilePath(doc.id),
+                          doc.original_filename || 'document'
+                        );
+                      } catch (error) {
+                        toast.error(error.message || 'Failed to open document');
+                      }
+                    }}
                     className="text-sm text-teal-600 hover:underline"
                   >
                     View
-                  </a>
+                  </button>
                 )}
               </li>
             ))}

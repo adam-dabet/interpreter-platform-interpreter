@@ -9,6 +9,8 @@ export const formatTransportationServiceType = (type) => {
     stretcher: 'Stretcher',
     bls: 'BLS',
     als: 'ALS',
+    flight: 'Flight',
+    hotel: 'Hotel',
   };
   return labels[type.toLowerCase()] || type;
 };

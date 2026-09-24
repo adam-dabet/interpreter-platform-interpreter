@@ -243,7 +243,7 @@ const TransportationServiceTypesStep = ({
                 </div>
               )}
 
-              {isSelected && (serviceType.value === 'bls' || serviceType.value === 'als') && (
+              {isSelected && ['stretcher', 'bls', 'als'].includes(serviceType.value) && (
                 <div className="p-4 border-t bg-gray-50 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Input
                     label="Per Mile Rate ($)"

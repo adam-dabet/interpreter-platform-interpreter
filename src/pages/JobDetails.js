@@ -1572,153 +1572,208 @@ const JobDetails = () => {
 
       {/* Confirmation Modal */}
       {showConfirmationModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Confirm Availability
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              {job.confirmation_reason === 'schedule_change' 
-                ? 'The appointment time has been changed. Can you still make it to this appointment?'
-                : 'Please confirm your availability for this upcoming appointment.'
-              }
-            </p>
-
-            {promptForTeamMemberOnConfirm && (
-              <div className="mb-4 space-y-3">
-                <div>
-                  <label htmlFor="confirm_team_member" className="block text-sm font-medium text-gray-700 mb-2">
-                    Which team member will attend? *
-                  </label>
-                  <select
-                    id="confirm_team_member"
-                    value={confirmTeamMemberId}
-                    onChange={(e) => handleConfirmTeamMemberChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={confirmationLoading}
-                  >
-                    {teamMembers.length > 0 && <option value="">Select a team member...</option>}
-                    {teamMembers.map((member) => (
-                      <option key={member.id} value={String(member.id)}>
-                        {member.first_name} {member.last_name}
-                      </option>
-                    ))}
-                    <option value={NEW_TEAM_MEMBER_OPTION}>+ Add new team member</option>
-                  </select>
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-900/50">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18 }}
+              className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+            >
+              <div className="border-b border-gray-100 px-6 pb-4 pt-5">
+                <button
+                  type="button"
+                  aria-label="Close"
+                  className="absolute right-3 top-3 rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                  onClick={() => {
+                    setShowConfirmationModal(false);
+                    setConfirmationNotes('');
+                  }}
+                  disabled={confirmationLoading}
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+                <h3 className="pr-8 text-lg font-semibold text-gray-900">
+                  {job.confirmation_reason === 'schedule_change'
+                    ? 'Can you still make this appointment?'
+                    : 'Confirm this appointment'}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {job.confirmation_reason === 'schedule_change'
+                    ? 'The time changed. Let us know if you can still attend.'
+                    : 'Let us know you will be there.'}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 rounded-xl bg-gray-50 px-3 py-2.5 text-sm text-gray-700">
+                  <span className="inline-flex items-center">
+                    <CalendarIcon className="mr-1.5 h-4 w-4 text-gray-400" />
+                    {formatDate(job.scheduled_date)}
+                  </span>
+                  <span className="inline-flex items-center">
+                    <ClockIcon className="mr-1.5 h-4 w-4 text-gray-400" />
+                    {formatTime(job.scheduled_time)}
+                  </span>
+                  {job.service_type_name && (
+                    <span className="inline-flex items-center font-medium text-gray-900">
+                      {job.service_type_name}
+                    </span>
+                  )}
                 </div>
-
-                {isAddingNewTeamMember && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label htmlFor="confirm_new_first_name" className="block text-sm font-medium text-gray-700 mb-1">
-                        First Name *
-                      </label>
-                      <input
-                        id="confirm_new_first_name"
-                        type="text"
-                        value={newMemberFirstName}
-                        onChange={(e) => setNewMemberFirstName(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled={confirmationLoading}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="confirm_new_last_name" className="block text-sm font-medium text-gray-700 mb-1">
-                        Last Name *
-                      </label>
-                      <input
-                        id="confirm_new_last_name"
-                        type="text"
-                        value={newMemberLastName}
-                        onChange={(e) => setNewMemberLastName(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled={confirmationLoading}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {requiresCertNumber && confirmSavedCertNumber && !editingConfirmCert && (
-                  <p className="text-sm text-gray-700">
-                    Cert # on file: <span className="font-medium">{confirmSavedCertNumber}</span>{' '}
-                    <button
-                      type="button"
-                      onClick={() => setEditingConfirmCert(true)}
-                      className="text-blue-600 hover:text-blue-700 underline text-xs"
-                      disabled={confirmationLoading}
-                    >
-                      Use a different number
-                    </button>
-                  </p>
-                )}
-
-                {requiresCertNumber && (!confirmSavedCertNumber || editingConfirmCert) && (
-                  <div>
-                    <label htmlFor="confirm_cert_number" className="block text-sm font-medium text-gray-700 mb-1">
-                      Certification # *
-                    </label>
-                    <input
-                      id="confirm_cert_number"
-                      type="text"
-                      value={confirmCertNumber}
-                      onChange={(e) => setConfirmCertNumber(e.target.value)}
-                      placeholder="Team member's certification number"
-                      maxLength={100}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={confirmationLoading}
-                    />
-                    <p className="mt-1 text-xs text-gray-500">
-                      Required for {job.service_type_name || 'this'} appointments.
-                    </p>
-                  </div>
-                )}
               </div>
-            )}
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Notes (optional)
-              </label>
-              <textarea
-                value={confirmationNotes}
-                onChange={(e) => setConfirmationNotes(e.target.value)}
-                placeholder="Add any notes about your availability..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={3}
-                maxLength={500}
-              />
-            </div>
-            
-            <div className="flex space-x-3">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  setShowConfirmationModal(false);
-                  setConfirmationNotes('');
-                }}
-                disabled={confirmationLoading}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => handleConfirmation('declined')}
-                disabled={confirmationLoading}
-              >
-                <XCircleIcon className="h-4 w-4 mr-2" />
-                {confirmationLoading ? 'Processing...' : 'Decline'}
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={() => handleConfirmation('confirmed')}
-                disabled={confirmationLoading || !agencyConfirmReady}
-              >
-                <CheckCircleIcon className="h-4 w-4 mr-2" />
-                {confirmationLoading ? 'Processing...' : 'Confirm'}
-              </Button>
-            </div>
+
+              <div className="max-h-[60vh] space-y-5 overflow-y-auto px-6 py-5">
+                {promptForTeamMemberOnConfirm && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Who will attend?</p>
+                    <div className="mt-2 max-h-52 space-y-2 overflow-y-auto pr-1">
+                      {teamMembers.map((member) => {
+                        const selected = String(confirmTeamMemberId) === String(member.id);
+                        const initials = `${member.first_name?.[0] || ''}${member.last_name?.[0] || ''}`.toUpperCase();
+                        return (
+                          <button
+                            key={member.id}
+                            type="button"
+                            onClick={() => handleConfirmTeamMemberChange(String(member.id))}
+                            disabled={confirmationLoading}
+                            className={`flex w-full items-center rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                              selected
+                                ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            <span className={`mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                              selected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {initials || '?'}
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {member.first_name} {member.last_name}
+                            </span>
+                            {selected && <CheckCircleIcon className="ml-auto h-5 w-5 shrink-0 text-blue-600" />}
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={() => handleConfirmTeamMemberChange(NEW_TEAM_MEMBER_OPTION)}
+                        disabled={confirmationLoading}
+                        className={`flex w-full items-center rounded-xl border border-dashed px-3 py-2.5 text-left text-sm ${
+                          isAddingNewTeamMember
+                            ? 'border-blue-600 bg-blue-50 text-blue-700 ring-1 ring-blue-600'
+                            : 'border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-base text-gray-500 ring-1 ring-gray-200">
+                          +
+                        </span>
+                        Add a new team member
+                      </button>
+                    </div>
+
+                    {isAddingNewTeamMember && (
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <div>
+                          <label htmlFor="confirm_new_first_name" className="mb-1 block text-xs font-medium text-gray-600">
+                            First name
+                          </label>
+                          <input
+                            id="confirm_new_first_name"
+                            type="text"
+                            value={newMemberFirstName}
+                            onChange={(e) => setNewMemberFirstName(e.target.value)}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            disabled={confirmationLoading}
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="confirm_new_last_name" className="mb-1 block text-xs font-medium text-gray-600">
+                            Last name
+                          </label>
+                          <input
+                            id="confirm_new_last_name"
+                            type="text"
+                            value={newMemberLastName}
+                            onChange={(e) => setNewMemberLastName(e.target.value)}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            disabled={confirmationLoading}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {requiresCertNumber && confirmSavedCertNumber && !editingConfirmCert && (
+                      <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                        <div>
+                          <p className="text-xs font-medium text-emerald-700">Certification on file</p>
+                          <p className="text-sm font-semibold text-emerald-900">{confirmSavedCertNumber}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditingConfirmCert(true)}
+                          className="text-xs font-medium text-emerald-800 underline hover:text-emerald-950"
+                          disabled={confirmationLoading}
+                        >
+                          Change
+                        </button>
+                      </div>
+                    )}
+
+                    {requiresCertNumber && (!confirmSavedCertNumber || editingConfirmCert) && (
+                      <div className="mt-3">
+                        <label htmlFor="confirm_cert_number" className="mb-1 block text-xs font-medium text-gray-600">
+                          Certification number
+                        </label>
+                        <input
+                          id="confirm_cert_number"
+                          type="text"
+                          value={confirmCertNumber}
+                          onChange={(e) => setConfirmCertNumber(e.target.value)}
+                          placeholder="Enter the certification number"
+                          maxLength={100}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={confirmationLoading}
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          Needed for {job.service_type_name || 'this'} appointments.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="confirmation_notes" className="mb-1 block text-xs font-medium text-gray-600">
+                    Notes <span className="font-normal text-gray-400">(optional)</span>
+                  </label>
+                  <textarea
+                    id="confirmation_notes"
+                    value={confirmationNotes}
+                    onChange={(e) => setConfirmationNotes(e.target.value)}
+                    placeholder="Anything we should know"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={2}
+                    maxLength={500}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4">
+                <Button
+                  variant="outline-danger"
+                  onClick={() => handleConfirmation('declined')}
+                  disabled={confirmationLoading}
+                >
+                  {confirmationLoading ? 'Processing...' : "Can't attend"}
+                </Button>
+                <Button
+                  variant="success"
+                  onClick={() => handleConfirmation('confirmed')}
+                  disabled={confirmationLoading || !agencyConfirmReady}
+                >
+                  <CheckCircleIcon className="mr-2 h-4 w-4" />
+                  {confirmationLoading ? 'Processing...' : 'Confirm attendance'}
+                </Button>
+              </div>
+            </motion.div>
           </div>
         </div>
       )}

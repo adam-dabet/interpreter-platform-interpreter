@@ -933,7 +933,7 @@ const JobDetails = () => {
                 Back to Previous Page
               </button>
               {/* Don't show job number for available jobs or when assigned to another interpreter */}
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-semibold tracking-tight text-ink">
                 {job.status === 'finding_interpreter' || (job.status === 'assigned' && job.assigned_interpreter_id && profile?.id && String(profile.id) !== String(job.assigned_interpreter_id))
                   ? (job.service_type_name || job.title || 'Job Opportunity')
                   : (job.job_number || job.title)}
@@ -965,7 +965,7 @@ const JobDetails = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="bg-white rounded-lg shadow-sm border p-6"
+                className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
               >
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Special Requirements</h2>
                 <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{job.special_requirements || job.notes}</p>
@@ -977,7 +977,7 @@ const JobDetails = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-white rounded-lg shadow-sm border p-6"
+              className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
             >
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Job Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1084,7 +1084,7 @@ const JobDetails = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="bg-white rounded-lg shadow-sm border p-6"
+              className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
             >
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Claimant Information</h2>
               <div className="space-y-4">
@@ -1142,7 +1142,7 @@ const JobDetails = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="bg-white rounded-lg shadow-sm border p-6"
+                className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
               >
                 <div className="flex items-center mb-4 bg-green-50 -m-6 p-4 rounded-t-lg border-b border-green-200">
                   <CheckCircleIcon className="h-6 w-6 text-green-600 mr-3" />
@@ -1275,7 +1275,7 @@ const JobDetails = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="bg-white rounded-lg shadow-sm border p-6"
+              className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Earnings</h3>
               <div className="text-center">
@@ -1318,7 +1318,7 @@ const JobDetails = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.45 }}
-                className="bg-white rounded-lg shadow-sm border p-6"
+                className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
               >
                 <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
                   <UsersIcon className="h-5 w-5 mr-2 text-blue-600" />
@@ -1359,7 +1359,7 @@ const JobDetails = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="bg-white rounded-lg shadow-sm border p-6"
+              className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 {job.assignment_status ? 'Status' : 'Actions'}
@@ -1510,7 +1510,7 @@ const JobDetails = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
-                className="bg-white rounded-lg shadow-sm border p-6"
+                className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
               >
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                   <ClockIcon className="h-5 w-5 mr-2 text-blue-600" />

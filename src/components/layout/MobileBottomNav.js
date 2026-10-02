@@ -84,7 +84,7 @@ const MobileBottomNav = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 lg:hidden z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-gray-200 lg:hidden z-50">
       <div className={`grid h-16 ${navItems.length <= 3 ? 'grid-cols-3' : 'grid-cols-6'}`}>
         {navItems.map((item) => {
           const active = isActive(item.path);
@@ -96,8 +96,8 @@ const MobileBottomNav = () => {
               to={item.path}
               className={`flex flex-col items-center justify-center relative ${
                 active
-                  ? 'text-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-ink'
+                  : 'text-gray-400 hover:text-gray-700'
               }`}
             >
               <div className="relative">

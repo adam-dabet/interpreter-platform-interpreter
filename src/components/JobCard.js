@@ -201,7 +201,7 @@ const JobCard = ({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`bg-white rounded-lg border-2 hover:border-blue-500 cursor-pointer transition-all shadow-sm hover:shadow-md ${
+      className={`bg-white rounded-2xl border border-gray-200 hover:border-ink cursor-pointer transition-all shadow-sm hover:shadow-md ${
         variant === 'compact' ? 'p-4' : 'p-5'
       }`}
       onClick={handleCardClick}
@@ -233,7 +233,7 @@ const JobCard = ({
           </div>
           
           {/* Job Title/Service Type - Don't show job number until assigned */}
-          <h3 className="text-base font-semibold text-gray-900">
+          <h3 className="text-base font-semibold text-ink">
             {jobStatus === 'available' 
               ? (job.service_type_name || 'Interpretation Service')
               : (job.job_number || `Job #${job.id?.substring(0, 8)}`)}
@@ -317,9 +317,9 @@ const JobCard = ({
                 <div className="flex items-center">
                   <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center ${
                     step.completed 
-                      ? 'bg-blue-600 border-blue-600' 
+                      ? 'bg-ink border-ink' 
                       : index === currentIndex
-                      ? 'bg-white border-blue-600'
+                      ? 'bg-white border-gold'
                       : 'bg-white border-gray-300'
                   }`}>
                     {step.completed && (
@@ -328,12 +328,12 @@ const JobCard = ({
                   </div>
                   {index < steps.length - 1 && (
                     <div className={`flex-1 h-0.5 ${
-                      step.completed ? 'bg-blue-600' : 'bg-gray-300'
+                      step.completed ? 'bg-ink' : 'bg-gray-300'
                     }`} />
                   )}
                 </div>
                 <div className={`text-xs mt-1 ${
-                  step.completed ? 'text-blue-600 font-medium' : 'text-gray-500'
+                  step.completed ? 'text-ink font-medium' : 'text-gray-500'
                 }`}>
                   {step.label}
                 </div>

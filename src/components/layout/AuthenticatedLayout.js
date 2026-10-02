@@ -57,12 +57,13 @@ const AuthenticatedLayout = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-canvas flex">
       {/* Mobile menu button */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
+      <div className="lg:hidden fixed top-3 left-3 z-50">
         <button
           onClick={() => setSidebarOpen(true)}
-          className="p-2 rounded-md bg-white shadow-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          className="p-2 rounded-xl border border-gray-200 bg-white text-ink shadow-sm hover:bg-gray-50"
+          aria-label="Open menu"
         >
           <Bars3Icon className="h-6 w-6" />
         </button>
@@ -73,7 +74,7 @@ const AuthenticatedLayout = ({ children }) => {
 
       {/* Main content */}
       <div className="flex-1 min-w-0">
-        <main className="bg-gray-50 pb-20 lg:pb-0">
+        <main className="bg-canvas pb-20 lg:pb-0">
           {children}
         </main>
       </div>

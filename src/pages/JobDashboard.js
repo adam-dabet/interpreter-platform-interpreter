@@ -430,8 +430,8 @@ const JobDashboardNew = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Jobs</h1>
-          <p className="mt-2 text-gray-600">Manage your interpretation assignments</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-ink">My Jobs</h1>
+          <p className="mt-2 text-gray-500">Manage your interpretation assignments</p>
         </div>
 
         {jobsNeedingAvailabilityConfirm.length > 0 && (
@@ -479,7 +479,7 @@ const JobDashboardNew = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
                     activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
+                      ? 'border-ink text-ink'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
@@ -487,7 +487,7 @@ const JobDashboardNew = () => {
                   {tab.count !== null && (
                     <span className={`ml-2 py-0.5 px-2.5 rounded-full text-xs ${
                       activeTab === tab.id
-                        ? 'bg-blue-100 text-blue-600'
+                        ? 'bg-gold-50 text-ink'
                         : 'bg-gray-100 text-gray-600'
                     }`}>
                       {tab.count}

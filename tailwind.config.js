@@ -5,7 +5,19 @@ module.exports = {
     "./public/index.html"
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        ink: {
+          DEFAULT: '#0A1128',
+          700: '#152044',
+        },
+        gold: {
+          DEFAULT: '#B88E3E',
+          50: '#FBF6EC',
+        },
+        canvas: '#F4F5F7',
+      },
+    },
   },
   plugins: [],
 }

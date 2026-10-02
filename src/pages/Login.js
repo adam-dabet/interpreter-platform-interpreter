@@ -101,7 +101,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-canvas flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -114,7 +114,7 @@ const Login = () => {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center"
+            className="mx-auto h-14 w-14 bg-ink rounded-2xl flex items-center justify-center"
           >
             <UserIcon className="h-8 w-8 text-white" />
           </motion.div>
@@ -123,9 +123,9 @@ const Login = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="mt-6 text-3xl font-extrabold text-gray-900"
+            className="mt-6 text-3xl font-semibold tracking-tight text-ink"
           >
-            Provider Login
+            Integrity Providers
           </motion.h2>
           
           <motion.p
@@ -134,7 +134,7 @@ const Login = () => {
             transition={{ delay: 0.4 }}
             className="mt-2 text-sm text-gray-600"
           >
-            Access your interpreter dashboard
+            Sign in to your provider account
           </motion.p>
         </div>
 
@@ -143,7 +143,7 @@ const Login = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="mt-8 space-y-6"
+          className="mt-8 space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
           onSubmit={handleSubmit}
         >
           <div className="space-y-4">
@@ -231,7 +231,7 @@ const Login = () => {
             <div className="text-sm">
               <Link
                 to="/forgot-password"
-                className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+                className="font-medium text-ink hover:text-ink-700 transition-colors"
               >
                 Forgot your password?
               </Link>
@@ -244,7 +244,7 @@ const Login = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.55 }}
-          className="bg-white rounded-lg shadow-md p-6 border-2 border-blue-100"
+          className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200"
         >
           <div className="text-center">
             <p className="text-gray-700 font-medium mb-3">
@@ -258,7 +258,7 @@ const Login = () => {
             </Link>
             <Link
               to="/apply-transportation"
-              className="inline-block w-full mt-3 py-3 px-4 bg-white text-blue-700 font-semibold rounded-lg border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all duration-200"
+              className="inline-block w-full mt-3 py-3 px-4 bg-white text-ink font-semibold rounded-lg border border-gray-300 hover:border-ink hover:bg-gray-50 transition-all duration-200"
             >
               Apply as Transportation Provider
             </Link>
@@ -277,7 +277,7 @@ const Login = () => {
         >
           <p>Need help? Contact our support team</p>
           <p className="mt-1">
-            <a href="mailto:providers@theintegritycompanyinc.com" className="text-blue-600 hover:text-blue-500">
+            <a href="mailto:providers@theintegritycompanyinc.com" className="text-ink hover:text-ink-700">
               providers@theintegritycompanyinc.com
             </a>
           </p>

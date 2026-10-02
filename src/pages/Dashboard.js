@@ -361,11 +361,11 @@ const DashboardNew = () => {
         {/* Welcome Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3">
-            <h1 className="text-4xl font-bold text-gray-900">
+            <h1 className="text-3xl font-semibold tracking-tight text-ink">
               Welcome back, {profile?.first_name || user?.first_name || 'there'}!
             </h1>
             {profile?.is_preferred_provider && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gold-50 text-ink border border-gold/40">
                 ⭐ Preferred Provider
               </span>
             )}
@@ -582,33 +582,33 @@ const DashboardNew = () => {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Upcoming Jobs</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{upcomingJobs}</p>
+                <p className="text-sm font-medium text-gray-500">Upcoming Jobs</p>
+                <p className="text-3xl font-semibold text-ink mt-2">{upcomingJobs}</p>
               </div>
-              <CalendarDaysIcon className="h-12 w-12 text-blue-600 opacity-20" />
+              <CalendarDaysIcon className="h-10 w-10 text-gold" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">This Month Hours</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{earnings.hours.toFixed(1)}</p>
+                <p className="text-sm font-medium text-gray-500">This Month Hours</p>
+                <p className="text-3xl font-semibold text-ink mt-2">{earnings.hours.toFixed(1)}</p>
               </div>
-              <ClockIcon className="h-12 w-12 text-green-600 opacity-20" />
+              <ClockIcon className="h-10 w-10 text-gold" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">This Month Earnings</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">${earnings.thisMonth.toFixed(0)}</p>
+                <p className="text-sm font-medium text-gray-500">This Month Earnings</p>
+                <p className="text-3xl font-semibold text-ink mt-2">${earnings.thisMonth.toFixed(0)}</p>
               </div>
-              <CurrencyDollarIcon className="h-12 w-12 text-yellow-600 opacity-20" />
+              <CurrencyDollarIcon className="h-10 w-10 text-gold" />
             </div>
           </div>
         </div>
@@ -616,7 +616,7 @@ const DashboardNew = () => {
         {/* Today's Jobs */}
         <div className="mt-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-gray-900">Today's Schedule</h2>
+            <h2 className="text-xl font-semibold text-ink">Today's Schedule</h2>
             <Button variant="outline" size="sm" onClick={() => navigate('/schedule')}>
               View Full Schedule
             </Button>
@@ -637,7 +637,7 @@ const DashboardNew = () => {
               ))}
             </div>
           ) : (
-            <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
+            <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-8 text-center">
               <CalendarDaysIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No jobs today</h3>
               <p className="mt-1 text-sm text-gray-500">Check out available opportunities</p>

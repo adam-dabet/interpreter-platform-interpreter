@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import googleMapsLoader from '../utils/googleMapsLoader';
+import { getGoogleMapsApiKey } from '../runtimeEnv';
 
 const AddressAutocomplete = ({ 
   onAddressSelect, 
@@ -20,7 +21,7 @@ const AddressAutocomplete = ({
         setError(null);
 
         // Load Google Maps API with Places library
-        const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+        const apiKey = getGoogleMapsApiKey();
         if (!apiKey) {
           throw new Error('Google Maps API key not found');
         }
@@ -28,6 +29,10 @@ const AddressAutocomplete = ({
         await googleMapsLoader.load(['places']);
 
         if (!inputRef.current) return;
+
+        if (!window.google?.maps?.places?.Autocomplete) {
+          throw new Error('Google Places Autocomplete is unavailable');
+        }
 
         // Create autocomplete instance
         autocompleteRef.current = new window.google.maps.places.Autocomplete(

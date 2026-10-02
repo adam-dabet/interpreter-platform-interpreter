@@ -1,9 +1,9 @@
 import axios from 'axios';
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
+import { getApiUrl } from '../runtimeEnv';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: getApiBaseUrl(),
+  baseURL: getApiUrl(),
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -170,6 +170,15 @@ export const interpreterAPI = {
   cancelPendingUpdate: () => {
     return api.delete('/interpreters/profile/pending-update');
   },
+
+  getServiceAreas: () => api.get('/interpreters/service-areas'),
+  createServiceArea: (data) => api.post('/interpreters/service-areas', data),
+  updateServiceArea: (areaId, data) => api.put(`/interpreters/service-areas/${areaId}`, data),
+  deleteServiceArea: (areaId) => api.delete(`/interpreters/service-areas/${areaId}`),
+
+  getAgencyMembers: () => api.get('/interpreters/agency-members'),
+  createTeamMember: (memberData) => api.post('/interpreters/agency-members/create', memberData),
+  removeAgencyMember: (memberId) => api.delete(`/interpreters/agency-members/${memberId}`),
 };
 
 export const transportationProviderAPI = {
@@ -183,6 +192,14 @@ export const transportationProviderAPI = {
 
   completeProfile: (token, profileData) =>
     api.post(`/transportation-providers/complete/${token}`, profileData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
+  getDocumentRequest: (token) =>
+    api.get(`/transportation-providers/document-requests/${token}`).then((r) => r.data),
+
+  submitDocumentRequest: (token, formData) =>
+    api.post(`/transportation-providers/document-requests/${token}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 

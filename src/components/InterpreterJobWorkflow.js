@@ -9,10 +9,9 @@ import {
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import InterpreterCompletionReport from './InterpreterCompletionReport';
+import { getApiUrl } from '../runtimeEnv';
 
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
-
-const API_BASE = getApiBaseUrl();
+const API_BASE = getApiUrl();
 const TWO_HOUR_MINIMUM_MINUTES = 120;
 
 const getDatePart = (dateValue) => {

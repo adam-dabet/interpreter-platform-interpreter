@@ -21,6 +21,7 @@ import TransportationDocumentsStep from '../components/forms/transportation/Tran
 import TransportationReviewStep from '../components/forms/transportation/TransportationReviewStep';
 import { transportationProviderAPI, parametricAPI } from '../services/api';
 import { TRANSPORTATION_DOCUMENT_TYPES } from '../utils/constants';
+import { getApiUrl } from '../runtimeEnv';
 
 const TRANSPORTATION_STEPS = [
   { id: 1, title: 'Personal Information', description: 'Contact and business details', icon: UserIcon, component: PersonalInfoStep },
@@ -115,7 +116,7 @@ const TransportationProviderProfile = () => {
 
   const loadRejectionData = async (token) => {
     try {
-      const apiBase = process.env.REACT_APP_API_URL || '/api';
+      const apiBase = getApiUrl();
       const response = await fetch(`${apiBase}/interpreters/rejection/${token}`);
       const data = await response.json();
 
@@ -149,7 +150,7 @@ const TransportationProviderProfile = () => {
     const rates = transportation_rates || interpreter?.transportation_rates || {};
     const parsedRates = typeof rates === 'string' ? JSON.parse(rates) : rates;
     const serviceTypes = Object.keys(parsedRates || {}).filter((key) =>
-      ['ambulatory', 'wheelchair', 'bls', 'als'].includes(key)
+      ['ambulatory', 'wheelchair', 'stretcher', 'bls', 'als'].includes(key)
     );
 
     setFormData((prev) => ({
@@ -199,7 +200,7 @@ const TransportationProviderProfile = () => {
 
   const loadProfileCompletionData = async (token) => {
     try {
-      const apiBase = process.env.REACT_APP_API_URL || '/api';
+      const apiBase = getApiUrl();
       const response = await fetch(`${apiBase}/profile-completion/validate-token/${token}`);
       const result = await response.json();
 
@@ -219,7 +220,7 @@ const TransportationProviderProfile = () => {
       const rates = data.transportationRates || {};
       const serviceTypes = Object.entries(rates)
         .filter(([key, typeRates]) => {
-          if (!['ambulatory', 'wheelchair', 'bls', 'als'].includes(key)) return false;
+          if (!['ambulatory', 'wheelchair', 'stretcher', 'bls', 'als'].includes(key)) return false;
           const perMile = parseFloat(typeRates?.per_mile);
           return !Number.isNaN(perMile) && perMile > 0;
         })

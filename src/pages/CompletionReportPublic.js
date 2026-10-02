@@ -10,10 +10,9 @@ import {
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import axios from 'axios';
+import { getApiUrl } from '../runtimeEnv';
 
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
-
-const API_BASE = getApiBaseUrl();
+const API_BASE = getApiUrl();
 
 const CompletionReportPublic = () => {
   const { jobId, token } = useParams();
@@ -44,16 +43,16 @@ const CompletionReportPublic = () => {
         const job = response.data.data;
         setJobDetails(job);
         
-        // Pre-fill times if job has start/end times
-        if (job.job_started_at) {
-          const startTime = new Date(job.job_started_at);
+        // Pre-fill times from Start Job / Complete Job click timestamps
+        if (job.in_progress_at || job.job_started_at) {
+          const startTime = new Date(job.in_progress_at || job.job_started_at);
           setFormData(prev => ({
             ...prev,
             start_time: startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
           }));
         }
-        if (job.job_ended_at) {
-          const endTime = new Date(job.job_ended_at);
+        if (job.job_ended_at || job.completed_at) {
+          const endTime = new Date(job.job_ended_at || job.completed_at);
           setFormData(prev => ({
             ...prev,
             end_time: endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -249,11 +248,14 @@ const CompletionReportPublic = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Notes (Optional)
               </label>
+              <p className="text-sm text-gray-500 mb-2">
+                Only include necessary and important details.
+              </p>
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({...formData, notes: e.target.value})}
                 rows={4}
-                placeholder="Any additional notes about the job..."
+                placeholder="Necessary details only (e.g. issues or special circumstances)..."
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>

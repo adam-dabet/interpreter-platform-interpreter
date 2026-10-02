@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
+import { getApiUrl } from '../runtimeEnv';
 
 const JobTimer = () => {
   const TWO_HOUR_MINIMUM_SECONDS = 2 * 60 * 60;
@@ -41,7 +41,7 @@ const JobTimer = () => {
 
   const loadJobData = async () => {
     try {
-      const API_BASE = getApiBaseUrl();
+      const API_BASE = getApiUrl();
       const response = await fetch(`${API_BASE}/magic-link/validate/${token}`);
       
       if (!response.ok) {
@@ -79,7 +79,7 @@ const JobTimer = () => {
   const startJob = async () => {
     setStarting(true);
     try {
-      const API_BASE = getApiBaseUrl();
+      const API_BASE = getApiUrl();
       const response = await fetch(`${API_BASE}/magic-link/start/${token}`, {
         method: 'POST',
         headers: {
@@ -140,7 +140,7 @@ const JobTimer = () => {
 
     setEnding(true);
     try {
-      const API_BASE = getApiBaseUrl();
+      const API_BASE = getApiUrl();
       const response = await fetch(`${API_BASE}/magic-link/end/${token}`, {
         method: 'POST',
         headers: {

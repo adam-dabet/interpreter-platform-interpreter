@@ -6,8 +6,11 @@ export const formatTransportationServiceType = (type) => {
   const labels = {
     ambulatory: 'Ambulatory',
     wheelchair: 'Wheelchair',
+    stretcher: 'Stretcher',
     bls: 'BLS',
     als: 'ALS',
+    flight: 'Flight',
+    hotel: 'Hotel',
   };
   return labels[type.toLowerCase()] || type;
 };

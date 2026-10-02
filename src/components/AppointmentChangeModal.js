@@ -6,10 +6,9 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import { getApiUrl } from '../runtimeEnv';
 
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
-
-const API_BASE = getApiBaseUrl();
+const API_BASE = getApiUrl();
 
 const AppointmentChangeModal = ({ job, changes, onClose, onConfirm }) => {
   const [responding, setResponding] = useState(false);

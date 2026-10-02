@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import { interpreterTokenHandler } from '../utils/tokenExpirationHandler';
+import { getApiUrl } from '../runtimeEnv';
 
 const AuthContext = createContext();
 
@@ -63,7 +63,7 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('loadProfile called with token:', token ? 'Token exists' : 'No token');
       const response = await interpreterTokenHandler.fetchWithExpirationHandling(
-        `${getApiBaseUrl()}/interpreters/profile`,
+        `${getApiUrl()}/interpreters/profile`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -126,7 +126,7 @@ export const AuthProvider = ({ children }) => {
       console.log('updateProfile called with data:', profileData);
       
       const response = await interpreterTokenHandler.fetchWithExpirationHandling(
-        `${getApiBaseUrl()}/interpreters/profile`,
+        `${getApiUrl()}/interpreters/profile`,
         {
           method: 'PUT',
           headers: {
@@ -167,7 +167,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     // Ensure we use the correct API base URL
-    const baseURL = getApiBaseUrl();
+    const baseURL = getApiUrl();
     const fullUrl = url.startsWith('http') ? url : `${baseURL}${url}`;
 
     return interpreterTokenHandler.fetchWithExpirationHandling(fullUrl, {

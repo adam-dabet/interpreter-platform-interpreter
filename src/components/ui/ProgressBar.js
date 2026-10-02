@@ -2,25 +2,28 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 const ProgressBar = ({ currentStep, totalSteps, steps, onStepClick, visitedSteps = new Set([1]) }) => {
+  const stepIds = (steps || []).map((step) => step.id);
+  const currentIndex = Math.max(stepIds.indexOf(currentStep), 0);
   const totalStepsCount = totalSteps || steps?.length || 1;
-  const progress = (currentStep / totalStepsCount) * 100;
+  const progress = ((currentIndex + 1) / totalStepsCount) * 100;
 
   return (
     <div className="w-full">
       {/* Step indicators */}
       <div className="flex items-center justify-between mb-4">
         {steps.map((step, index) => {
-          const stepNumber = index + 1;
-          const isActive = stepNumber === currentStep;
-          const isCompleted = stepNumber < currentStep;
-          const isFuture = stepNumber > currentStep;
-          const isVisited = visitedSteps.has(stepNumber);
-          const isUnlocked = isFuture && isVisited; // Future step that user has visited before
-          const isLocked = isFuture && !isVisited; // Future step that user hasn't visited
-          const isClickable = isCompleted || isUnlocked;
+          const stepId = step.id;
+          const displayNumber = index + 1;
+          const isActive = stepId === currentStep;
+          const isCompleted = index < currentIndex;
+          const isFuture = index > currentIndex;
+          const isVisited = visitedSteps.has(stepId);
+          const isUnlocked = isFuture && isVisited;
+          const isLocked = isFuture && !isVisited;
+          const isClickable = isCompleted || isUnlocked || isActive;
           
           return (
-            <div key={step.id} className="flex flex-col items-center flex-1">
+            <div key={stepId} className="flex flex-col items-center flex-1">
               <div className="flex items-center w-full">
                 {/* Step circle */}
                 <motion.div
@@ -45,7 +48,7 @@ const ProgressBar = ({ currentStep, totalSteps, steps, onStepClick, visitedSteps
                         : '#FFFFFF'
                   }}
                   transition={{ duration: 0.2 }}
-                  onClick={() => isClickable && onStepClick && onStepClick(stepNumber)}
+                  onClick={() => isClickable && onStepClick && onStepClick(stepId)}
                   whileHover={isClickable ? { scale: 1.05 } : {}}
                 >
                   {isCompleted ? (
@@ -57,7 +60,7 @@ const ProgressBar = ({ currentStep, totalSteps, steps, onStepClick, visitedSteps
                       <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                     </svg>
                   ) : (
-                    stepNumber
+                    displayNumber
                   )}
                 </motion.div>
                 
@@ -69,7 +72,7 @@ const ProgressBar = ({ currentStep, totalSteps, steps, onStepClick, visitedSteps
                         className="h-full bg-blue-600"
                         initial={{ width: '0%' }}
                         animate={{ 
-                          width: stepNumber < currentStep ? '100%' : '0%'
+                          width: index < currentIndex ? '100%' : '0%'
                         }}
                         transition={{ duration: 0.3 }}
                       />
@@ -114,7 +117,7 @@ const ProgressBar = ({ currentStep, totalSteps, steps, onStepClick, visitedSteps
       
       {/* Progress text */}
       <div className="flex justify-between text-sm text-gray-600 mt-2">
-        <span>Step {currentStep} of {totalStepsCount}</span>
+        <span>Step {currentIndex + 1} of {totalStepsCount}</span>
         <span>{Math.round(progress)}% Complete</span>
       </div>
     </div>

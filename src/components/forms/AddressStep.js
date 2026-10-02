@@ -569,7 +569,13 @@ const AddressStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing, par
 
     return (
         <div className="space-y-6">
-                        {/* Address Input Section */}
+            <div>
+                <h3 className="text-lg font-medium text-gray-900">Physical Address</h3>
+                <p className="mt-1 text-sm text-gray-600">
+                    This is your primary location used to match you with nearby job offers.
+                </p>
+            </div>
+            {/* Address Input Section */}
             <div className="space-y-6">
                 <div className="relative">
                     <div className={isFieldRejected('street_address') ? 'ring-2 ring-red-500 rounded-lg p-1 bg-red-50' : ''}>

@@ -16,10 +16,12 @@ import {
   EnvelopeIcon,
   PlayIcon,
   StopIcon,
-  XMarkIcon
+  XMarkIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import jobAPI from '../services/jobAPI';
+import { interpreterAPI } from '../services/api';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import InterpreterJobWorkflow from '../components/InterpreterJobWorkflow';
@@ -27,12 +29,16 @@ import { useAuth } from '../contexts/AuthContext';
 import { useJobRestrictions } from '../contexts/JobRestrictionContext';
 import { formatDate, formatTime, formatCurrency, getTimeUntilJob } from '../utils/dateUtils';
 import { milesInputToNumber, isPartialMilesInput } from '../utils/mileageInputUtils';
-import { getProviderJobStatusLabel } from '../utils/providerJobStatus';
+import { getProviderJobStatusLabel, isProviderJobCompleted } from '../utils/providerJobStatus';
 import FacilityDurationFollowUpNotice from '../components/FacilityDurationFollowUpNotice';
+import ProviderInvoiceNotice from '../components/ProviderInvoiceNotice';
+import { isJobAssignedToCurrentInterpreter } from '../utils/claimantPrivacy';
 
 const LAST_LIST_ROUTE_KEY = 'interpreterLastJobListRoute';
 const DEFAULT_RETURN_PATH = '/jobs';
 const TWO_HOUR_MINIMUM_MINUTES = 120;
+const CERT_NUMBER_REQUIRED_SERVICE_TYPE_CODES = ['legal', 'video', 'medical'];
+const NEW_TEAM_MEMBER_OPTION = 'new';
 
 const getDatePart = (dateValue) => {
   if (!dateValue) return null;
@@ -76,6 +82,17 @@ const JobDetails = () => {
   const [mileageRate, setMileageRate] = useState(0.70);
   const [mileagePromptLoading, setMileagePromptLoading] = useState(false);
   const FEDERAL_MILEAGE_CAP = 0.72;
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [showTeamMemberModal, setShowTeamMemberModal] = useState(false);
+  const [selectedTeamMemberId, setSelectedTeamMemberId] = useState('');
+  const [assigningTeamMember, setAssigningTeamMember] = useState(false);
+  const [teamMemberCertNumber, setTeamMemberCertNumber] = useState('');
+  const [confirmTeamMemberId, setConfirmTeamMemberId] = useState('');
+  const [confirmCertNumber, setConfirmCertNumber] = useState('');
+  const [editingConfirmCert, setEditingConfirmCert] = useState(false);
+  const [editingTeamMemberCert, setEditingTeamMemberCert] = useState(false);
+  const [newMemberFirstName, setNewMemberFirstName] = useState('');
+  const [newMemberLastName, setNewMemberLastName] = useState('');
 
   const getStoredReturnPath = useCallback(() => {
     const statePath = location.state?.returnTo;
@@ -100,6 +117,23 @@ const JobDetails = () => {
   useEffect(() => {
     loadJobDetails();
   }, [jobId]);
+
+  useEffect(() => {
+    if (!profile?.is_agency) return undefined;
+
+    const loadTeamMembers = async () => {
+      try {
+        const response = await interpreterAPI.getAgencyMembers();
+        if (response.data.success) {
+          setTeamMembers(response.data.data.members || []);
+        }
+      } catch (error) {
+        console.error('Error loading team members:', error);
+      }
+    };
+
+    loadTeamMembers();
+  }, [profile?.is_agency]);
 
   // Email "CONFIRM ASSIGNMENT" links include ?confirmAvailability=1 — open modal once job + profile are ready
   useEffect(() => {
@@ -132,9 +166,11 @@ const JobDetails = () => {
     };
   }, [showMileagePrompt]);
 
-  const loadJobDetails = async () => {
+  const loadJobDetails = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       setIsUnavailableToInterpreter(false);
       setUnavailableMessage('');
       const response = await jobAPI.getJobById(jobId);
@@ -158,7 +194,9 @@ const JobDetails = () => {
         toast.error('Failed to load job details');
       }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -174,10 +212,68 @@ const JobDetails = () => {
     return new Date() >= arrivalDateTime;
   }, [job]);
 
-  const assignedToCurrentInterpreter =
-    !!profile?.id &&
-    !!job?.assigned_interpreter_id &&
-    String(profile.id) === String(job.assigned_interpreter_id);
+  const assignedToCurrentInterpreter = isJobAssignedToCurrentInterpreter(job, profile?.id);
+  const canSetTeamMember =
+    profile?.is_agency &&
+    assignedToCurrentInterpreter &&
+    ['assigned', 'reminders_sent', 'in_progress'].includes(job?.status);
+  const requiresCertNumber = CERT_NUMBER_REQUIRED_SERVICE_TYPE_CODES.includes(job?.service_type_code);
+
+  const getSavedCertNumberFor = (memberId) => {
+    if (!memberId || memberId === NEW_TEAM_MEMBER_OPTION) return '';
+    if (String(memberId) === String(job?.team_member_id) && job?.team_member_certification_number) {
+      return job.team_member_certification_number;
+    }
+    const member = teamMembers.find((m) => String(m.id) === String(memberId));
+    return member?.saved_certification_number || '';
+  };
+
+  const confirmationReason = job?.confirmation_reason || 'initial_assignment';
+  const promptForTeamMemberOnConfirm =
+    profile?.is_agency &&
+    ['initial_assignment', '2day_reminder'].includes(confirmationReason);
+
+  useEffect(() => {
+    if (!showConfirmationModal || !promptForTeamMemberOnConfirm) return;
+    const initialId = job?.team_member_id
+      ? String(job.team_member_id)
+      : teamMembers.length === 0 ? NEW_TEAM_MEMBER_OPTION : '';
+    setConfirmTeamMemberId(initialId);
+    setConfirmCertNumber(getSavedCertNumberFor(initialId));
+    setEditingConfirmCert(false);
+    setNewMemberFirstName('');
+    setNewMemberLastName('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showConfirmationModal, promptForTeamMemberOnConfirm]);
+
+  useEffect(() => {
+    if (
+      showConfirmationModal &&
+      teamMembers.length > 0 &&
+      confirmTeamMemberId === NEW_TEAM_MEMBER_OPTION &&
+      !newMemberFirstName &&
+      !newMemberLastName
+    ) {
+      setConfirmTeamMemberId('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamMembers]);
+
+  const handleConfirmTeamMemberChange = (value) => {
+    setConfirmTeamMemberId(value);
+    setConfirmCertNumber(getSavedCertNumberFor(value));
+    setEditingConfirmCert(false);
+  };
+
+  const confirmSavedCertNumber = getSavedCertNumberFor(confirmTeamMemberId);
+  const teamMemberSavedCertNumber = getSavedCertNumberFor(selectedTeamMemberId);
+
+  const isAddingNewTeamMember = confirmTeamMemberId === NEW_TEAM_MEMBER_OPTION;
+  const agencyConfirmReady =
+    !promptForTeamMemberOnConfirm ||
+    (!!confirmTeamMemberId &&
+      (!isAddingNewTeamMember || (newMemberFirstName.trim() && newMemberLastName.trim())) &&
+      (!requiresCertNumber || confirmCertNumber.trim()));
 
   const showJobTimingModule =
     assignedToCurrentInterpreter &&
@@ -309,14 +405,49 @@ const JobDetails = () => {
     }
   };
 
+  const createTeamMemberForConfirmation = async () => {
+    try {
+      const response = await interpreterAPI.createTeamMember({
+        first_name: newMemberFirstName.trim(),
+        last_name: newMemberLastName.trim(),
+        languages: [job.language_id].filter(Boolean),
+        certifications: [job.service_type_id].filter(Boolean)
+      });
+      const created = response.data?.data;
+      if (!response.data?.success || !created?.id) {
+        toast.error(response.data?.message || 'Failed to add team member');
+        return null;
+      }
+      setTeamMembers((prev) => [{ ...created, saved_certification_number: null }, ...prev]);
+      setConfirmTeamMemberId(String(created.id));
+      return created.id;
+    } catch (error) {
+      console.error('Error adding team member:', error);
+      toast.error(error.response?.data?.message || 'Failed to add team member');
+      return null;
+    }
+  };
+
   const handleConfirmation = async (confirmationStatus) => {
     try {
       setConfirmationLoading(true);
-      
-      const response = await jobAPI.confirmAvailability(jobId, {
+
+      const payload = {
         confirmation_status: confirmationStatus,
         confirmation_notes: confirmationNotes
-      });
+      };
+
+      if (confirmationStatus === 'confirmed' && promptForTeamMemberOnConfirm) {
+        let teamMemberId = confirmTeamMemberId;
+        if (teamMemberId === NEW_TEAM_MEMBER_OPTION) {
+          teamMemberId = await createTeamMemberForConfirmation();
+          if (!teamMemberId) return;
+        }
+        payload.team_member_id = parseInt(teamMemberId, 10);
+        payload.certification_number = requiresCertNumber ? confirmCertNumber.trim() : null;
+      }
+      
+      const response = await jobAPI.confirmAvailability(jobId, payload);
       
       if (response.data.success) {
         toast.success(`Availability ${confirmationStatus} successfully!`);
@@ -466,6 +597,56 @@ const JobDetails = () => {
     }
   };
 
+  const openTeamMemberModal = () => {
+    const currentId = job?.team_member_id ? String(job.team_member_id) : '';
+    const matchedByName = !currentId && job?.team_member_first_name
+      ? teamMembers.find(
+          (member) =>
+            member.first_name === job.team_member_first_name &&
+            member.last_name === job.team_member_last_name
+        )
+      : null;
+    const initialId = currentId || (matchedByName ? String(matchedByName.id) : '');
+    setSelectedTeamMemberId(initialId);
+    setTeamMemberCertNumber(getSavedCertNumberFor(initialId));
+    setEditingTeamMemberCert(false);
+    setShowTeamMemberModal(true);
+  };
+
+  const handleSelectTeamMember = (memberId) => {
+    setSelectedTeamMemberId(memberId);
+    setTeamMemberCertNumber(getSavedCertNumberFor(memberId));
+    setEditingTeamMemberCert(false);
+  };
+
+  const handleAssignTeamMember = async () => {
+    if (!selectedTeamMemberId) {
+      toast.error('Please select a team member');
+      return;
+    }
+    if (requiresCertNumber && !teamMemberCertNumber.trim()) {
+      toast.error("Please enter the team member's certification number");
+      return;
+    }
+
+    try {
+      setAssigningTeamMember(true);
+      await jobAPI.assignTeamMember(
+        jobId,
+        parseInt(selectedTeamMemberId, 10),
+        requiresCertNumber ? teamMemberCertNumber.trim() : null
+      );
+      toast.success('Team member assigned');
+      setShowTeamMemberModal(false);
+      await loadJobDetails({ silent: true });
+    } catch (error) {
+      console.error('Error assigning team member:', error);
+      toast.error(error.response?.data?.message || 'Failed to assign team member');
+    } finally {
+      setAssigningTeamMember(false);
+    }
+  };
+
   // Date/time formatting functions imported from utils/dateUtils.js
 
   const calculateEarnings = (job) => {
@@ -528,6 +709,88 @@ const JobDetails = () => {
     const mileageReimbursement = parseFloat(job.mileage_reimbursement) || 0;
     
     return basePayment + mileageReimbursement;
+  };
+
+  const getBillableHours = (job) => {
+    const estimatedMinutes = parseFloat(job.estimated_duration_minutes) || 0;
+    const minimumHours = parseFloat(job.interpreter_minimum_hours) || 1;
+    const minimumMinutes = minimumHours * 60;
+    const billingIncrement = parseFloat(job.interpreter_interval_minutes) || 15;
+    const finalBillableMinutes = Math.max(estimatedMinutes, minimumMinutes);
+    const roundedMinutes =
+      finalBillableMinutes <= minimumMinutes
+        ? finalBillableMinutes
+        : minimumMinutes +
+          Math.ceil((finalBillableMinutes - minimumMinutes) / billingIncrement) * billingIncrement;
+
+    return {
+      billableHours: roundedMinutes / 60,
+      roundedMinutes,
+    };
+  };
+
+  const formatEarningsBreakdown = (job) => {
+    if (job.use_interpreter_flat_rate && parseFloat(job.interpreter_flat_rate || 0) > 0) {
+      const flatRateAmount = parseFloat(job.interpreter_flat_rate);
+      const flatRateHours = parseFloat(job.interpreter_flat_rate_hours || 3);
+      const estimatedHours = (parseFloat(job.estimated_duration_minutes) || 0) / 60;
+      if (flatRateHours > 0 && estimatedHours > flatRateHours) {
+        const blocks = Math.ceil(estimatedHours / flatRateHours);
+        return `${formatCurrency(flatRateAmount)} flat rate × ${blocks} blocks = ${formatCurrency(flatRateAmount * blocks)}`;
+      }
+      return `${formatCurrency(flatRateAmount)} flat rate (covers ${flatRateHours} hours)`;
+    }
+
+    const { billableHours, roundedMinutes } = getBillableHours(job);
+
+    // Backend-resolved rate (service area, language-specific, or profile)
+    if (job.interpreter_original_rate_amount != null && job.interpreter_rate_unit) {
+      const amount = parseFloat(job.interpreter_original_rate_amount);
+      const rateUnit = (job.interpreter_rate_unit || 'hours').toLowerCase();
+
+      if (rateUnit === 'minutes') {
+        return `${formatCurrency(amount)}/min × ${roundedMinutes} min = ${formatCurrency(amount * roundedMinutes)}`;
+      }
+      if (rateUnit === 'word') {
+        const wordCount = parseInt(job.estimated_word_count || 0, 10);
+        return `${formatCurrency(amount)}/word × ${wordCount} words = ${formatCurrency(amount * wordCount)}`;
+      }
+
+      const blockMatch = rateUnit.match(/^(\d+)hours?$/);
+      if (blockMatch) {
+        const blockHours = parseInt(blockMatch[1], 10);
+        const effectiveHourly = amount / blockHours;
+        return `${formatCurrency(amount)}/${blockHours}hr (${formatCurrency(effectiveHourly)}/hr) × ${billableHours.toFixed(1)} hours = ${formatCurrency(effectiveHourly * billableHours)}`;
+      }
+
+      return `${formatCurrency(amount)}/hour × ${billableHours.toFixed(1)} hours = ${formatCurrency(amount * billableHours)}`;
+    }
+
+    if (job.hourly_rate) {
+      const hourly = parseFloat(job.hourly_rate);
+      return `${formatCurrency(hourly)}/hour × ${billableHours.toFixed(1)} hours = ${formatCurrency(hourly * billableHours)}`;
+    }
+
+    if (profile?.service_rates) {
+      const serviceRate = profile.service_rates.find(
+        (rate) => rate.service_type_id === job.service_type_id
+      );
+      if (serviceRate?.rate_amount && serviceRate.rate_unit) {
+        const rateUnit = (serviceRate.rate_unit || 'hours').toLowerCase();
+        if (rateUnit === 'minutes') {
+          return `${formatCurrency(serviceRate.rate_amount)}/min × ${roundedMinutes} min = ${formatCurrency(serviceRate.rate_amount * roundedMinutes)}`;
+        }
+        const blockMatch = rateUnit.match(/^(\d+)hours?$/);
+        if (blockMatch) {
+          const blockHours = parseInt(blockMatch[1], 10);
+          const effectiveHourly = serviceRate.rate_amount / blockHours;
+          return `${formatCurrency(serviceRate.rate_amount)}/${blockHours}hr (${formatCurrency(effectiveHourly)}/hr) × ${billableHours.toFixed(1)} hours = ${formatCurrency(effectiveHourly * billableHours)}`;
+        }
+        return `${formatCurrency(serviceRate.rate_amount)}/hour × ${billableHours.toFixed(1)} hours = ${formatCurrency(serviceRate.rate_amount * billableHours)}`;
+      }
+    }
+
+    return 'Rate not set';
   };
 
   const getPriorityColor = (priority) => {
@@ -815,7 +1078,8 @@ const JobDetails = () => {
               </div>
             </motion.div>
 
-            {/* Claimant Information */}
+            {/* Claimant Information — only visible once assigned to this interpreter */}
+            {assignedToCurrentInterpreter && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -870,6 +1134,7 @@ const JobDetails = () => {
                 )}
               </div>
             </motion.div>
+            )}
 
             {/* Completion Report */}
             {job.completion_report_submitted && job.completion_report_data && (
@@ -1021,51 +1286,7 @@ const JobDetails = () => {
                   Total earnings for this job
                 </p>
                         <div className="text-xs text-gray-400 mb-4">
-                          {(() => {
-                            // Flat rate set by admin takes priority over all other rate displays
-                            if (job.use_interpreter_flat_rate && parseFloat(job.interpreter_flat_rate || 0) > 0) {
-                              const flatRateAmount = parseFloat(job.interpreter_flat_rate);
-                              const flatRateHours = parseFloat(job.interpreter_flat_rate_hours || 3);
-                              const estimatedHours = (parseFloat(job.estimated_duration_minutes) || 0) / 60;
-                              if (flatRateHours > 0 && estimatedHours > flatRateHours) {
-                                const blocks = Math.ceil(estimatedHours / flatRateHours);
-                                return `${formatCurrency(flatRateAmount)} flat rate × ${blocks} blocks = ${formatCurrency(flatRateAmount * blocks)}`;
-                              }
-                              return `${formatCurrency(flatRateAmount)} flat rate (covers ${flatRateHours} hours)`;
-                            }
-                            const estimatedMinutes = parseFloat(job.estimated_duration_minutes) || 0;
-                            const minimumHours = parseFloat(job.interpreter_minimum_hours) || 1;
-                            const minimumMinutes = minimumHours * 60;
-                            const billingIncrement = parseFloat(job.interpreter_interval_minutes) || 15;
-                            const finalBillableMinutes = Math.max(estimatedMinutes, minimumMinutes);
-                            const roundedMinutes = finalBillableMinutes <= minimumMinutes
-                              ? finalBillableMinutes
-                              : minimumMinutes + Math.ceil((finalBillableMinutes - minimumMinutes) / billingIncrement) * billingIncrement;
-                            const billableHours = roundedMinutes / 60;
-                            if (profile?.service_rates) {
-                              const serviceRate = profile.service_rates.find(
-                                rate => rate.service_type_id === job.service_type_id
-                              );
-                              if (serviceRate && serviceRate.rate_amount && serviceRate.rate_unit) {
-                                const rateUnit = (serviceRate.rate_unit || 'hours').toLowerCase();
-                                if (rateUnit === 'minutes') {
-                                  return `${formatCurrency(serviceRate.rate_amount)}/min × ${roundedMinutes} min = ${formatCurrency(serviceRate.rate_amount * roundedMinutes)}`;
-                                }
-                                // Handle block rates like '3hours', '6hours'
-                                const blockMatch = rateUnit.match(/^(\d+)hours?$/);
-                                if (blockMatch) {
-                                  const blockHours = parseInt(blockMatch[1], 10);
-                                  const effectiveHourly = serviceRate.rate_amount / blockHours;
-                                  return `${formatCurrency(serviceRate.rate_amount)}/${blockHours}hr (${formatCurrency(effectiveHourly)}/hr) × ${billableHours.toFixed(1)} hours = ${formatCurrency(effectiveHourly * billableHours)}`;
-                                }
-                                return `${formatCurrency(serviceRate.rate_amount)}/hour × ${billableHours.toFixed(1)} hours = ${formatCurrency(serviceRate.rate_amount * billableHours)}`;
-                              }
-                            }
-                            if (job.hourly_rate) {
-                              return `${formatCurrency(job.hourly_rate)}/hour × ${billableHours.toFixed(1)} hours = ${formatCurrency(job.hourly_rate * billableHours)}`;
-                            }
-                            return 'Rate not set';
-                          })()}
+                          {formatEarningsBreakdown(job)}
                         </div>
                 {job.mileage_reimbursement && parseFloat(job.mileage_reimbursement) > 0 && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
@@ -1088,6 +1309,49 @@ const JobDetails = () => {
                 </div>
               </div>
             </motion.div>
+            )}
+
+            <ProviderInvoiceNotice job={job} profile={profile} />
+
+            {profile?.is_agency && assignedToCurrentInterpreter && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+                className="bg-white rounded-lg shadow-sm border p-6"
+              >
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                  <UsersIcon className="h-5 w-5 mr-2 text-blue-600" />
+                  Team Member
+                </h3>
+                {job.team_member_first_name ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {job.team_member_first_name} {job.team_member_last_name}
+                      </p>
+                      {job.team_member_certification_number && (
+                        <p className="text-xs text-gray-600">Cert #: {job.team_member_certification_number}</p>
+                      )}
+                      <p className="text-xs text-gray-500">Will perform this job</p>
+                    </div>
+                    {canSetTeamMember && (
+                      <Button variant="outline" size="sm" onClick={openTeamMemberModal}>
+                        Change
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm text-gray-500 italic">No team member assigned</p>
+                    {canSetTeamMember && (
+                      <Button size="sm" onClick={openTeamMemberModal}>
+                        Assign
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </motion.div>
             )}
 
             {/* Action Buttons */}
@@ -1228,10 +1492,12 @@ const JobDetails = () => {
                 ) : (
                   <div className="text-center py-4">
                     <div className="text-lg font-semibold text-gray-600 mb-2">
-                      Job Status: {job.status}
+                      Job Status: {getProviderJobStatusLabel(job)}
                     </div>
                     <p className="text-sm text-gray-500">
-                      This job is not available for acceptance
+                      {isProviderJobCompleted(job)
+                        ? 'This job has been completed'
+                        : 'This job is not available for acceptance'}
                     </p>
                   </div>
                 )}
@@ -1308,62 +1574,208 @@ const JobDetails = () => {
 
       {/* Confirmation Modal */}
       {showConfirmationModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Confirm Availability
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              {job.confirmation_reason === 'schedule_change' 
-                ? 'The appointment time has been changed. Can you still make it to this appointment?'
-                : 'Please confirm your availability for this upcoming appointment.'
-              }
-            </p>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Notes (optional)
-              </label>
-              <textarea
-                value={confirmationNotes}
-                onChange={(e) => setConfirmationNotes(e.target.value)}
-                placeholder="Add any notes about your availability..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={3}
-                maxLength={500}
-              />
-            </div>
-            
-            <div className="flex space-x-3">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  setShowConfirmationModal(false);
-                  setConfirmationNotes('');
-                }}
-                disabled={confirmationLoading}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => handleConfirmation('declined')}
-                disabled={confirmationLoading}
-              >
-                <XCircleIcon className="h-4 w-4 mr-2" />
-                {confirmationLoading ? 'Processing...' : 'Decline'}
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={() => handleConfirmation('confirmed')}
-                disabled={confirmationLoading}
-              >
-                <CheckCircleIcon className="h-4 w-4 mr-2" />
-                {confirmationLoading ? 'Processing...' : 'Confirm'}
-              </Button>
-            </div>
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-900/50">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18 }}
+              className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+            >
+              <div className="border-b border-gray-100 px-6 pb-4 pt-5">
+                <button
+                  type="button"
+                  aria-label="Close"
+                  className="absolute right-3 top-3 rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                  onClick={() => {
+                    setShowConfirmationModal(false);
+                    setConfirmationNotes('');
+                  }}
+                  disabled={confirmationLoading}
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+                <h3 className="pr-8 text-lg font-semibold text-gray-900">
+                  {job.confirmation_reason === 'schedule_change'
+                    ? 'Can you still make this appointment?'
+                    : 'Confirm this appointment'}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {job.confirmation_reason === 'schedule_change'
+                    ? 'The time changed. Let us know if you can still attend.'
+                    : 'Let us know you will be there.'}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 rounded-xl bg-gray-50 px-3 py-2.5 text-sm text-gray-700">
+                  <span className="inline-flex items-center">
+                    <CalendarIcon className="mr-1.5 h-4 w-4 text-gray-400" />
+                    {formatDate(job.scheduled_date)}
+                  </span>
+                  <span className="inline-flex items-center">
+                    <ClockIcon className="mr-1.5 h-4 w-4 text-gray-400" />
+                    {formatTime(job.scheduled_time)}
+                  </span>
+                  {job.service_type_name && (
+                    <span className="inline-flex items-center font-medium text-gray-900">
+                      {job.service_type_name}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="max-h-[60vh] space-y-5 overflow-y-auto px-6 py-5">
+                {promptForTeamMemberOnConfirm && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Who will attend?</p>
+                    <div className="mt-2 max-h-52 space-y-2 overflow-y-auto pr-1">
+                      {teamMembers.map((member) => {
+                        const selected = String(confirmTeamMemberId) === String(member.id);
+                        const initials = `${member.first_name?.[0] || ''}${member.last_name?.[0] || ''}`.toUpperCase();
+                        return (
+                          <button
+                            key={member.id}
+                            type="button"
+                            onClick={() => handleConfirmTeamMemberChange(String(member.id))}
+                            disabled={confirmationLoading}
+                            className={`flex w-full items-center rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                              selected
+                                ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            <span className={`mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                              selected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {initials || '?'}
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {member.first_name} {member.last_name}
+                            </span>
+                            {selected && <CheckCircleIcon className="ml-auto h-5 w-5 shrink-0 text-blue-600" />}
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={() => handleConfirmTeamMemberChange(NEW_TEAM_MEMBER_OPTION)}
+                        disabled={confirmationLoading}
+                        className={`flex w-full items-center rounded-xl border border-dashed px-3 py-2.5 text-left text-sm ${
+                          isAddingNewTeamMember
+                            ? 'border-blue-600 bg-blue-50 text-blue-700 ring-1 ring-blue-600'
+                            : 'border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-base text-gray-500 ring-1 ring-gray-200">
+                          +
+                        </span>
+                        Add a new team member
+                      </button>
+                    </div>
+
+                    {isAddingNewTeamMember && (
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <div>
+                          <label htmlFor="confirm_new_first_name" className="mb-1 block text-xs font-medium text-gray-600">
+                            First name
+                          </label>
+                          <input
+                            id="confirm_new_first_name"
+                            type="text"
+                            value={newMemberFirstName}
+                            onChange={(e) => setNewMemberFirstName(e.target.value)}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            disabled={confirmationLoading}
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="confirm_new_last_name" className="mb-1 block text-xs font-medium text-gray-600">
+                            Last name
+                          </label>
+                          <input
+                            id="confirm_new_last_name"
+                            type="text"
+                            value={newMemberLastName}
+                            onChange={(e) => setNewMemberLastName(e.target.value)}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            disabled={confirmationLoading}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {requiresCertNumber && confirmSavedCertNumber && !editingConfirmCert && (
+                      <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                        <div>
+                          <p className="text-xs font-medium text-emerald-700">Certification on file</p>
+                          <p className="text-sm font-semibold text-emerald-900">{confirmSavedCertNumber}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditingConfirmCert(true)}
+                          className="text-xs font-medium text-emerald-800 underline hover:text-emerald-950"
+                          disabled={confirmationLoading}
+                        >
+                          Change
+                        </button>
+                      </div>
+                    )}
+
+                    {requiresCertNumber && (!confirmSavedCertNumber || editingConfirmCert) && (
+                      <div className="mt-3">
+                        <label htmlFor="confirm_cert_number" className="mb-1 block text-xs font-medium text-gray-600">
+                          Certification number
+                        </label>
+                        <input
+                          id="confirm_cert_number"
+                          type="text"
+                          value={confirmCertNumber}
+                          onChange={(e) => setConfirmCertNumber(e.target.value)}
+                          placeholder="Enter the certification number"
+                          maxLength={100}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={confirmationLoading}
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          Needed for {job.service_type_name || 'this'} appointments.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="confirmation_notes" className="mb-1 block text-xs font-medium text-gray-600">
+                    Notes <span className="font-normal text-gray-400">(optional)</span>
+                  </label>
+                  <textarea
+                    id="confirmation_notes"
+                    value={confirmationNotes}
+                    onChange={(e) => setConfirmationNotes(e.target.value)}
+                    placeholder="Anything we should know"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={2}
+                    maxLength={500}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4">
+                <Button
+                  variant="outline-danger"
+                  onClick={() => handleConfirmation('declined')}
+                  disabled={confirmationLoading}
+                >
+                  {confirmationLoading ? 'Processing...' : "Can't attend"}
+                </Button>
+                <Button
+                  variant="success"
+                  onClick={() => handleConfirmation('confirmed')}
+                  disabled={confirmationLoading || !agencyConfirmReady}
+                >
+                  <CheckCircleIcon className="mr-2 h-4 w-4" />
+                  {confirmationLoading ? 'Processing...' : 'Confirm attendance'}
+                </Button>
+              </div>
+            </motion.div>
           </div>
         </div>
       )}
@@ -1523,6 +1935,120 @@ const JobDetails = () => {
                 </div>
               )}
             </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTeamMemberModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => !assigningTeamMember && setShowTeamMemberModal(false)}
+            />
+            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Select Team Member</h3>
+                <button
+                  type="button"
+                  onClick={() => !assigningTeamMember && setShowTeamMemberModal(false)}
+                  className="text-gray-400 hover:text-gray-500"
+                  disabled={assigningTeamMember}
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                Which team member will perform this job?
+              </p>
+              {teamMembers.length === 0 ? (
+                <p className="text-sm text-gray-500 mb-4">
+                  No team members yet. Add them from Team Members first.
+                </p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg mb-4 divide-y divide-gray-100">
+                  {teamMembers.map((member) => (
+                    <label
+                      key={member.id}
+                      className={`flex items-center px-3 py-3 cursor-pointer hover:bg-gray-50 ${
+                        String(selectedTeamMemberId) === String(member.id) ? 'bg-blue-50' : ''
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="team_member"
+                        value={member.id}
+                        checked={String(selectedTeamMemberId) === String(member.id)}
+                        onChange={() => handleSelectTeamMember(String(member.id))}
+                        className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        disabled={assigningTeamMember}
+                      />
+                      <span className="ml-3">
+                        <span className="block text-sm font-medium text-gray-900">
+                          {member.first_name} {member.last_name}
+                        </span>
+                        {member.languages && member.languages !== 'N/A' && (
+                          <span className="block text-xs text-gray-500">{member.languages}</span>
+                        )}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {requiresCertNumber && teamMemberSavedCertNumber && !editingTeamMemberCert && (
+                <p className="mb-4 text-sm text-gray-700">
+                  Cert # on file: <span className="font-medium">{teamMemberSavedCertNumber}</span>{' '}
+                  <button
+                    type="button"
+                    onClick={() => setEditingTeamMemberCert(true)}
+                    className="text-blue-600 hover:text-blue-700 underline text-xs"
+                    disabled={assigningTeamMember}
+                  >
+                    Use a different number
+                  </button>
+                </p>
+              )}
+              {requiresCertNumber && teamMembers.length > 0 && selectedTeamMemberId &&
+                (!teamMemberSavedCertNumber || editingTeamMemberCert) && (
+                <div className="mb-4">
+                  <label htmlFor="team_member_cert_number" className="block text-sm font-medium text-gray-700 mb-1">
+                    Certification # *
+                  </label>
+                  <input
+                    id="team_member_cert_number"
+                    type="text"
+                    value={teamMemberCertNumber}
+                    onChange={(e) => setTeamMemberCertNumber(e.target.value)}
+                    placeholder="Team member's certification number"
+                    maxLength={100}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={assigningTeamMember}
+                  />
+                </div>
+              )}
+              <div className="flex justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowTeamMemberModal(false)}
+                  disabled={assigningTeamMember}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleAssignTeamMember}
+                  disabled={
+                    assigningTeamMember ||
+                    !selectedTeamMemberId ||
+                    teamMembers.length === 0 ||
+                    (requiresCertNumber && !teamMemberCertNumber.trim())
+                  }
+                >
+                  {assigningTeamMember ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

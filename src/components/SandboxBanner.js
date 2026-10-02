@@ -1,19 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
+import { getApiUrl, isSandboxBuild } from '../runtimeEnv';
 
-const API_BASE = getApiBaseUrl();
-
-const SANDBOX_HOSTNAMES = new Set([
-  'sandbox-providers.theintegritycompanyinc.com',
-]);
-
-function isFrontendSandbox() {
-  if (process.env.REACT_APP_SANDBOX_MODE === 'true') return true;
-  if (typeof window !== 'undefined' && SANDBOX_HOSTNAMES.has(window.location.hostname)) {
-    return true;
-  }
-  return false;
-}
+const API_BASE = getApiUrl();
 
 /**
  * Always-visible banner shown when this build of the portal is a sandbox,
@@ -24,7 +12,7 @@ function isFrontendSandbox() {
  * Safety contract: if either side says "sandbox", the banner appears.
  */
 const SandboxBanner = () => {
-  const buildTimeSandbox = isFrontendSandbox();
+  const buildTimeSandbox = isSandboxBuild();
   const [backendSandbox, setBackendSandbox] = useState(false);
   const [backendLabel, setBackendLabel] = useState(null);
 

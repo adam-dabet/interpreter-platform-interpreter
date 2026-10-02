@@ -9,15 +9,14 @@ import {
   durationExceedsScheduled,
   FACILITY_DURATION_FOLLOW_UP_MESSAGE,
 } from '../utils/completionReportDuration';
+import { getApiUrl } from '../runtimeEnv';
 
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
-
-const API_BASE = getApiBaseUrl();
+const API_BASE = getApiUrl();
 
 const resultOptions = [
   { label: "Completed", value: "Completed" },
-  { label: "Completed + patient arrived earlier", value: "Completed + patient arrived earlier" },
   { label: "Completed with follow up", value: "Completed with follow up" },
+  { label: "Completed + patient arrived earlier", value: "Completed + patient arrived earlier" },
   { label: "Claimant No Show", value: "Claimant No Show" },
   { label: "Provider Missed Appointment", value: "Provider Missed Appointment" },
   { label: "Rescheduled", value: "Rescheduled" },
@@ -59,31 +58,59 @@ const getTimeString = (h, m, p) => {
   return `${h.value}:${m.value} ${p.value}`;
 };
 
+/** Convert a click timestamp (Start/Complete Job) into 12-hour parts in local time. */
+const parseTimestampToTimeParts = (timestamp) => {
+  if (!timestamp) return null;
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const hour24 = date.getHours();
+  const minute = date.getMinutes();
+  const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+
+  return {
+    hour: hour12,
+    minute,
+    period: hour24 >= 12 ? "PM" : "AM"
+  };
+};
+
+/** Parse HH:MM / HH:MM:SS schedule strings into 12-hour parts. */
+const parseScheduleTimeToParts = (timeSource) => {
+  if (!timeSource || typeof timeSource !== "string") return null;
+
+  const timeParts = timeSource.split(":");
+  const scheduledHour = parseInt(timeParts[0], 10);
+  const scheduledMinute = parseInt(timeParts[1], 10);
+  if (Number.isNaN(scheduledHour) || Number.isNaN(scheduledMinute)) return null;
+
+  const hour12 = scheduledHour === 0 ? 12 : scheduledHour > 12 ? scheduledHour - 12 : scheduledHour;
+
+  return {
+    hour: hour12,
+    minute: scheduledMinute,
+    period: scheduledHour >= 12 ? "PM" : "AM"
+  };
+};
+
 const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => {
   const fileInputRef = useRef(null);
 
-  // Default start time from interpreter arrival on job; fall back to appointment (scheduled) time.
+  // Prefer Start Job click time; fall back to arrival/appointment time.
   const calculateStartTime = () => {
-    const timeSource = jobData?.arrival_time || jobData?.scheduled_time;
-    if (!timeSource) {
-      return null;
-    }
+    return (
+      parseTimestampToTimeParts(jobData?.in_progress_at || jobData?.job_started_at) ||
+      parseScheduleTimeToParts(jobData?.arrival_time || jobData?.scheduled_time)
+    );
+  };
 
-    const timeParts = timeSource.split(':');
-    const scheduledHour = parseInt(timeParts[0], 10);
-    const scheduledMinute = parseInt(timeParts[1], 10);
-    
-    // Handle 12-hour format
-    const startHour12 = scheduledHour === 0 ? 12 : scheduledHour > 12 ? scheduledHour - 12 : scheduledHour;
-    
-    return {
-      hour: startHour12, 
-      minute: scheduledMinute,
-      period: scheduledHour >= 12 ? "PM" : "AM"
-    };
+  // Prefer Complete Job click time.
+  const calculateEndTime = () => {
+    return parseTimestampToTimeParts(jobData?.job_ended_at || jobData?.completed_at);
   };
 
   const startTime = calculateStartTime();
+  const endTime = calculateEndTime();
 
   const [formData, setFormData] = useState({
     email: jobData?.assigned_interpreter_email || jobData?.interpreter_email || jobData?.email || "",
@@ -98,13 +125,13 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
     return options.find(option => option.value === value) || null;
   };
 
-  const [startHour, setStartHour] = useState(startTime?.hour ? findOptionByValue(hourOptions, String(startTime.hour).padStart(2, "0")) : null);
-  const [startMinute, setStartMinute] = useState(startTime?.minute ? findOptionByValue(minuteOptions, String(startTime.minute).padStart(2, "0")) : null);
+  const [startHour, setStartHour] = useState(startTime?.hour != null ? findOptionByValue(hourOptions, String(startTime.hour).padStart(2, "0")) : null);
+  const [startMinute, setStartMinute] = useState(startTime?.minute != null ? findOptionByValue(minuteOptions, String(startTime.minute).padStart(2, "0")) : null);
   const [startPeriod, setStartPeriod] = useState(startTime?.period ? findOptionByValue(periodOptions, startTime.period) : null);
 
-  const [endHour, setEndHour] = useState(null);
-  const [endMinute, setEndMinute] = useState(null);
-  const [endPeriod, setEndPeriod] = useState(null);
+  const [endHour, setEndHour] = useState(endTime?.hour != null ? findOptionByValue(hourOptions, String(endTime.hour).padStart(2, "0")) : null);
+  const [endMinute, setEndMinute] = useState(endTime?.minute != null ? findOptionByValue(minuteOptions, String(endTime.minute).padStart(2, "0")) : null);
+  const [endPeriod, setEndPeriod] = useState(endTime?.period ? findOptionByValue(periodOptions, endTime.period) : null);
 
   const [rescheduledDate, setRescheduledDate] = useState("");
   const [rescheduledHour, setRescheduledHour] = useState(null);
@@ -136,15 +163,26 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
 
   const showDurationFollowUpNotice = durationExceedsScheduled(actualDurationMinutes, jobData);
 
-  // Update start time when jobData changes (end time is entered manually)
+  // Prefill start/end from Start Job / Complete Job click times when available
   useEffect(() => {
     if (startTime) {
       setStartHour(findOptionByValue(hourOptions, String(startTime.hour).padStart(2, "0")));
       setStartMinute(findOptionByValue(minuteOptions, String(startTime.minute).padStart(2, "0")));
       setStartPeriod(findOptionByValue(periodOptions, startTime.period));
     }
-    // End time fields are left empty for interpreter to fill in manually
-  }, [jobData?.arrival_time, jobData?.scheduled_time]);
+    if (endTime) {
+      setEndHour(findOptionByValue(hourOptions, String(endTime.hour).padStart(2, "0")));
+      setEndMinute(findOptionByValue(minuteOptions, String(endTime.minute).padStart(2, "0")));
+      setEndPeriod(findOptionByValue(periodOptions, endTime.period));
+    }
+  }, [
+    jobData?.in_progress_at,
+    jobData?.job_started_at,
+    jobData?.job_ended_at,
+    jobData?.completed_at,
+    jobData?.arrival_time,
+    jobData?.scheduled_time
+  ]);
 
   // Update email when jobData changes
   useEffect(() => {
@@ -819,13 +857,16 @@ const InterpreterCompletionReport = ({ jobId, jobData, onSubmit, onCancel }) => 
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Notes
             </label>
+            <p className="text-sm text-gray-500 mb-2">
+              Only include necessary and important details.
+            </p>
             <textarea
               name="notes"
               value={formData.notes}
               onChange={handleInputChange}
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Additional notes about the assignment..."
+              placeholder="Necessary details only (e.g. issues or special circumstances)..."
             />
           </div>
 

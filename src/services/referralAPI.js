@@ -1,8 +1,8 @@
 import axios from 'axios';
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
+import { getApiUrl } from '../runtimeEnv';
 
 const api = axios.create({
-  baseURL: getApiBaseUrl(),
+  baseURL: getApiUrl(),
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

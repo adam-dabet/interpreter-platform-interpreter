@@ -23,6 +23,7 @@ import ConfirmJob from './pages/ConfirmJob';
 import CompletionReportPublic from './pages/CompletionReportPublic';
 import TransportationCompletionReportPublic from './pages/TransportationCompletionReportPublic';
 import TransportationProviderProfile from './pages/TransportationProviderProfile';
+import ProviderDocumentUpload from './pages/ProviderDocumentUpload';
 import TransportationTerms from './pages/TransportationTerms';
 import TransportationTripDetails from './pages/TransportationTripDetails';
 import TransportationCompletionReport from './pages/TransportationCompletionReport';
@@ -30,6 +31,7 @@ import TransportationFindTrips from './pages/TransportationFindTrips';
 import TransportationTripOpportunity from './pages/TransportationTripOpportunity';
 import ProviderHome from './pages/ProviderHome';
 import ProviderProfilePage from './pages/ProviderProfilePage';
+import AgencyMembers from './pages/AgencyMembers';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import ForgotPassword from './pages/ForgotPassword';
@@ -63,6 +65,7 @@ function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/signup" element={<SetupPassword />} />
             <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+            <Route path="/upload-documents/:token" element={<Layout><ProviderDocumentUpload /></Layout>} />
             <Route path="/job-timer/:token" element={<JobTimer />} />
             <Route path="/jobs/:jobId/confirm/:token" element={<ConfirmJob />} />
             <Route path="/jobs/:jobId/report/:token" element={<CompletionReportPublic />} />
@@ -79,6 +82,7 @@ function App() {
             <Route path="/job/:jobId" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><JobDetails /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/jobs/:jobId/:action/:interpreterId" element={<ProtectedRoute><JobAction /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><ProviderProfilePage /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
+            <Route path="/agency-members" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><AgencyMembers /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/profile/edit" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><ProfileEdit /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/payout-settings" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><PayoutSettings /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />
             <Route path="/refer" element={<ProtectedRoute><JobRestrictionProvider><AuthenticatedLayout><ReferInterpreter /></AuthenticatedLayout></JobRestrictionProvider></ProtectedRoute>} />

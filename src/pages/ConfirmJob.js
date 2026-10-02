@@ -12,10 +12,9 @@ import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import axios from 'axios';
 import { formatDate as formatDateUtil, formatTime as formatTimeUtil } from '../utils/dateUtils';
+import { getApiUrl } from '../runtimeEnv';
 
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
-
-const API_BASE = getApiBaseUrl();
+const API_BASE = getApiUrl();
 
 const ConfirmJob = () => {
   const { jobId, token } = useParams();

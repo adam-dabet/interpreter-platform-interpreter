@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { CheckCircleIcon, MapPinIcon, UserIcon, DocumentTextIcon, LanguageIcon, BriefcaseIcon, DocumentIcon, PencilIcon, ClockIcon, XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, MapPinIcon, UserIcon, DocumentTextIcon, LanguageIcon, BriefcaseIcon, DocumentIcon, PencilIcon, ClockIcon, XMarkIcon, ExclamationTriangleIcon, UsersIcon } from '@heroicons/react/24/outline';
 import ProgressBar from '../components/ui/ProgressBar';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
 import { interpreterAPI } from '../services/api';
+import InterpreterServiceAreas from '../components/InterpreterServiceAreas';
 import {
-  downloadAuthenticatedFile,
+  openAuthenticatedFile,
   getInterpreterCertificateFilePath,
 } from '../utils/downloadFile';
 
@@ -22,8 +23,8 @@ const PROFILE_STEPS = [
     },
     {
         id: 2,
-        title: 'Address Information',
-        description: 'Location and contact details',
+        title: 'Physical Address',
+        description: 'Used for nearby job offers',
         icon: MapPinIcon
     },
     {
@@ -214,7 +215,12 @@ const Profile = () => {
 
     const renderAddressInfo = () => (
         <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-gray-900">Address Information</h3>
+            <div>
+                <h3 className="text-xl font-semibold text-gray-900">Physical Address</h3>
+                <p className="mt-1 text-sm text-gray-600">
+                    Used to match you with nearby job offers (along with any service areas below).
+                </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Street Address</label>
@@ -244,6 +250,14 @@ const Profile = () => {
                     <label className="block text-sm font-medium text-gray-700">Service Radius</label>
                     <p className="mt-1 text-sm text-gray-900">{profile?.service_radius_miles || 25} miles</p>
                 </div>
+            </div>
+
+            <div className="border-t border-gray-200 pt-6">
+                <InterpreterServiceAreas
+                  initialAreas={profile?.service_areas || []}
+                  serviceTypes={profile?.service_types || []}
+                  defaultRates={profile?.service_rates || []}
+                />
             </div>
         </div>
     );
@@ -328,14 +342,14 @@ const Profile = () => {
                                             {formatDateDisplay(cert.expiry_date)}
                                         </span>
                                     </p>
-                                    {cert.file_path && (
+                                    {(cert.file_name || cert.file_path) && (
                                         <p>
                                             <span className="font-medium text-gray-700">Certificate file:</span>{' '}
                                             <button
                                                 type="button"
                                                 onClick={async () => {
                                                     try {
-                                                        await downloadAuthenticatedFile(
+                                                        await openAuthenticatedFile(
                                                             getInterpreterCertificateFilePath(cert.id),
                                                             cert.file_name || 'certificate'
                                                         );
@@ -477,6 +491,20 @@ const Profile = () => {
                         </div>
                     </div>
                     <div className="pt-4 border-t border-gray-200">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Billing Address</h4>
+                        <p className="text-sm text-gray-900">
+                            {profile.w9_forms[0].address || 'Not provided'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                            {[profile.w9_forms[0].city, profile.w9_forms[0].state, profile.w9_forms[0].zip_code]
+                                .filter(Boolean)
+                                .join(', ') || 'City, state, ZIP not provided'}
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500">
+                            Used for tax forms (1099). Separate from your physical address used for job offers.
+                        </p>
+                    </div>
+                    <div className="pt-4 border-t border-gray-200">
                         <p className="text-xs text-gray-500">
                             W-9 form submitted on {new Date(profile.w9_forms[0].created_at).toLocaleDateString()}
                         </p>
@@ -508,9 +536,9 @@ const Profile = () => {
                     <p className="text-sm text-gray-600">{profile?.phone}</p>
                 </div>
 
-                {/* Address Summary */}
+                {/* Physical Address Summary */}
                 <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Location</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Physical Address</h4>
                     <p className="text-sm text-gray-900">
                         {profile?.street_address}
                         {profile?.street_address_2 && <>, {profile.street_address_2}</>}
@@ -577,10 +605,18 @@ const Profile = () => {
                         <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
                         <p className="mt-2 text-sm text-gray-600">View your interpreter profile information</p>
                     </div>
-                    <Button onClick={handleEditProfile}>
-                        <PencilIcon className="h-4 w-4 mr-2" />
-                        Edit Profile
-                    </Button>
+                    <div className="flex items-center gap-3">
+                        {profile?.is_agency && (
+                            <Button variant="outline" onClick={() => navigate('/agency-members')}>
+                                <UsersIcon className="h-4 w-4 mr-2" />
+                                Team Members
+                            </Button>
+                        )}
+                        <Button onClick={handleEditProfile}>
+                            <PencilIcon className="h-4 w-4 mr-2" />
+                            Edit Profile
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Pending Update Banner */}

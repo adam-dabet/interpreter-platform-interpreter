@@ -267,57 +267,81 @@ const JobSearch = () => {
   };
 
   const calculateEarnings = (job) => {
-    console.log('Calculating earnings for job:', {
-      jobId: job.id,
-      jobServiceTypeId: job.service_type_id,
-      jobDuration: job.estimated_duration_minutes,
-      profileServiceRates: profile?.service_rates
-    });
-
-    // If interpreter has custom service rates, calculate based on those
-    if (profile?.service_rates && job.estimated_duration_minutes) {
-      const serviceRate = profile.service_rates.find(
-        rate => rate.service_type_id === job.service_type_id
-      );
-      
-      if (serviceRate && serviceRate.rate_amount) {
-        const hours = job.estimated_duration_minutes / 60;
-        let earnings = 0;
-        const rateUnit = (serviceRate.rate_unit || 'hours').toLowerCase();
-        
-        if (rateUnit === 'minutes') {
-          earnings = parseFloat(serviceRate.rate_amount) * job.estimated_duration_minutes;
-        } else {
-          // Convert block rates (e.g. '3hours', '6hours') to effective hourly rate
-          const blockMatch = rateUnit.match(/^(\d+)hours?$/);
-          const effectiveRate = blockMatch
-            ? parseFloat(serviceRate.rate_amount) / parseInt(blockMatch[1], 10)
-            : parseFloat(serviceRate.rate_amount);
-          earnings = effectiveRate * hours;
-        }
-        
-        console.log('Calculated earnings from service rate:', earnings);
-        return isNaN(earnings) ? 0 : earnings;
-      }
+    // Backend resolves area-specific rates per job location
+    if (job?.estimated_earnings) {
+      return parseFloat(job.estimated_earnings);
     }
 
-    // Otherwise, use the job's total_amount (calculated by backend) if it's greater than 0
     const totalAmount = parseFloat(job.total_amount) || 0;
     if (totalAmount > 0) {
-      console.log('Using job total_amount:', totalAmount);
       return totalAmount;
     }
 
-    // Fallback: calculate from hourly rate and duration
-    if (job.hourly_rate && job.estimated_duration_minutes) {
+    if (job?.hourly_rate && job.estimated_duration_minutes) {
       const hours = job.estimated_duration_minutes / 60;
-      const total = parseFloat(job.hourly_rate) * hours;
-      console.log('Calculated from hourly rate:', total);
-      return total;
+      const minimumHours = job.interpreter_minimum_hours
+        ? parseFloat(job.interpreter_minimum_hours)
+        : null;
+      const billableHours = minimumHours ? Math.max(hours, minimumHours) : hours;
+      return parseFloat(job.hourly_rate) * billableHours;
     }
 
-    console.log('No service rates or duration, returning 0');
+    // Last resort: profile default rates (no per-job location context)
+    if (profile?.service_rates && job.estimated_duration_minutes) {
+      const serviceRate = profile.service_rates.find(
+        (rate) => rate.service_type_id === job.service_type_id
+      );
+
+      if (serviceRate?.rate_amount) {
+        const hours = job.estimated_duration_minutes / 60;
+        const rateUnit = (serviceRate.rate_unit || 'hours').toLowerCase();
+
+        if (rateUnit === 'minutes') {
+          return parseFloat(serviceRate.rate_amount) * job.estimated_duration_minutes;
+        }
+
+        const blockMatch = rateUnit.match(/^(\d+)hours?$/);
+        const effectiveRate = blockMatch
+          ? parseFloat(serviceRate.rate_amount) / parseInt(blockMatch[1], 10)
+          : parseFloat(serviceRate.rate_amount);
+        return effectiveRate * hours;
+      }
+    }
+
     return 0;
+  };
+
+  const formatJobRateLabel = (job) => {
+    if (job.interpreter_original_rate_amount != null && job.interpreter_rate_unit) {
+      const amount = Number(job.interpreter_original_rate_amount);
+      const unit = job.interpreter_rate_unit;
+      if (unit === 'minutes') return `${formatCurrency(amount)}/min`;
+      if (unit === '3hours') return `${formatCurrency(amount)}/3 hours`;
+      if (unit === '6hours') return `${formatCurrency(amount)}/6 hours`;
+      if (unit === 'word') return `${formatCurrency(amount)}/word`;
+      return `${formatCurrency(amount)}/hour`;
+    }
+    if (job.hourly_rate) {
+      return `${formatCurrency(job.hourly_rate)}/hour`;
+    }
+    if (profile?.service_rates) {
+      const serviceRate = profile.service_rates.find(
+        (rate) => rate.service_type_id === job.service_type_id
+      );
+      if (serviceRate?.rate_amount && serviceRate.rate_unit) {
+        const isLegalOrVideo =
+          serviceRate.service_type_code === 'legal' || serviceRate.service_type_code === 'video';
+        const showPer3Hours = isLegalOrVideo && serviceRate.rate_unit === 'hours';
+        const asBlock = serviceRate.legal_video_display_as_block === true;
+        const amount =
+          showPer3Hours && !asBlock
+            ? Number(serviceRate.rate_amount) * 3
+            : Number(serviceRate.rate_amount);
+        const unitDisplay = showPer3Hours ? '3 hours' : serviceRate.rate_unit;
+        return `${formatCurrency(amount)}/${unitDisplay}`;
+      }
+    }
+    return 'Rate not set';
   };
 
   const getPriorityColor = (priority) => {
@@ -683,23 +707,7 @@ const JobSearch = () => {
                         </div>
                         {profile?.service_rates && (
                           <div className="text-xs text-gray-400">
-                            {(() => {
-                              const serviceRate = profile.service_rates.find(
-                                rate => rate.service_type_id === job.service_type_id
-                              );
-                              if (serviceRate && serviceRate.rate_amount && serviceRate.rate_unit) {
-                                const isLegalOrVideo = serviceRate.service_type_code === 'legal' || serviceRate.service_type_code === 'video';
-                                const showPer3Hours = isLegalOrVideo && serviceRate.rate_unit === 'hours';
-                                const asBlock = serviceRate.legal_video_display_as_block === true;
-                                const amount = showPer3Hours && !asBlock ? (Number(serviceRate.rate_amount) * 3) : Number(serviceRate.rate_amount);
-                                const unitDisplay = showPer3Hours ? '3 hours' : serviceRate.rate_unit;
-                                return `${formatCurrency(amount)}/${unitDisplay}`;
-                              }
-                              if (job.hourly_rate) {
-                                return `${formatCurrency(job.hourly_rate)}/hour`;
-                              }
-                              return 'Rate not set';
-                            })()}
+                            {formatJobRateLabel(job)}
                           </div>
                         )}
                       </div>

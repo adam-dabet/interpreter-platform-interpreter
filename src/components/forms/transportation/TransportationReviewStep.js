@@ -130,7 +130,7 @@ const TransportationReviewStep = ({
               <p className="font-medium capitalize">{type}</p>
               <p>Per mile: ${Number(rates.per_mile).toFixed(2)}</p>
               <p>Per hour wait: ${Number(rates.per_hour_wait || 0).toFixed(2)}</p>
-              {(type === 'wheelchair' || type === 'bls' || type === 'als') && (
+              {(type === 'wheelchair' || type === 'stretcher' || type === 'bls' || type === 'als') && (
                 <p>Load fee: ${Number(rates.load_fee || 0).toFixed(2)}</p>
               )}
             </div>

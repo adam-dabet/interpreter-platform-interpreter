@@ -10,9 +10,12 @@ import {
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import axios from 'axios';
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
+import { getApiUrl } from '../runtimeEnv';
 
-const API_BASE = getApiBaseUrl();
+// Determine API base URL with smart hostname detection
+const getApiBaseURL = () => getApiUrl();
+
+const API_BASE = getApiBaseURL();
 
 const TransportationCompletionReportPublic = () => {
   const { jobId, token } = useParams();

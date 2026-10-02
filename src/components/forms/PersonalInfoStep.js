@@ -7,8 +7,31 @@ import Checkbox from '../ui/Checkbox';
 import { personalInfoSchema, transportationPersonalInfoSchema } from '../../services/validationSchemas';
 import { formatPhoneNumber } from '../../utils/helpers';
 
+const PERSONAL_INFO_FIELDS = [
+  'first_name',
+  'last_name',
+  'middle_name',
+  'email',
+  'phone',
+  'gender',
+  'business_name',
+  'sms_consent',
+];
+
+const pickPersonalInfo = (data = {}) => {
+  const picked = {};
+  PERSONAL_INFO_FIELDS.forEach((key) => {
+    if (data[key] !== undefined) {
+      picked[key] = data[key];
+    }
+  });
+  return picked;
+};
+
 const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, parametricData, rejectedFields = [], requireBusinessName = false }) => {
-  // Ensure all form fields have proper default values to prevent uncontrolled to controlled warnings
+  // Only personal fields belong in this step. Spreading the entire application
+  // object into react-hook-form causes watch() to overwrite service rates and
+  // other later-step data during resubmission.
   const defaultValues = {
     first_name: '',
     last_name: '',
@@ -18,7 +41,7 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
     gender: '',
     business_name: '',
     sms_consent: false,
-    ...data // Spread any existing data on top of defaults
+    ...pickPersonalInfo(data)
   };
 
   const {
@@ -36,13 +59,13 @@ const PersonalInfoStep = ({ data, onNext, onUpdate, onPrevious, isEditing, param
   // Update parent component when form values change
   React.useEffect(() => {
     const subscription = watch((value) => {
-      onUpdate(value);
+      onUpdate(pickPersonalInfo(value));
     });
     return () => subscription.unsubscribe();
   }, [watch, onUpdate]);
 
   const onSubmit = (formData) => {
-    onNext(formData);
+    onNext(pickPersonalInfo(formData));
   };
 
   const handlePhoneChange = (field, value) => {

@@ -25,8 +25,8 @@ const INTERPRETER_STEPS = [
     },
     {
         id: 2,
-        title: 'Address Information',
-        description: 'Location and contact details',
+        title: 'Physical Address',
+        description: 'Used for nearby job offers',
         icon: MapPinIcon,
         component: AddressStep
     },
@@ -410,7 +410,7 @@ const ProfileEdit = () => {
             if (submissionData.is_certified !== false && submissionData.certificates?.length) {
                 const certNeedingFile = submissionData.certificates.find(requiresCertificateFile);
                 if (certNeedingFile) {
-                    toast.error('A certificate file is required for certifications that are expired or expiring soon.');
+                    toast.error('A certificate file is required for each certification.');
                     setIsSubmitting(false);
                     return;
                 }
@@ -632,6 +632,7 @@ const ProfileEdit = () => {
                                     onEdit={handleEdit}
                                     isResubmission={false}
                                     rejectedFields={[]}
+                                    addressOnlyEdit={true}
                                 />
                             ) : (
                                 <CurrentStepComponent
@@ -646,6 +647,7 @@ const ProfileEdit = () => {
                                     isEditing={isEditingFromReview}
                                     rejectedFields={[]}
                                     isResubmission={false}
+                                    addressOnlyEdit={currentStep === 6}
                                 />
                             )}
                         </motion.div>

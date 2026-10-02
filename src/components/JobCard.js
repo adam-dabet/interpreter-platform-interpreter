@@ -10,12 +10,15 @@ import {
   ExclamationTriangleIcon,
   ArrowRightIcon,
   GlobeAltIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import Button from './ui/Button';
 import { formatDate as formatDateUtil, formatTime as formatTimeUtil, formatCurrency as formatCurrencyUtil, getTimeUntilJob as getTimeUntilJobUtil } from '../utils/dateUtils';
 import { jobNeedsAvailabilityConfirmation, jobAvailabilityConfirmed } from '../utils/jobConfirmation';
 import { isJobPaidToInterpreter, isProviderAssignedJob } from '../utils/providerJobStatus';
+import { jobNeedsProviderInvoice } from '../utils/interpreterReceiptEligibility';
+import { useAuth } from '../contexts/AuthContext';
 
 const JobCard = ({ 
   job, 
@@ -26,6 +29,7 @@ const JobCard = ({
   onShowCompletionReport // New prop for completion report callback
 }) => {
   const navigate = useNavigate();
+  const { profile } = useAuth();
 
   // Use imported date utilities
   const formatDate = (dateString) => {
@@ -48,6 +52,7 @@ const JobCard = ({
   const getJobStatus = () => {
     // Check if paid first - this takes precedence for completed jobs
     if (isJobPaidToInterpreter(job)) return 'paid';
+    if (jobNeedsProviderInvoice(job, profile)) return 'needs_invoice';
     if (job.completion_report_submitted) return 'completed';
     if (job.status === 'completed' && !job.completion_report_submitted) return 'needs_report';
     if (job.status === 'in_progress') return 'in_progress';
@@ -85,6 +90,11 @@ const JobCard = ({
       color: 'bg-red-100 text-red-800 border-red-300',
       label: 'Report Due',
       icon: <ExclamationTriangleIcon className="h-4 w-4" />
+    },
+    needs_invoice: {
+      color: 'bg-amber-100 text-amber-800 border-amber-300',
+      label: 'Invoice Required',
+      icon: <DocumentTextIcon className="h-4 w-4" />
     },
     completed: {
       color: 'bg-gray-100 text-gray-800 border-gray-300',

@@ -1,8 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TruckIcon, DocumentTextIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
+import {
+  TruckIcon,
+  DocumentTextIcon,
+  CalendarDaysIcon,
+  BanknotesIcon,
+  ArrowRightIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
-import { transportationProviderAPI } from '../services/api';
+import { transportationProviderAPI, interpreterAPI } from '../services/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
 import {
@@ -31,14 +38,41 @@ const formatDate = (dateStr) => {
 
 const TransportationDashboard = () => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [trips, setTrips] = useState([]);
   const [filter, setFilter] = useState('upcoming');
   const [loading, setLoading] = useState(true);
+  const [payoutStatus, setPayoutStatus] = useState(null);
+  const [payoutBannerDismissed, setPayoutBannerDismissed] = useState(false);
 
   useEffect(() => {
     loadTrips();
   }, [filter]);
+
+  useEffect(() => {
+    loadPayoutStatus();
+  }, []);
+
+  const loadPayoutStatus = async () => {
+    try {
+      const payoutRes = await interpreterAPI.getTrolleyStatus().catch(() => null);
+      setPayoutStatus(payoutRes?.data || null);
+
+      const userId = user?.id || profile?.id || 'anon';
+      const dismissedAtRaw = localStorage.getItem(`payoutBannerDismissedAt:${userId}`);
+      const dismissedAt = dismissedAtRaw ? parseInt(dismissedAtRaw, 10) : 0;
+      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+      setPayoutBannerDismissed(Boolean(dismissedAt) && (Date.now() - dismissedAt) < SEVEN_DAYS_MS);
+    } catch (error) {
+      // Banner just won't show
+    }
+  };
+
+  const dismissPayoutBanner = () => {
+    const userId = user?.id || profile?.id || 'anon';
+    localStorage.setItem(`payoutBannerDismissedAt:${userId}`, String(Date.now()));
+    setPayoutBannerDismissed(true);
+  };
 
   const loadTrips = async () => {
     try {
@@ -79,6 +113,52 @@ const TransportationDashboard = () => {
           Welcome back{displayName ? `, ${displayName}` : ''}. View your assigned trips below.
         </p>
       </div>
+
+      {payoutStatus
+        && ['not_started', 'incomplete'].includes(payoutStatus.status)
+        && !payoutBannerDismissed && (
+        <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-xl p-4 sm:p-5 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="bg-emerald-100 rounded-lg p-2 flex-shrink-0">
+              <BanknotesIcon className="h-6 w-6 text-emerald-700" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base sm:text-lg font-semibold text-emerald-900">
+                Get paid faster with direct deposit
+              </h3>
+              <p className="text-sm text-emerald-800 mt-1">
+                Add your bank info to receive trip earnings via direct deposit — the
+                fastest way to get paid. Takes about 2 minutes.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  onClick={() => navigate('/payout-settings')}
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {payoutStatus.status === 'incomplete' ? 'Finish setup' : 'Set up payment method'}
+                  <ArrowRightIcon className="h-4 w-4 ml-1" />
+                </Button>
+                <button
+                  type="button"
+                  onClick={dismissPayoutBanner}
+                  className="text-sm text-emerald-700 hover:text-emerald-900 px-2 py-1"
+                >
+                  Remind me later
+                </button>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={dismissPayoutBanner}
+              className="p-1 rounded-md text-emerald-600 hover:text-emerald-900 hover:bg-emerald-100 flex-shrink-0"
+              aria-label="Dismiss"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <div className="bg-white rounded-lg border p-4 flex items-center gap-3">

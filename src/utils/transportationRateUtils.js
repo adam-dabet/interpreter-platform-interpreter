@@ -1,4 +1,4 @@
-const LOAD_FEE_SERVICE_TYPES = ['wheelchair', 'bls', 'als'];
+const LOAD_FEE_SERVICE_TYPES = ['wheelchair', 'stretcher', 'bls', 'als'];
 
 export function getProviderWaitHoursBilled(minutes, prorated = false) {
   const m = parseFloat(minutes) || 0;

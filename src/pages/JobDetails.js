@@ -226,8 +226,11 @@ const JobDetails = () => {
     return member?.last_certification_number || '';
   };
 
+  const promptForTeamMemberOnConfirm =
+    profile?.is_agency && job?.confirmation_reason === '2day_reminder';
+
   useEffect(() => {
-    if (!showConfirmationModal || !profile?.is_agency) return;
+    if (!showConfirmationModal || !promptForTeamMemberOnConfirm) return;
     const initialId = job?.team_member_id
       ? String(job.team_member_id)
       : teamMembers.length === 0 ? NEW_TEAM_MEMBER_OPTION : '';
@@ -236,7 +239,7 @@ const JobDetails = () => {
     setNewMemberFirstName('');
     setNewMemberLastName('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showConfirmationModal, profile?.is_agency]);
+  }, [showConfirmationModal, promptForTeamMemberOnConfirm]);
 
   useEffect(() => {
     if (
@@ -258,7 +261,7 @@ const JobDetails = () => {
 
   const isAddingNewTeamMember = confirmTeamMemberId === NEW_TEAM_MEMBER_OPTION;
   const agencyConfirmReady =
-    !profile?.is_agency ||
+    !promptForTeamMemberOnConfirm ||
     (!!confirmTeamMemberId &&
       (!isAddingNewTeamMember || (newMemberFirstName.trim() && newMemberLastName.trim())) &&
       (!requiresCertNumber || confirmCertNumber.trim()));
@@ -425,7 +428,7 @@ const JobDetails = () => {
         confirmation_notes: confirmationNotes
       };
 
-      if (confirmationStatus === 'confirmed' && profile?.is_agency) {
+      if (confirmationStatus === 'confirmed' && promptForTeamMemberOnConfirm) {
         let teamMemberId = confirmTeamMemberId;
         if (teamMemberId === NEW_TEAM_MEMBER_OPTION) {
           teamMemberId = await createTeamMemberForConfirmation();
@@ -1572,7 +1575,7 @@ const JobDetails = () => {
               }
             </p>
 
-            {profile?.is_agency && (
+            {promptForTeamMemberOnConfirm && (
               <div className="mb-4 space-y-3">
                 <div>
                   <label htmlFor="confirm_team_member" className="block text-sm font-medium text-gray-700 mb-2">

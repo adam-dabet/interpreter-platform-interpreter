@@ -37,6 +37,8 @@ import { isJobAssignedToCurrentInterpreter } from '../utils/claimantPrivacy';
 const LAST_LIST_ROUTE_KEY = 'interpreterLastJobListRoute';
 const DEFAULT_RETURN_PATH = '/jobs';
 const TWO_HOUR_MINIMUM_MINUTES = 120;
+const CERT_NUMBER_REQUIRED_SERVICE_TYPE_CODES = ['legal', 'video', 'medical'];
+const NEW_TEAM_MEMBER_OPTION = 'new';
 
 const getDatePart = (dateValue) => {
   if (!dateValue) return null;
@@ -84,6 +86,11 @@ const JobDetails = () => {
   const [showTeamMemberModal, setShowTeamMemberModal] = useState(false);
   const [selectedTeamMemberId, setSelectedTeamMemberId] = useState('');
   const [assigningTeamMember, setAssigningTeamMember] = useState(false);
+  const [teamMemberCertNumber, setTeamMemberCertNumber] = useState('');
+  const [confirmTeamMemberId, setConfirmTeamMemberId] = useState('');
+  const [confirmCertNumber, setConfirmCertNumber] = useState('');
+  const [newMemberFirstName, setNewMemberFirstName] = useState('');
+  const [newMemberLastName, setNewMemberLastName] = useState('');
 
   const getStoredReturnPath = useCallback(() => {
     const statePath = location.state?.returnTo;
@@ -208,6 +215,53 @@ const JobDetails = () => {
     profile?.is_agency &&
     assignedToCurrentInterpreter &&
     ['assigned', 'reminders_sent', 'in_progress'].includes(job?.status);
+  const requiresCertNumber = CERT_NUMBER_REQUIRED_SERVICE_TYPE_CODES.includes(job?.service_type_code);
+
+  const getDefaultCertNumberFor = (memberId) => {
+    if (!memberId || memberId === NEW_TEAM_MEMBER_OPTION) return '';
+    if (String(memberId) === String(job?.team_member_id) && job?.team_member_certification_number) {
+      return job.team_member_certification_number;
+    }
+    const member = teamMembers.find((m) => String(m.id) === String(memberId));
+    return member?.last_certification_number || '';
+  };
+
+  useEffect(() => {
+    if (!showConfirmationModal || !profile?.is_agency) return;
+    const initialId = job?.team_member_id
+      ? String(job.team_member_id)
+      : teamMembers.length === 0 ? NEW_TEAM_MEMBER_OPTION : '';
+    setConfirmTeamMemberId(initialId);
+    setConfirmCertNumber(getDefaultCertNumberFor(initialId));
+    setNewMemberFirstName('');
+    setNewMemberLastName('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showConfirmationModal, profile?.is_agency]);
+
+  useEffect(() => {
+    if (
+      showConfirmationModal &&
+      teamMembers.length > 0 &&
+      confirmTeamMemberId === NEW_TEAM_MEMBER_OPTION &&
+      !newMemberFirstName &&
+      !newMemberLastName
+    ) {
+      setConfirmTeamMemberId('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamMembers]);
+
+  const handleConfirmTeamMemberChange = (value) => {
+    setConfirmTeamMemberId(value);
+    setConfirmCertNumber(getDefaultCertNumberFor(value));
+  };
+
+  const isAddingNewTeamMember = confirmTeamMemberId === NEW_TEAM_MEMBER_OPTION;
+  const agencyConfirmReady =
+    !profile?.is_agency ||
+    (!!confirmTeamMemberId &&
+      (!isAddingNewTeamMember || (newMemberFirstName.trim() && newMemberLastName.trim())) &&
+      (!requiresCertNumber || confirmCertNumber.trim()));
 
   const showJobTimingModule =
     assignedToCurrentInterpreter &&
@@ -339,14 +393,49 @@ const JobDetails = () => {
     }
   };
 
+  const createTeamMemberForConfirmation = async () => {
+    try {
+      const response = await interpreterAPI.createTeamMember({
+        first_name: newMemberFirstName.trim(),
+        last_name: newMemberLastName.trim(),
+        languages: [job.language_id].filter(Boolean),
+        certifications: [job.service_type_id].filter(Boolean)
+      });
+      const created = response.data?.data;
+      if (!response.data?.success || !created?.id) {
+        toast.error(response.data?.message || 'Failed to add team member');
+        return null;
+      }
+      setTeamMembers((prev) => [{ ...created, last_certification_number: null }, ...prev]);
+      setConfirmTeamMemberId(String(created.id));
+      return created.id;
+    } catch (error) {
+      console.error('Error adding team member:', error);
+      toast.error(error.response?.data?.message || 'Failed to add team member');
+      return null;
+    }
+  };
+
   const handleConfirmation = async (confirmationStatus) => {
     try {
       setConfirmationLoading(true);
-      
-      const response = await jobAPI.confirmAvailability(jobId, {
+
+      const payload = {
         confirmation_status: confirmationStatus,
         confirmation_notes: confirmationNotes
-      });
+      };
+
+      if (confirmationStatus === 'confirmed' && profile?.is_agency) {
+        let teamMemberId = confirmTeamMemberId;
+        if (teamMemberId === NEW_TEAM_MEMBER_OPTION) {
+          teamMemberId = await createTeamMemberForConfirmation();
+          if (!teamMemberId) return;
+        }
+        payload.team_member_id = parseInt(teamMemberId, 10);
+        payload.certification_number = requiresCertNumber ? confirmCertNumber.trim() : null;
+      }
+      
+      const response = await jobAPI.confirmAvailability(jobId, payload);
       
       if (response.data.success) {
         toast.success(`Availability ${confirmationStatus} successfully!`);
@@ -505,8 +594,15 @@ const JobDetails = () => {
             member.last_name === job.team_member_last_name
         )
       : null;
-    setSelectedTeamMemberId(currentId || (matchedByName ? String(matchedByName.id) : ''));
+    const initialId = currentId || (matchedByName ? String(matchedByName.id) : '');
+    setSelectedTeamMemberId(initialId);
+    setTeamMemberCertNumber(getDefaultCertNumberFor(initialId));
     setShowTeamMemberModal(true);
+  };
+
+  const handleSelectTeamMember = (memberId) => {
+    setSelectedTeamMemberId(memberId);
+    setTeamMemberCertNumber(getDefaultCertNumberFor(memberId));
   };
 
   const handleAssignTeamMember = async () => {
@@ -514,10 +610,18 @@ const JobDetails = () => {
       toast.error('Please select a team member');
       return;
     }
+    if (requiresCertNumber && !teamMemberCertNumber.trim()) {
+      toast.error("Please enter the team member's certification number");
+      return;
+    }
 
     try {
       setAssigningTeamMember(true);
-      await jobAPI.assignTeamMember(jobId, parseInt(selectedTeamMemberId, 10));
+      await jobAPI.assignTeamMember(
+        jobId,
+        parseInt(selectedTeamMemberId, 10),
+        requiresCertNumber ? teamMemberCertNumber.trim() : null
+      );
       toast.success('Team member assigned');
       setShowTeamMemberModal(false);
       await loadJobDetails({ silent: true });
@@ -1212,6 +1316,9 @@ const JobDetails = () => {
                       <p className="text-sm font-medium text-gray-900">
                         {job.team_member_first_name} {job.team_member_last_name}
                       </p>
+                      {job.team_member_certification_number && (
+                        <p className="text-xs text-gray-600">Cert #: {job.team_member_certification_number}</p>
+                      )}
                       <p className="text-xs text-gray-500">Will perform this job</p>
                     </div>
                     {canSetTeamMember && (
@@ -1454,7 +1561,7 @@ const JobDetails = () => {
       {/* Confirmation Modal */}
       {showConfirmationModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Confirm Availability
             </h3>
@@ -1464,6 +1571,83 @@ const JobDetails = () => {
                 : 'Please confirm your availability for this upcoming appointment.'
               }
             </p>
+
+            {profile?.is_agency && (
+              <div className="mb-4 space-y-3">
+                <div>
+                  <label htmlFor="confirm_team_member" className="block text-sm font-medium text-gray-700 mb-2">
+                    Which team member will attend? *
+                  </label>
+                  <select
+                    id="confirm_team_member"
+                    value={confirmTeamMemberId}
+                    onChange={(e) => handleConfirmTeamMemberChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={confirmationLoading}
+                  >
+                    {teamMembers.length > 0 && <option value="">Select a team member...</option>}
+                    {teamMembers.map((member) => (
+                      <option key={member.id} value={String(member.id)}>
+                        {member.first_name} {member.last_name}
+                      </option>
+                    ))}
+                    <option value={NEW_TEAM_MEMBER_OPTION}>+ Add new team member</option>
+                  </select>
+                </div>
+
+                {isAddingNewTeamMember && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="confirm_new_first_name" className="block text-sm font-medium text-gray-700 mb-1">
+                        First Name *
+                      </label>
+                      <input
+                        id="confirm_new_first_name"
+                        type="text"
+                        value={newMemberFirstName}
+                        onChange={(e) => setNewMemberFirstName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={confirmationLoading}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="confirm_new_last_name" className="block text-sm font-medium text-gray-700 mb-1">
+                        Last Name *
+                      </label>
+                      <input
+                        id="confirm_new_last_name"
+                        type="text"
+                        value={newMemberLastName}
+                        onChange={(e) => setNewMemberLastName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={confirmationLoading}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {requiresCertNumber && (
+                  <div>
+                    <label htmlFor="confirm_cert_number" className="block text-sm font-medium text-gray-700 mb-1">
+                      Certification # *
+                    </label>
+                    <input
+                      id="confirm_cert_number"
+                      type="text"
+                      value={confirmCertNumber}
+                      onChange={(e) => setConfirmCertNumber(e.target.value)}
+                      placeholder="Team member's certification number"
+                      maxLength={100}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={confirmationLoading}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Required for {job.service_type_name || 'this'} appointments.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
             
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1503,7 +1687,7 @@ const JobDetails = () => {
               <Button
                 className="flex-1"
                 onClick={() => handleConfirmation('confirmed')}
-                disabled={confirmationLoading}
+                disabled={confirmationLoading || !agencyConfirmReady}
               >
                 <CheckCircleIcon className="h-4 w-4 mr-2" />
                 {confirmationLoading ? 'Processing...' : 'Confirm'}
@@ -1713,7 +1897,7 @@ const JobDetails = () => {
                         name="team_member"
                         value={member.id}
                         checked={String(selectedTeamMemberId) === String(member.id)}
-                        onChange={() => setSelectedTeamMemberId(String(member.id))}
+                        onChange={() => handleSelectTeamMember(String(member.id))}
                         className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                         disabled={assigningTeamMember}
                       />
@@ -1729,6 +1913,23 @@ const JobDetails = () => {
                   ))}
                 </div>
               )}
+              {requiresCertNumber && teamMembers.length > 0 && (
+                <div className="mb-4">
+                  <label htmlFor="team_member_cert_number" className="block text-sm font-medium text-gray-700 mb-1">
+                    Certification # *
+                  </label>
+                  <input
+                    id="team_member_cert_number"
+                    type="text"
+                    value={teamMemberCertNumber}
+                    onChange={(e) => setTeamMemberCertNumber(e.target.value)}
+                    placeholder="Team member's certification number"
+                    maxLength={100}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={assigningTeamMember}
+                  />
+                </div>
+              )}
               <div className="flex justify-end gap-3">
                 <Button
                   type="button"
@@ -1741,7 +1942,12 @@ const JobDetails = () => {
                 <Button
                   type="button"
                   onClick={handleAssignTeamMember}
-                  disabled={assigningTeamMember || !selectedTeamMemberId || teamMembers.length === 0}
+                  disabled={
+                    assigningTeamMember ||
+                    !selectedTeamMemberId ||
+                    teamMembers.length === 0 ||
+                    (requiresCertNumber && !teamMemberCertNumber.trim())
+                  }
                 >
                   {assigningTeamMember ? 'Saving...' : 'Save'}
                 </Button>

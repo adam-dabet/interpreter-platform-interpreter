@@ -2,6 +2,7 @@ export const SERVICE_TYPES = [
     { value: 'medical', label: 'Medical', description: 'Hospitals, clinics, medical appointments' },
     { value: 'legal', label: 'Legal', description: 'Courts, law offices, legal consultations' },
     { value: 'phone', label: 'Phone', description: 'Remote interpretation via phone' },
+    { value: 'phone_conference', label: 'Phone Conference', description: 'Non-medical phone call appointments' },
     { value: 'document', label: 'Document', description: 'Written document translation services' },
     { value: 'other', label: 'Other', description: 'Other interpretation services' },
   ];

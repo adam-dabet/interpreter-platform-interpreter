@@ -228,8 +228,10 @@ const JobDetails = () => {
     return member?.saved_certification_number || '';
   };
 
+  const confirmationReason = job?.confirmation_reason || 'initial_assignment';
   const promptForTeamMemberOnConfirm =
-    profile?.is_agency && job?.confirmation_reason === '2day_reminder';
+    profile?.is_agency &&
+    ['initial_assignment', '2day_reminder'].includes(confirmationReason);
 
   useEffect(() => {
     if (!showConfirmationModal || !promptForTeamMemberOnConfirm) return;

@@ -89,6 +89,8 @@ const JobDetails = () => {
   const [teamMemberCertNumber, setTeamMemberCertNumber] = useState('');
   const [confirmTeamMemberId, setConfirmTeamMemberId] = useState('');
   const [confirmCertNumber, setConfirmCertNumber] = useState('');
+  const [editingConfirmCert, setEditingConfirmCert] = useState(false);
+  const [editingTeamMemberCert, setEditingTeamMemberCert] = useState(false);
   const [newMemberFirstName, setNewMemberFirstName] = useState('');
   const [newMemberLastName, setNewMemberLastName] = useState('');
 
@@ -217,13 +219,13 @@ const JobDetails = () => {
     ['assigned', 'reminders_sent', 'in_progress'].includes(job?.status);
   const requiresCertNumber = CERT_NUMBER_REQUIRED_SERVICE_TYPE_CODES.includes(job?.service_type_code);
 
-  const getDefaultCertNumberFor = (memberId) => {
+  const getSavedCertNumberFor = (memberId) => {
     if (!memberId || memberId === NEW_TEAM_MEMBER_OPTION) return '';
     if (String(memberId) === String(job?.team_member_id) && job?.team_member_certification_number) {
       return job.team_member_certification_number;
     }
     const member = teamMembers.find((m) => String(m.id) === String(memberId));
-    return member?.last_certification_number || '';
+    return member?.saved_certification_number || '';
   };
 
   const promptForTeamMemberOnConfirm =
@@ -235,7 +237,8 @@ const JobDetails = () => {
       ? String(job.team_member_id)
       : teamMembers.length === 0 ? NEW_TEAM_MEMBER_OPTION : '';
     setConfirmTeamMemberId(initialId);
-    setConfirmCertNumber(getDefaultCertNumberFor(initialId));
+    setConfirmCertNumber(getSavedCertNumberFor(initialId));
+    setEditingConfirmCert(false);
     setNewMemberFirstName('');
     setNewMemberLastName('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -256,8 +259,12 @@ const JobDetails = () => {
 
   const handleConfirmTeamMemberChange = (value) => {
     setConfirmTeamMemberId(value);
-    setConfirmCertNumber(getDefaultCertNumberFor(value));
+    setConfirmCertNumber(getSavedCertNumberFor(value));
+    setEditingConfirmCert(false);
   };
+
+  const confirmSavedCertNumber = getSavedCertNumberFor(confirmTeamMemberId);
+  const teamMemberSavedCertNumber = getSavedCertNumberFor(selectedTeamMemberId);
 
   const isAddingNewTeamMember = confirmTeamMemberId === NEW_TEAM_MEMBER_OPTION;
   const agencyConfirmReady =
@@ -409,7 +416,7 @@ const JobDetails = () => {
         toast.error(response.data?.message || 'Failed to add team member');
         return null;
       }
-      setTeamMembers((prev) => [{ ...created, last_certification_number: null }, ...prev]);
+      setTeamMembers((prev) => [{ ...created, saved_certification_number: null }, ...prev]);
       setConfirmTeamMemberId(String(created.id));
       return created.id;
     } catch (error) {
@@ -599,13 +606,15 @@ const JobDetails = () => {
       : null;
     const initialId = currentId || (matchedByName ? String(matchedByName.id) : '');
     setSelectedTeamMemberId(initialId);
-    setTeamMemberCertNumber(getDefaultCertNumberFor(initialId));
+    setTeamMemberCertNumber(getSavedCertNumberFor(initialId));
+    setEditingTeamMemberCert(false);
     setShowTeamMemberModal(true);
   };
 
   const handleSelectTeamMember = (memberId) => {
     setSelectedTeamMemberId(memberId);
-    setTeamMemberCertNumber(getDefaultCertNumberFor(memberId));
+    setTeamMemberCertNumber(getSavedCertNumberFor(memberId));
+    setEditingTeamMemberCert(false);
   };
 
   const handleAssignTeamMember = async () => {
@@ -1629,7 +1638,21 @@ const JobDetails = () => {
                   </div>
                 )}
 
-                {requiresCertNumber && (
+                {requiresCertNumber && confirmSavedCertNumber && !editingConfirmCert && (
+                  <p className="text-sm text-gray-700">
+                    Cert # on file: <span className="font-medium">{confirmSavedCertNumber}</span>{' '}
+                    <button
+                      type="button"
+                      onClick={() => setEditingConfirmCert(true)}
+                      className="text-blue-600 hover:text-blue-700 underline text-xs"
+                      disabled={confirmationLoading}
+                    >
+                      Use a different number
+                    </button>
+                  </p>
+                )}
+
+                {requiresCertNumber && (!confirmSavedCertNumber || editingConfirmCert) && (
                   <div>
                     <label htmlFor="confirm_cert_number" className="block text-sm font-medium text-gray-700 mb-1">
                       Certification # *
@@ -1916,7 +1939,21 @@ const JobDetails = () => {
                   ))}
                 </div>
               )}
-              {requiresCertNumber && teamMembers.length > 0 && (
+              {requiresCertNumber && teamMemberSavedCertNumber && !editingTeamMemberCert && (
+                <p className="mb-4 text-sm text-gray-700">
+                  Cert # on file: <span className="font-medium">{teamMemberSavedCertNumber}</span>{' '}
+                  <button
+                    type="button"
+                    onClick={() => setEditingTeamMemberCert(true)}
+                    className="text-blue-600 hover:text-blue-700 underline text-xs"
+                    disabled={assigningTeamMember}
+                  >
+                    Use a different number
+                  </button>
+                </p>
+              )}
+              {requiresCertNumber && teamMembers.length > 0 && selectedTeamMemberId &&
+                (!teamMemberSavedCertNumber || editingTeamMemberCert) && (
                 <div className="mb-4">
                   <label htmlFor="team_member_cert_number" className="block text-sm font-medium text-gray-700 mb-1">
                     Certification # *

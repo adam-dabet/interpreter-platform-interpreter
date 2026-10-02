@@ -235,7 +235,7 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
             return language && language.name.toLowerCase().includes('spanish');
         });
         
-        if (serviceTypeCode === 'phone') {
+        if (serviceTypeCode === 'phone' || serviceTypeCode === 'phone_conference') {
             return hasSpanish ? 0.55 : 0.65; // 55 cents for Spanish, 65 cents for others
         } else if (serviceTypeCode === 'document') {
             return hasSpanish ? 0.10 : 0.14; // 10 cents for Spanish, 14 cents for others
@@ -826,14 +826,14 @@ const ServiceTypesStep = ({ formData, onNext, onPrevious, isFirstStep, isEditing
                                                         `${getLanguageSpecificRate(serviceType.code, serviceType.platform_rate_amount)}/${serviceType.platform_rate_unit === 'minutes' ? 'min' : serviceType.platform_rate_unit === 'word' ? 'word' : 'hr'}`}
                                                 </span>
                                             </div>
-                                            {(serviceType.code === 'phone' || serviceType.code === 'document') && (
+                                            {(serviceType.code === 'phone' || serviceType.code === 'phone_conference' || serviceType.code === 'document') && (
                                                 <div className="text-xs text-blue-600 mb-2">
                                                     {(() => {
                                                         const hasSpanish = formData.languages?.some(lang => {
                                                             const language = parametricData?.languages?.find(l => l.id === lang.language_id);
                                                             return language && language.name.toLowerCase().includes('spanish');
                                                         });
-                                                        if (serviceType.code === 'phone') {
+                                                        if (serviceType.code === 'phone' || serviceType.code === 'phone_conference') {
                                                             return hasSpanish ? 'Spanish rate (55¢/min)' : 'Other languages rate (65¢/min)';
                                                         } else if (serviceType.code === 'document') {
                                                             return hasSpanish ? 'Spanish rate (10¢/word)' : 'Other languages rate (14¢/word)';
